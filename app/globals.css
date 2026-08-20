@@ -2,26 +2,84 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 40 33% 97%;
+    --foreground: 0 0% 11%;
+    --card: 40 40% 99%;
+    --card-foreground: 0 0% 11%;
+    --popover: 40 40% 99%;
+    --popover-foreground: 0 0% 11%;
+    --primary: 43 54% 54%;
+    --primary-foreground: 152 51% 12%;
+    --secondary: 152 18% 94%;
+    --secondary-foreground: 152 51% 12%;
+    --muted: 40 18% 93%;
+    --muted-foreground: 30 8% 38%;
+    --accent: 43 48% 92%;
+    --accent-foreground: 152 51% 12%;
+    --destructive: 0 72% 46%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 40 16% 86%;
+    --input: 40 16% 86%;
+    --ring: 43 54% 54%;
+    --radius: 0.35rem;
+    --forest: 152 51% 12%;
+    --gold: 43 54% 54%;
+    --chart-1: 43 54% 54%;
+    --chart-2: 152 51% 12%;
+    --chart-3: 40 18% 70%;
+    --chart-4: 43 40% 40%;
+    --chart-5: 152 20% 30%;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-serif tracking-tight text-forest;
+  }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+
+  .gold-rule {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--gold) / 0.7),
+      transparent
+    );
+  }
+}
+
+.mapboxgl-popup-content {
+  @apply !rounded-md !border !border-border !bg-card !p-0 !shadow-lg;
+  font-family: inherit;
+}
+
+.mapboxgl-popup-tip {
+  border-top-color: hsl(var(--card)) !important;
+}
+
+.mapboxgl-ctrl-logo {
+  opacity: 0.45;
 }

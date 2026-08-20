@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // DEV ONLY — tighten before production (use Firebase Auth + admin claims).
+    match /teamMembers/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /properties/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
