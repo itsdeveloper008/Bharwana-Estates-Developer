@@ -21,7 +21,7 @@ import {
 } from "@/lib/firestore/team";
 import { teamMembers as localSeedTeam, type TeamMember } from "@/lib/mock-data/team";
 
-const STORAGE_KEY = "bharwana_team_members_v2";
+const STORAGE_KEY = "bharwana_team_members_v3";
 
 export type TeamMemberInput = Omit<TeamMember, "id">;
 
@@ -163,7 +163,7 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
     if (!isFirebaseConfigured()) {
       throw new Error("Add Firebase env vars first");
     }
-    const count = await writeSeedTeamToFirestore(localSeedTeam);
+    const count = await writeSeedTeamToFirestore(localSeedTeam, true);
     if (count === 0) {
       toast.message("Firestore team collection already has data.");
     } else {

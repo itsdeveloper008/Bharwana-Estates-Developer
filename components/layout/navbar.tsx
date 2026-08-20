@@ -22,6 +22,7 @@ const publicLinks = [
   { href: "/properties", label: "Residences" },
   { href: "/map", label: "Map" },
   { href: "/about", label: "About" },
+  { href: "/team", label: "Team" },
 ];
 
 export function Navbar() {

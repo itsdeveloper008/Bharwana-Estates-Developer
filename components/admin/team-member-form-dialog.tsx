@@ -87,6 +87,18 @@ export function TeamMemberFormDialog({
       email: values.email?.trim() || undefined,
       linkedinUrl: values.linkedinUrl?.trim() || undefined,
       photoUrl: values.photoUrl?.trim() || preview || DEFAULT_AVATAR,
+      about:
+        member?.about?.trim() ||
+        values.bio?.trim() ||
+        "Team member at Bharwana Estates Developer.",
+      expertise: member?.expertise ?? [],
+      responsibilities: member?.responsibilities ?? [],
+      highlights: member?.highlights ?? [],
+      phone: member?.phone,
+      location: member?.location,
+      department: member?.department,
+      yearsExperience: member?.yearsExperience,
+      quote: member?.quote,
     });
     onOpenChange(false);
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Mail } from "lucide-react";
 import type { TeamMember } from "@/lib/mock-data/team";
 import { cn } from "@/lib/utils";
@@ -22,7 +23,10 @@ export function TeamMemberCard({
 }) {
   if (featured) {
     return (
-      <article className="group relative grid overflow-hidden bg-forest lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+      <Link
+        href={`/team/${member.id}`}
+        className="group relative grid overflow-hidden bg-forest lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]"
+      >
         <div className="relative aspect-[4/5] min-h-[360px] lg:aspect-auto lg:min-h-[520px]">
           <Image
             src={member.photoUrl}
@@ -48,42 +52,19 @@ export function TeamMemberCard({
           <div className="mt-4 h-px w-14 bg-gold/70" />
           <p className="mt-4 text-[12px] uppercase tracking-[0.2em] text-gold">{member.role}</p>
           <p className="mt-6 max-w-md text-base leading-relaxed text-ivory/75">{member.bio}</p>
-          {(member.linkedinUrl || member.email) && (
-            <div className="mt-8 flex gap-4">
-              {member.linkedinUrl && (
-                <a
-                  href={member.linkedinUrl}
-                  aria-label={`${member.fullName} on LinkedIn`}
-                  className="text-ivory/50 transition-colors hover:text-gold"
-                  onClick={(event) => {
-                    if (member.linkedinUrl === "#") {
-                      event.preventDefault();
-                    }
-                  }}
-                >
-                  <LinkedInIcon className="h-5 w-5" />
-                </a>
-              )}
-              {member.email && (
-                <a
-                  href={`mailto:${member.email}`}
-                  aria-label={`Email ${member.fullName}`}
-                  className="text-ivory/50 transition-colors hover:text-gold"
-                >
-                  <Mail className="h-5 w-5" />
-                </a>
-              )}
-            </div>
-          )}
+          <span className="mt-8 text-[11px] uppercase tracking-[0.2em] text-gold group-hover:underline">
+            View full profile
+          </span>
         </div>
-      </article>
+      </Link>
     );
   }
 
   return (
-    <article
+    <Link
+      href={`/team/${member.id}`}
       className={cn(
-        "group overflow-hidden border border-forest/10 bg-ivory transition-all duration-500",
+        "group block overflow-hidden border border-forest/10 bg-ivory transition-all duration-500",
         "hover:-translate-y-1.5 hover:border-gold/50 hover:shadow-lift",
       )}
     >
@@ -93,28 +74,30 @@ export function TeamMemberCard({
           alt={member.fullName}
           fill
           className="object-cover object-top transition-transform duration-700 group-hover:scale-[1.04]"
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-forest/80 via-forest/20 to-transparent p-5 pt-16 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           <p className="line-clamp-3 text-sm leading-relaxed text-ivory/90">{member.bio}</p>
         </div>
       </div>
       <div className="border-t border-forest/5 px-5 py-5">
-        <h3 className="font-serif text-2xl text-forest transition-colors group-hover:text-gold-700">
+        <h3 className="font-serif text-xl text-forest transition-colors group-hover:text-gold-700">
           {member.fullName}
         </h3>
-        <p className="mt-1.5 text-[11px] uppercase tracking-[0.18em] text-gold-700">{member.role}</p>
-        <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground sm:hidden">
-          {member.bio}
+        <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-gold-700">{member.role}</p>
+        <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{member.bio}</p>
+        <p className="mt-3 text-[11px] uppercase tracking-[0.14em] text-forest/40 group-hover:text-gold-700">
+          Full profile →
         </p>
         {(member.linkedinUrl || member.email) && (
-          <div className="mt-4 flex gap-3">
+          <div className="mt-3 flex gap-3" onClick={(event) => event.preventDefault()}>
             {member.linkedinUrl && (
               <a
                 href={member.linkedinUrl}
                 aria-label={`${member.fullName} on LinkedIn`}
                 className="text-forest/40 transition-colors hover:text-gold"
                 onClick={(event) => {
+                  event.stopPropagation();
                   if (member.linkedinUrl === "#") event.preventDefault();
                 }}
               >
@@ -126,6 +109,7 @@ export function TeamMemberCard({
                 href={`mailto:${member.email}`}
                 aria-label={`Email ${member.fullName}`}
                 className="text-forest/40 transition-colors hover:text-gold"
+                onClick={(event) => event.stopPropagation()}
               >
                 <Mail className="h-4 w-4" />
               </a>
@@ -133,6 +117,6 @@ export function TeamMemberCard({
           </div>
         )}
       </div>
-    </article>
+    </Link>
   );
 }

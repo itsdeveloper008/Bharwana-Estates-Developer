@@ -5,6 +5,7 @@ const footerLinks = [
   { href: "/properties", label: "Residences" },
   { href: "/map", label: "Map" },
   { href: "/about", label: "About" },
+  { href: "/team", label: "Team" },
   { href: "/owner/add-property", label: "List a property" },
   { href: "/login", label: "Sign in" },
 ];

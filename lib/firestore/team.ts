@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { getDb, getFirebaseStorage, isFirebaseConfigured } from "@/lib/firebase/client";
-import type { TeamMember } from "@/lib/mock-data/team";
+import { teamMembers as seedTeam, type TeamMember } from "@/lib/mock-data/team";
 
 const COLLECTION = "teamMembers";
 
@@ -22,16 +22,62 @@ export interface TeamMemberDoc extends TeamMember {
   sortOrder: number;
 }
 
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(String) : [];
+}
+
 function mapDoc(id: string, data: Record<string, unknown>): TeamMemberDoc {
-  return {
+  const seed = seedTeam.find((member) => member.id === id);
+  const mapped: TeamMemberDoc = {
     id,
-    fullName: String(data.fullName ?? ""),
-    role: String(data.role ?? ""),
-    bio: String(data.bio ?? ""),
-    photoUrl: String(data.photoUrl ?? ""),
-    linkedinUrl: data.linkedinUrl ? String(data.linkedinUrl) : undefined,
-    email: data.email ? String(data.email) : undefined,
+    fullName: String(data.fullName ?? seed?.fullName ?? ""),
+    role: String(data.role ?? seed?.role ?? ""),
+    bio: String(data.bio ?? seed?.bio ?? ""),
+    photoUrl: String(data.photoUrl ?? seed?.photoUrl ?? ""),
+    linkedinUrl: data.linkedinUrl ? String(data.linkedinUrl) : seed?.linkedinUrl,
+    email: data.email ? String(data.email) : seed?.email,
+    phone: data.phone ? String(data.phone) : seed?.phone,
+    location: data.location ? String(data.location) : seed?.location,
+    department: data.department ? String(data.department) : seed?.department,
+    yearsExperience:
+      typeof data.yearsExperience === "number"
+        ? data.yearsExperience
+        : seed?.yearsExperience,
+    quote: data.quote ? String(data.quote) : seed?.quote,
+    about: String(data.about ?? seed?.about ?? ""),
+    expertise: asStringArray(data.expertise).length
+      ? asStringArray(data.expertise)
+      : seed?.expertise ?? [],
+    responsibilities: asStringArray(data.responsibilities).length
+      ? asStringArray(data.responsibilities)
+      : seed?.responsibilities ?? [],
+    highlights: asStringArray(data.highlights).length
+      ? asStringArray(data.highlights)
+      : seed?.highlights ?? [],
     sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : 0,
+  };
+  return mapped;
+}
+
+function toFirestorePayload(member: TeamMemberInput, sortOrder: number) {
+  return {
+    fullName: member.fullName,
+    role: member.role,
+    bio: member.bio,
+    photoUrl: member.photoUrl,
+    linkedinUrl: member.linkedinUrl ?? null,
+    email: member.email ?? null,
+    phone: member.phone ?? null,
+    location: member.location ?? null,
+    department: member.department ?? null,
+    yearsExperience: member.yearsExperience ?? null,
+    quote: member.quote ?? null,
+    about: member.about ?? "",
+    expertise: member.expertise ?? [],
+    responsibilities: member.responsibilities ?? [],
+    highlights: member.highlights ?? [],
+    sortOrder,
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -65,21 +111,7 @@ export async function upsertTeamMember(
 ): Promise<void> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");
-
-  await setDoc(
-    doc(db, COLLECTION, id),
-    {
-      fullName: input.fullName,
-      role: input.role,
-      bio: input.bio,
-      photoUrl: input.photoUrl,
-      linkedinUrl: input.linkedinUrl ?? null,
-      email: input.email ?? null,
-      sortOrder,
-      updatedAt: new Date().toISOString(),
-    },
-    { merge: true },
-  );
+  await setDoc(doc(db, COLLECTION, id), toFirestorePayload(input, sortOrder), { merge: true });
 }
 
 export async function deleteTeamMember(id: string): Promise<void> {
@@ -98,31 +130,21 @@ export async function reorderTeamMembers(orderedIds: string[]): Promise<void> {
   await batch.commit();
 }
 
-export async function seedTeamMembers(members: TeamMember[]): Promise<number> {
+export async function seedTeamMembers(members: TeamMember[], force = false): Promise<number> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");
 
   const existing = await getDocs(collection(db, COLLECTION));
-  if (!existing.empty) return 0;
+  if (!existing.empty && !force) return 0;
 
   const batch = writeBatch(db);
   members.forEach((member, index) => {
-    batch.set(doc(db, COLLECTION, member.id), {
-      fullName: member.fullName,
-      role: member.role,
-      bio: member.bio,
-      photoUrl: member.photoUrl,
-      linkedinUrl: member.linkedinUrl ?? null,
-      email: member.email ?? null,
-      sortOrder: index,
-      updatedAt: new Date().toISOString(),
-    });
+    batch.set(doc(db, COLLECTION, member.id), toFirestorePayload(member, index));
   });
   await batch.commit();
   return members.length;
 }
 
-/** Upload blob:/data: previews (or File) to Firebase Storage; leave http(s)/relative paths as-is. */
 export async function resolveTeamPhotoUrl(
   memberId: string,
   photoUrl: string,

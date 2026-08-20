@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { TeamMemberCard } from "@/components/about/TeamMemberCard";
+import { Button } from "@/components/ui/button";
 import { useTeamStore } from "@/lib/team-store";
 
 export function TeamGrid() {
@@ -32,9 +34,11 @@ export function TeamGrid() {
           <h2 className="mt-3 font-serif text-4xl sm:text-5xl">Meet the Team</h2>
           <div className="mx-auto mt-5 h-px w-16 bg-gold/60" />
           <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">
-            The hands and judgment behind every Bharwana introduction — leadership,
-            design, and the craft that presents each home with care.
+            Open a profile for the full story — role, expertise, and every detail behind the floor.
           </p>
+          <Button asChild variant="outline" className="mt-6">
+            <Link href="/team">View all profiles</Link>
+          </Button>
         </motion.div>
 
         {members.length === 0 ? (
