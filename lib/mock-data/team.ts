@@ -74,7 +74,7 @@ export const teamMembers: TeamMember[] = [
     about:
       "Talal Mirza is Managing Director at Bharwana Estates Developer. He turns strategy into a working floor — coordinating listings, sales stewardship, and the operational detail that keeps introductions precise.\n\nFrom possession checks to handover timelines, Talal keeps owners, buyers, and internal teams aligned. He is the person who makes sure a site visit is prepared, a file is complete, and a conversation ends with a clear next step.",
     quote: "Equal footing between buyer and owner is not a slogan — it is an operating standard.",
-    photoUrl: "/team/talal-mirza.jpeg",
+    photoUrl: "/team/talal-mirza.png",
     email: "talal@bharwana.example",
     phone: "+92 300 000 1002",
     expertise: [
@@ -138,7 +138,7 @@ export const teamMembers: TeamMember[] = [
     about:
       "Asfand Qurnain Ambiya is Video Editor at Bharwana Estates Developer. He shapes walkthroughs and brand films so a residence is felt before it is visited — pacing, light, and silence as much as spectacle.\n\nHis edits favour atmosphere over noise: doors opening, garden light, the weight of a hall. The goal is simple — when a buyer presses play, they should already understand the character of the home.",
     quote: "A home should be felt on screen before it is walked in person.",
-    photoUrl: "/team/asfand-ambiya.jpg",
+    photoUrl: "/team/asfand-ambiya.jpeg",
     email: "asfand@bharwana.example",
     phone: "+92 300 000 1004",
     expertise: [
