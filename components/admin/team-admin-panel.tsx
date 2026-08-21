@@ -83,7 +83,7 @@ function SortableRow({
         </div>
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">{member.role}</TableCell>
-      <TableCell className="text-sm text-muted-foreground">{member.email ?? "—"}</TableCell>
+      <TableCell className="text-sm text-muted-foreground">{member.email ?? "-"}</TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
           <Button type="button" variant="ghost" size="icon" onClick={onEdit} aria-label="Edit">

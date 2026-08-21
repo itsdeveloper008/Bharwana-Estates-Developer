@@ -54,7 +54,7 @@ export function InquiryModal({
       propertyId: property.id,
       buyerId: user?.id ?? "u-buyer-1",
       status: "NEW",
-      notes: `${values.fullName} · ${values.phone}${values.visitDate ? ` · visit ${values.visitDate}` : ""} — ${values.message}`,
+      notes: `${values.fullName} · ${values.phone}${values.visitDate ? ` · visit ${values.visitDate}` : ""}, ${values.message}`,
       createdAt: new Date().toISOString(),
     });
     toast.success(isOwnerListing ? "Message sent to the owner." : "Visit request received.");

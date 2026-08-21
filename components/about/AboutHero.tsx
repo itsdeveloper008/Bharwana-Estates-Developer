@@ -36,7 +36,7 @@ export function AboutHero() {
           <p className="mx-auto mt-6 max-w-xl text-sm leading-relaxed text-ivory/75 sm:text-base">
             Bharwana Estates Developer exists to place private homes and
             developer-verified residences on a single, honest floor. We favour
-            clarity over noise — so every conversation starts with the property,
+            clarity over noise, so every conversation starts with the property,
             not the pitch.
           </p>
         </motion.div>

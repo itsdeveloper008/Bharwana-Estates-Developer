@@ -33,7 +33,19 @@ function mapDoc(id: string, data: Record<string, unknown>): TeamMemberDoc {
     fullName: String(data.fullName ?? seed?.fullName ?? ""),
     role: String(data.role ?? seed?.role ?? ""),
     bio: String(data.bio ?? seed?.bio ?? ""),
-    photoUrl: String(data.photoUrl ?? seed?.photoUrl ?? ""),
+    photoUrl: (() => {
+      const fromData = data.photoUrl != null ? String(data.photoUrl) : "";
+      const fromSeed = seed?.photoUrl ?? "";
+      // Prefer updated seed cutouts over older local /team paths still stored in Firestore
+      if (
+        fromSeed.includes("-cutout") &&
+        fromData.startsWith("/team/") &&
+        !fromData.includes("-cutout")
+      ) {
+        return fromSeed;
+      }
+      return fromData || fromSeed || "";
+    })(),
     linkedinUrl: data.linkedinUrl ? String(data.linkedinUrl) : seed?.linkedinUrl,
     email: data.email ? String(data.email) : seed?.email,
     phone: data.phone ? String(data.phone) : seed?.phone,

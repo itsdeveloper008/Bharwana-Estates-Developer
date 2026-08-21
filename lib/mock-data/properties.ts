@@ -8,7 +8,7 @@ export const properties: Property[] = [
     id: "p-01",
     title: "Citrus Court Villa, DHA Phase 5",
     description:
-      "A composed family villa set on a quiet DHA Phase 5 boulevard. Limestone floors, a double-height sitting hall, and a walled garden with citrus trees. Staff quarters and a two-car basement are included. Direct from the owner — no developer markup.",
+      "A composed family villa set on a quiet DHA Phase 5 boulevard. Limestone floors, a double-height sitting hall, and a walled garden with citrus trees. Staff quarters and a two-car basement are included. Direct from the owner, no developer markup.",
     listingType: "DIRECT_OWNER",
     status: "PUBLISHED",
     price: 185000000,

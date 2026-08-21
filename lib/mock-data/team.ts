@@ -1,5 +1,5 @@
 // TODO: Replace placeholder emails/phones/LinkedIn when final details are provided.
-// Photos live in /public/team — edit this file (or Admin) to update profiles sitewide.
+// Photos live in /public/team, edit this file (or Admin) to update profiles sitewide.
 
 export interface TeamMember {
   id: string;
@@ -29,7 +29,7 @@ export interface CompanyStat {
   suffix?: string;
 }
 
-/** Real leadership & studio team — shared by About, /team, Admin, Firestore seed. */
+/** Real leadership & studio team, shared by About, /team, Admin, Firestore seed. */
 export const teamMembers: TeamMember[] = [
   {
     id: "team-falak",
@@ -40,9 +40,9 @@ export const teamMembers: TeamMember[] = [
     yearsExperience: 12,
     bio: "Leads Bharwana Estates Developer with a clear eye for lasting homes and honest dealings.",
     about:
-      "Falak Sher is the Chief Executive Officer of Bharwana Estates Developer. He sets the tone for how every residence is introduced — with clarity, discretion, and respect for the family behind the address. Under his leadership the firm has grown as a single floor for both direct-owner homes and developer-verified stock, so buyers never have to choose between honesty and presentation.\n\nHe focuses on long-term trust over short-term volume: careful documentation, measured site visits, and a sales culture that moves at the pace of a viewing rather than a funnel. Clients know him for calm counsel and for insisting that every listing earns its place on the floor.",
-    quote: "A house deserves a careful introduction — never a hurried pitch.",
-    photoUrl: "/team/falak-sher.jpeg",
+      "Falak Sher is the Chief Executive Officer of Bharwana Estates Developer. He sets the tone for how every residence is introduced, with clarity, discretion, and respect for the family behind the address. Under his leadership the firm has grown as a single floor for both direct-owner homes and developer-verified stock, so buyers never have to choose between honesty and presentation.\n\nHe focuses on long-term trust over short-term volume: careful documentation, measured site visits, and a sales culture that moves at the pace of a viewing rather than a funnel. Clients know him for calm counsel and for insisting that every listing earns its place on the floor.",
+    quote: "A house deserves a careful introduction, never a hurried pitch.",
+    photoUrl: "/team/falak-sher-cutout.png",
     email: "falak@bharwana.example",
     phone: "+92 300 000 1001",
     expertise: [
@@ -72,9 +72,9 @@ export const teamMembers: TeamMember[] = [
     yearsExperience: 10,
     bio: "Steers day-to-day operations and partnerships so buyers and owners meet on equal ground.",
     about:
-      "Talal Mirza is Managing Director at Bharwana Estates Developer. He turns strategy into a working floor — coordinating listings, sales stewardship, and the operational detail that keeps introductions precise.\n\nFrom possession checks to handover timelines, Talal keeps owners, buyers, and internal teams aligned. He is the person who makes sure a site visit is prepared, a file is complete, and a conversation ends with a clear next step.",
-    quote: "Equal footing between buyer and owner is not a slogan — it is an operating standard.",
-    photoUrl: "/team/talal-mirza.png",
+      "Talal Mirza is Managing Director at Bharwana Estates Developer. He turns strategy into a working floor, coordinating listings, sales stewardship, and the operational detail that keeps introductions precise.\n\nFrom possession checks to handover timelines, Talal keeps owners, buyers, and internal teams aligned. He is the person who makes sure a site visit is prepared, a file is complete, and a conversation ends with a clear next step.",
+    quote: "Equal footing between buyer and owner is not a slogan, it is an operating standard.",
+    photoUrl: "/team/talal-mirza-cutout.png",
     email: "talal@bharwana.example",
     phone: "+92 300 000 1002",
     expertise: [
@@ -102,11 +102,11 @@ export const teamMembers: TeamMember[] = [
     department: "Design Studio",
     location: "Lahore, Pakistan",
     yearsExperience: 8,
-    bio: "Shapes space, light, and finish — bringing architectural clarity to every residence.",
+    bio: "Shapes space, light, and finish, bringing architectural clarity to every residence.",
     about:
-      "Abdulrehman Azhar is the Architect and Interior Designer for Bharwana Estates Developer. He reads a home the way a buyer will live in it — light, proportion, material, and how rooms open into one another.\n\nHis work informs how we photograph, describe, and advise on residences. Whether refining a presentation package or advising on finish quality, he brings a designer’s eye so the floor stays as considered as the buildings themselves.",
-    quote: "Space should feel inevitable — light, proportion, and finish in quiet agreement.",
-    photoUrl: "/team/abdulrehman-azhar.jpg",
+      "Abdulrehman Azhar is the Architect and Interior Designer for Bharwana Estates Developer. He reads a home the way a buyer will live in it, light, proportion, material, and how rooms open into one another.\n\nHis work informs how we photograph, describe, and advise on residences. Whether refining a presentation package or advising on finish quality, he brings a designer’s eye so the floor stays as considered as the buildings themselves.",
+    quote: "Space should feel inevitable, light, proportion, and finish in quiet agreement.",
+    photoUrl: "/team/abdulrehman-azhar-cutout.png",
     email: "abdulrehman@bharwana.example",
     phone: "+92 300 000 1003",
     expertise: [
@@ -134,11 +134,11 @@ export const teamMembers: TeamMember[] = [
     department: "Creative Media",
     location: "Lahore, Pakistan",
     yearsExperience: 6,
-    bio: "Crafts the visual stories of our properties — quiet, cinematic frames that let the home speak.",
+    bio: "Crafts the visual stories of our properties, quiet, cinematic frames that let the home speak.",
     about:
-      "Asfand Qurnain Ambiya is Video Editor at Bharwana Estates Developer. He shapes walkthroughs and brand films so a residence is felt before it is visited — pacing, light, and silence as much as spectacle.\n\nHis edits favour atmosphere over noise: doors opening, garden light, the weight of a hall. The goal is simple — when a buyer presses play, they should already understand the character of the home.",
+      "Asfand Qurnain Ambiya is Video Editor at Bharwana Estates Developer. He shapes walkthroughs and brand films so a residence is felt before it is visited, pacing, light, and silence as much as spectacle.\n\nHis edits favour atmosphere over noise: doors opening, garden light, the weight of a hall. The goal is simple, when a buyer presses play, they should already understand the character of the home.",
     quote: "A home should be felt on screen before it is walked in person.",
-    photoUrl: "/team/asfand-ambiya.jpeg",
+    photoUrl: "/team/asfand-ambiya-cutout.png",
     email: "asfand@bharwana.example",
     phone: "+92 300 000 1004",
     expertise: [

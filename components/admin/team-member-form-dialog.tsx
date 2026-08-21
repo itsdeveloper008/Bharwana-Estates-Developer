@@ -212,7 +212,7 @@ export function TeamMemberFormDialog({
               <label className="flex cursor-pointer flex-col items-center justify-center border border-dashed border-forest/20 bg-white px-4 py-8 text-center">
                 <ImagePlus className="h-5 w-5 text-gold" />
                 <span className="mt-2 text-sm text-forest">Choose a local photo</span>
-                <span className="mt-1 text-xs text-muted-foreground">Preview only — not uploaded</span>
+                <span className="mt-1 text-xs text-muted-foreground">Preview only, not uploaded</span>
                 <input
                   type="file"
                   accept="image/*"

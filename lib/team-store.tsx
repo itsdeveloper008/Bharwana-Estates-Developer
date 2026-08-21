@@ -21,7 +21,7 @@ import {
 } from "@/lib/firestore/team";
 import { teamMembers as localSeedTeam, type TeamMember } from "@/lib/mock-data/team";
 
-const STORAGE_KEY = "bharwana_team_members_v4";
+const STORAGE_KEY = "bharwana_team_members_v5";
 
 export type TeamMemberInput = Omit<TeamMember, "id">;
 

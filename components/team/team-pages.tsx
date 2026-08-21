@@ -57,7 +57,7 @@ export function TeamProfile({ memberId }: { memberId: string }) {
               alt={member.fullName}
               fill
               priority
-              className="object-cover object-top"
+              className="object-contain object-bottom"
               sizes="(max-width: 1024px) 100vw, 45vw"
             />
           </motion.div>
@@ -247,7 +247,7 @@ export function TeamProfile({ memberId }: { memberId: string }) {
                       src={person.photoUrl}
                       alt={person.fullName}
                       fill
-                      className="object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
+                      className="object-contain object-bottom transition-transform duration-500 group-hover:scale-[1.03]"
                       sizes="33vw"
                     />
                   </div>
@@ -271,100 +271,123 @@ export function TeamProfile({ memberId }: { memberId: string }) {
 
 export function TeamDirectory() {
   const { members } = useTeamStore();
-  const [featured, ...rest] = members;
+
+  const accents = [
+    { mist: "from-ivory/25 via-ivory/5", glow: "bg-ivory/15", edge: "border-gold/50" },
+    { mist: "from-gold/35 via-gold/10", glow: "bg-gold/20", edge: "border-gold/60" },
+    { mist: "from-gold-600/30 via-forest/40", glow: "bg-gold/15", edge: "border-gold/45" },
+    { mist: "from-forest-800/60 via-forest/30", glow: "bg-forest-800/50", edge: "border-gold/40" },
+  ] as const;
 
   return (
-    <>
-      <section className="relative overflow-hidden bg-forest py-20 sm:py-24">
+    <div className="bg-forest">
+      <section className="relative overflow-hidden border-b border-gold/20 bg-forest px-4 py-16 text-center sm:px-6 sm:py-20">
         <Image
           src="/logo.png"
           alt=""
-          width={480}
-          height={480}
-          className="pointer-events-none absolute -right-16 top-1/2 h-80 w-80 -translate-y-1/2 object-contain opacity-[0.07]"
+          width={420}
+          height={420}
+          className="pointer-events-none absolute -right-12 top-1/2 h-64 w-64 -translate-y-1/2 object-contain opacity-[0.07]"
           aria-hidden
         />
-        <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <p className="font-display text-sm tracking-crest text-gold">BHARWANA</p>
-          <h1 className="mt-4 font-serif text-4xl text-ivory sm:text-5xl">Our Team</h1>
-          <div className="mx-auto mt-6 h-px w-16 bg-gold/70" />
-          <p className="mx-auto mt-6 max-w-xl text-sm leading-relaxed text-ivory/75 sm:text-base">
-            Leadership, design, and craft — open a profile to read every detail behind the floor.
-          </p>
-        </div>
+        <p className="font-display text-sm tracking-crest text-gold">BHARWANA</p>
+        <h1 className="mt-3 font-serif text-4xl text-ivory sm:text-5xl">Our Team</h1>
+        <div className="mx-auto mt-5 h-px w-16 bg-gold/70" />
+        <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-ivory/70">
+          Leadership, design, and craft, open a profile to read every detail behind the floor.
+        </p>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
-        {featured && (
+      {members.map((member, index) => {
+        const accent = accents[index % accents.length];
+        return (
           <Link
-            href={`/team/${featured.id}`}
-            className="group mb-12 grid overflow-hidden bg-forest lg:grid-cols-2"
+            key={member.id}
+            href={`/team/${member.id}`}
+            className="group relative block min-h-[100svh] overflow-hidden bg-[#081910]"
           >
-            <div className="relative aspect-[4/5] min-h-[360px] lg:aspect-auto lg:min-h-[480px]">
-              <Image
-                src={featured.photoUrl}
-                alt={featured.fullName}
-                fill
-                className="object-cover object-top transition-transform duration-700 group-hover:scale-[1.02]"
-                sizes="50vw"
-                priority
-              />
-            </div>
-            <div className="flex flex-col justify-center px-8 py-12 text-ivory sm:px-12">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-gold">
-                {featured.department ?? "Leadership"}
+            <div
+              className={`pointer-events-none absolute inset-x-[-10%] bottom-[-8%] z-[1] h-[55%] rounded-[100%] blur-3xl ${accent.glow}`}
+              aria-hidden
+            />
+            <div
+              className={`pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-[48%] bg-gradient-to-t ${accent.mist} to-transparent`}
+              aria-hidden
+            />
+            <div className="pointer-events-none absolute inset-0 z-[3] bg-gradient-to-b from-forest/80 via-transparent to-[#081910]/90" aria-hidden />
+
+            <div
+              className={`pointer-events-none absolute inset-[7%] z-10 border ${accent.edge} sm:inset-[9%] lg:inset-[10%_12%]`}
+              aria-hidden
+            />
+
+            <div className="relative z-20 mx-auto flex min-h-[100svh] max-w-7xl flex-col px-4 py-16 sm:px-8 lg:px-12">
+              <div className="grid flex-1 items-center gap-8 pt-6 lg:grid-cols-[1fr_minmax(0,0.95fr)_1fr] lg:gap-4 lg:pt-10">
+                <motion.div
+                  initial={{ opacity: 0, x: -16 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, amount: 0.4 }}
+                  transition={{ duration: 0.6 }}
+                  className="relative z-30 order-2 self-center text-left lg:order-1 lg:pl-2"
+                >
+                  <p className="font-serif text-3xl uppercase tracking-[0.08em] text-gold sm:text-4xl lg:text-5xl">
+                    {member.fullName}
+                  </p>
+                  <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-ivory/65">
+                    {member.role}
+                  </p>
+                  {member.department ? (
+                    <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-gold/70">
+                      {member.department}
+                    </p>
+                  ) : null}
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.35 }}
+                  transition={{ duration: 0.7 }}
+                  className="relative z-20 order-1 mx-auto aspect-[3/4] w-full max-w-[320px] sm:max-w-[380px] lg:order-2 lg:max-w-none lg:w-full"
+                >
+                  <div className="absolute -inset-x-6 bottom-0 top-1/3 bg-gradient-to-t from-[#081910] via-[#081910]/40 to-transparent lg:-inset-x-10" />
+                  <Image
+                    src={member.photoUrl}
+                    alt={member.fullName}
+                    fill
+                    priority={index === 0}
+                    className="object-contain object-bottom transition-transform duration-700 group-hover:scale-[1.03]"
+                    sizes="(max-width: 1024px) 80vw, 36vw"
+                  />
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, x: 16 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, amount: 0.4 }}
+                  transition={{ duration: 0.6, delay: 0.05 }}
+                  className="relative z-30 order-3 self-center text-left lg:pr-2 lg:text-right"
+                >
+                  <span className="font-serif text-5xl leading-none text-gold/50 lg:text-6xl" aria-hidden>
+                    ”
+                  </span>
+                  <p className="mt-2 font-serif text-lg leading-snug text-ivory/85 sm:text-xl lg:text-2xl">
+                    {member.quote ?? member.bio}
+                  </p>
+                  <span className="mt-6 inline-block text-[10px] uppercase tracking-[0.22em] text-gold transition-colors group-hover:text-ivory">
+                    View full profile
+                  </span>
+                </motion.div>
+              </div>
+
+              <p className="relative z-30 mt-10 pb-4 text-center font-serif text-2xl uppercase tracking-[0.35em] text-gold/90 sm:text-3xl md:text-4xl lg:tracking-[0.42em]">
+                Bharwana Estates
               </p>
-              <h2 className="mt-3 font-serif text-4xl sm:text-5xl">{featured.fullName}</h2>
-              <p className="mt-4 text-sm uppercase tracking-[0.18em] text-gold">{featured.role}</p>
-              <p className="mt-6 max-w-md text-sm leading-relaxed text-ivory/75">{featured.bio}</p>
-              <span className="mt-8 text-[11px] uppercase tracking-[0.2em] text-gold group-hover:underline">
-                View full profile
-              </span>
             </div>
           </Link>
-        )}
-
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {rest.map((member, index) => (
-            <motion.div
-              key={member.id}
-              initial={{ opacity: 0, y: 14 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: Math.min(index * 0.06, 0.24) }}
-            >
-              <TeamDirectoryCard member={member} />
-            </motion.div>
-          ))}
-        </div>
-      </section>
-    </>
+        );
+      })}
+    </div>
   );
 }
 
-function TeamDirectoryCard({ member }: { member: TeamMember }) {
-  return (
-    <Link
-      href={`/team/${member.id}`}
-      className="group block overflow-hidden border border-forest/10 bg-ivory transition-all duration-500 hover:-translate-y-1 hover:border-gold/45 hover:shadow-lift"
-    >
-      <div className="relative aspect-[3/4] overflow-hidden bg-cream">
-        <Image
-          src={member.photoUrl}
-          alt={member.fullName}
-          fill
-          className="object-cover object-top transition-transform duration-700 group-hover:scale-[1.04]"
-          sizes="(max-width: 768px) 100vw, 33vw"
-        />
-      </div>
-      <div className="p-5">
-        <h3 className="font-serif text-2xl text-forest group-hover:text-gold-700">{member.fullName}</h3>
-        <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-gold-700">{member.role}</p>
-        <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{member.bio}</p>
-        <p className="mt-4 text-[11px] uppercase tracking-[0.16em] text-forest/50 group-hover:text-gold-700">
-          Full profile →
-        </p>
-      </div>
-    </Link>
-  );
-}

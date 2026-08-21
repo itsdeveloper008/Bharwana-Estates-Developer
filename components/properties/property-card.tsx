@@ -14,13 +14,42 @@ export function PropertyCard({
   property,
   layout = "grid",
   onHover,
+  onSelect,
 }: {
   property: Property;
   layout?: "grid" | "list";
   onHover?: (id: string | null) => void;
+  onSelect?: (id: string) => void;
 }) {
   const { isSaved, toggle } = useFavorites();
   const saved = isSaved(property.id);
+
+  const media = (
+    <>
+      {property.images[0]?.startsWith("data:") ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={property.images[0]}
+          alt={property.title}
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+        />
+      ) : (
+        <Image
+          src={property.images[0]}
+          alt={property.title}
+          fill
+          className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+          sizes="(max-width: 768px) 100vw, 33vw"
+        />
+      )}
+      <Badge
+        variant={property.listingType === "DIRECT_OWNER" ? "owner" : "verified"}
+        className="absolute left-3 top-3 text-[10px] uppercase"
+      >
+        {listingBadge(property.listingType)}
+      </Badge>
+    </>
+  );
 
   return (
     <article
@@ -31,30 +60,19 @@ export function PropertyCard({
       onMouseEnter={() => onHover?.(property.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      <Link href={`/property/${property.id}`} className="relative block aspect-[4/3] overflow-hidden">
-        {property.images[0]?.startsWith("data:") ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={property.images[0]}
-            alt={property.title}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-          />
-        ) : (
-          <Image
-            src={property.images[0]}
-            alt={property.title}
-            fill
-            className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-            sizes="(max-width: 768px) 100vw, 33vw"
-          />
-        )}
-        <Badge
-          variant={property.listingType === "DIRECT_OWNER" ? "owner" : "verified"}
-          className="absolute left-3 top-3 text-[10px] uppercase"
+      {onSelect ? (
+        <button
+          type="button"
+          className="relative block aspect-[4/3] w-full overflow-hidden text-left"
+          onClick={() => onSelect(property.id)}
         >
-          {listingBadge(property.listingType)}
-        </Badge>
-      </Link>
+          {media}
+        </button>
+      ) : (
+        <Link href={`/property/${property.id}`} className="relative block aspect-[4/3] overflow-hidden">
+          {media}
+        </Link>
+      )}
       <div className="flex flex-col p-4">
         <div className="flex items-start justify-between gap-3">
           <div>

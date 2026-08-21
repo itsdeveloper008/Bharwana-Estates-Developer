@@ -34,7 +34,7 @@ export function TeamGrid() {
           <h2 className="mt-3 font-serif text-4xl sm:text-5xl">Meet the Team</h2>
           <div className="mx-auto mt-5 h-px w-16 bg-gold/60" />
           <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Open a profile for the full story — role, expertise, and every detail behind the floor.
+            Open a profile for the full story, role, expertise, and every detail behind the floor.
           </p>
           <Button asChild variant="outline" className="mt-6">
             <Link href="/team">View all profiles</Link>

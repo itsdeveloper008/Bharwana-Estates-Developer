@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Map, { Marker } from "react-map-gl/mapbox";
-import "mapbox-gl/dist/mapbox-gl.css";
+import Map, { Marker } from "react-map-gl/maplibre";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { PropertyPin } from "@/components/map/property-pin";
-import { MapFallback } from "@/components/map/map-fallback";
 import { Input } from "@/components/ui/input";
-import { CITY_COORDS, DEFAULT_MAP_VIEW, MAPBOX_TOKEN } from "@/lib/map";
+import { CITY_COORDS, DEFAULT_MAP_VIEW, MAP_STYLE, MAPBOX_TOKEN, hasMapboxToken } from "@/lib/map";
 import { CITIES } from "@/lib/types";
 
 export function MapPicker({
@@ -33,8 +32,7 @@ export function MapPicker({
       onChange({ latitude: next.latitude, longitude: next.longitude });
       return;
     }
-    if (!MAPBOX_TOKEN || !query.trim()) return;
-    // Frontend geocoding only — no app backend.
+    if (!hasMapboxToken() || !query.trim()) return;
     const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&country=pk&limit=1`;
     const response = await fetch(url);
     const data = await response.json();
@@ -45,33 +43,11 @@ export function MapPicker({
     onChange({ latitude: lat, longitude: lng });
   }
 
-  if (!MAPBOX_TOKEN) {
-    return (
-      <div className="space-y-3">
-        <MapFallback message="A Mapbox token enables the pin picker. You can still enter coordinates manually." />
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            type="number"
-            step="0.0001"
-            value={latitude}
-            onChange={(event) => onChange({ latitude: Number(event.target.value), longitude })}
-          />
-          <Input
-            type="number"
-            step="0.0001"
-            value={longitude}
-            onChange={(event) => onChange({ latitude, longitude: Number(event.target.value) })}
-          />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3">
       <Input
         value={query}
-        placeholder="Search a city or street, then drag the pin"
+        placeholder="Search a city (e.g. Lahore), then drag the pin"
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
@@ -83,8 +59,7 @@ export function MapPicker({
       />
       <div className="h-72 overflow-hidden">
         <Map
-          mapboxAccessToken={MAPBOX_TOKEN}
-          mapStyle="mapbox://styles/mapbox/light-v11"
+          mapStyle={MAP_STYLE}
           {...view}
           onMove={(event) => setView(event.viewState)}
           onClick={(event) => {
@@ -104,7 +79,7 @@ export function MapPicker({
         </Map>
       </div>
       <p className="text-xs text-muted-foreground">
-        {latitude.toFixed(5)}, {longitude.toFixed(5)} — click the map or drag the pin.
+        {latitude.toFixed(5)}, {longitude.toFixed(5)}, click the map or drag the pin.
       </p>
     </div>
   );

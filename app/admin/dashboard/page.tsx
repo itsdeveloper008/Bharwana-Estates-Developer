@@ -70,7 +70,7 @@ export default function AdminDashboardPage() {
           ? `Firebase connected. Team ${teamOnFirestore ? "on" : "off"} Firestore · Properties ${
               propsOnFirestore ? "on" : "off"
             } Firestore.`
-          : "Firebase env not set — using local mock/seed data."}
+          : "Firebase env not set, using local mock/seed data."}
       </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

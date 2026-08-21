@@ -15,6 +15,7 @@ export function filtersFromSearchParams(
   const maxPrice = get("maxPrice");
   const bedrooms = get("beds");
   const bathrooms = get("baths");
+  const minArea = get("minArea");
   return {
     query: get("q") || undefined,
     city: get("city") || undefined,
@@ -26,6 +27,7 @@ export function filtersFromSearchParams(
     maxPrice: maxPrice ? Number(maxPrice) : undefined,
     bedrooms: bedrooms ? Number(bedrooms) : undefined,
     bathrooms: bathrooms ? Number(bathrooms) : undefined,
+    minArea: minArea ? Number(minArea) : undefined,
   };
 }
 

@@ -34,33 +34,33 @@ const reasons = [
 export default function HomePage() {
   return (
     <>
-      <section className="relative min-h-[88vh] overflow-hidden">
+      <section className="relative min-h-[92vh] overflow-hidden">
         <Image
-          src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=2000&q=80"
+          src="/hero.jpeg"
           alt=""
           fill
           className="object-cover"
           priority
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-forest/70 via-forest/55 to-forest/80" />
-        <div className="relative z-10 mx-auto flex min-h-[88vh] max-w-5xl flex-col items-center justify-center px-4 py-24 text-center">
+        <div className="absolute inset-0 bg-gradient-to-b from-forest/55 via-forest/45 to-forest/75" />
+        <div className="relative z-10 mx-auto flex min-h-[92vh] max-w-6xl flex-col items-center justify-center px-4 py-16 text-center sm:py-20">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: "easeOut" }}
-            className="flex flex-col items-center"
+            className="flex w-full flex-col items-center"
           >
-          <Image src="/logo.png" alt="Bharwana Estates Developer" width={92} height={92} className="h-[92px] w-[92px] object-contain" />
-          <p className="mt-6 font-display text-sm tracking-crest text-gold">BHARWANA</p>
-          <h1 className="mt-4 max-w-3xl font-serif text-4xl text-ivory sm:text-6xl sm:leading-[1.05]">
-            Homes held with the gravity of a family name.
-          </h1>
-          <p className="mt-5 max-w-xl text-sm text-ivory/75 sm:text-base">
-            Direct-owner residences and developer-verified stock, presented as a brochure — not a marketplace stall.
-          </p>
-          <div className="mt-10 w-full">
-            <HeroSearch />
-          </div>
+            <Image src="/logo.png" alt="Bharwana Estates Developer" width={92} height={92} className="h-[92px] w-[92px] object-contain" />
+            <p className="mt-2 font-display text-sm tracking-crest text-gold">BHARWANA</p>
+            <h1 className="mt-3 max-w-3xl font-serif text-4xl text-ivory sm:text-5xl sm:leading-[1.08]">
+              Homes held with the gravity of a family name.
+            </h1>
+            <p className="mt-4 max-w-xl text-sm text-ivory/75 sm:text-base">
+              Direct-owner residences and developer-verified stock, presented as a brochure, not a marketplace stall.
+            </p>
+            <div className="mt-8 w-full">
+              <HeroSearch />
+            </div>
           </motion.div>
         </div>
       </section>

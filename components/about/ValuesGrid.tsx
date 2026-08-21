@@ -14,7 +14,7 @@ const values = [
     icon: MapPinned,
     title: "Local Expertise",
     description:
-      "Neighbourhood knowledge that goes beyond a pin on a map — schools, light, and how a street actually lives.",
+      "Neighbourhood knowledge that goes beyond a pin on a map, schools, light, and how a street actually lives.",
   },
   {
     icon: Handshake,
