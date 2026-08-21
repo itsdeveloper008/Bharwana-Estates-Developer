@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ArrowLeft, Mail, MapPin, Phone } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import type { TeamMember } from "@/lib/mock-data/team";
 import { useTeamStore } from "@/lib/team-store";
 
 function LinkedInIcon({ className }: { className?: string }) {
