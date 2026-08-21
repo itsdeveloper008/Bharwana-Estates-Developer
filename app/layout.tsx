@@ -28,9 +28,13 @@ export const metadata: Metadata = {
   description:
     "A considered marketplace for private homes and developer-verified residences across Pakistan.",
   icons: {
-    icon: [{ url: "/logo.png", type: "image/png", sizes: "any" }],
-    apple: [{ url: "/logo.png", type: "image/png" }],
-    shortcut: "/logo.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/logo.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: "/favicon.ico",
   },
 };
 
