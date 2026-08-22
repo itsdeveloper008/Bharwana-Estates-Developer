@@ -10,9 +10,13 @@ const nextConfig = {
         protocol: "https",
         hostname: "firebasestorage.googleapis.com",
       },
+      {
+        protocol: "https",
+        hostname: "bharwana-estate-developer.firebasestorage.app",
+      },
     ],
   },
-  transpilePackages: ["mapbox-gl", "react-map-gl"],
+  transpilePackages: ["mapbox-gl", "react-map-gl", "maplibre-gl"],
 };
 
 export default nextConfig;

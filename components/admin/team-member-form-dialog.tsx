@@ -83,14 +83,14 @@ export function TeamMemberFormDialog({
     onSave({
       fullName: values.fullName.trim(),
       role: values.role.trim(),
-      bio: values.bio?.trim() || "Team member at Bharwana Estates Developer.",
+      bio: values.bio?.trim() || "Team member at Bharwana Estates Dealer.",
       email: values.email?.trim() || undefined,
       linkedinUrl: values.linkedinUrl?.trim() || undefined,
       photoUrl: values.photoUrl?.trim() || preview || DEFAULT_AVATAR,
       about:
         member?.about?.trim() ||
         values.bio?.trim() ||
-        "Team member at Bharwana Estates Developer.",
+        "Team member at Bharwana Estates Dealer.",
       expertise: member?.expertise ?? [],
       responsibilities: member?.responsibilities ?? [],
       highlights: member?.highlights ?? [],

@@ -8,7 +8,8 @@ export type PropertyStatus =
   | "PUBLISHED"
   | "RESERVED"
   | "SOLD"
-  | "ARCHIVED";
+  | "ARCHIVED"
+  | "REJECTED";
 
 export type InquiryStatus =
   | "NEW"
@@ -18,6 +19,8 @@ export type InquiryStatus =
   | "NEGOTIATION"
   | "CLOSED_WON"
   | "CLOSED_LOST";
+
+export type InquiryChannel = "PLATFORM_ASSISTED" | "DIRECT_TO_SELLER";
 
 export interface User {
   id: string;
@@ -53,6 +56,8 @@ export interface Property {
   ownerUserId?: string;
   developerId?: string;
   createdAt: string;
+  /** Set when status is REJECTED */
+  rejectionReason?: string;
 }
 
 export interface Inquiry {
@@ -61,6 +66,7 @@ export interface Inquiry {
   buyerId: string;
   assignedSalesId?: string;
   status: InquiryStatus;
+  channel: InquiryChannel;
   notes: string;
   createdAt: string;
 }

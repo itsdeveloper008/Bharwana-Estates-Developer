@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDocs,
   onSnapshot,
@@ -31,6 +32,7 @@ function mapProperty(id: string, data: Record<string, unknown>): Property {
     ownerUserId: data.ownerUserId ? String(data.ownerUserId) : undefined,
     developerId: data.developerId ? String(data.developerId) : undefined,
     createdAt: String(data.createdAt ?? new Date().toISOString()),
+    rejectionReason: data.rejectionReason ? String(data.rejectionReason) : undefined,
   };
 }
 
@@ -50,14 +52,25 @@ export function subscribeProperties(
   );
 }
 
-export async function seedProperties(properties: Property[]): Promise<number> {
+/** Replace inventory in Firestore. When force=true, deletes existing docs first. */
+export async function seedProperties(properties: Property[], force = false): Promise<number> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");
 
   const existing = await getDocs(collection(db, COLLECTION));
-  if (!existing.empty) return 0;
+  if (!existing.empty && !force) return 0;
 
-  // Firestore batches max 500 ops
+  if (!existing.empty && force) {
+    const chunkSize = 400;
+    const docs = existing.docs;
+    for (let i = 0; i < docs.length; i += chunkSize) {
+      const chunk = docs.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+      chunk.forEach((item) => batch.delete(item.ref));
+      await batch.commit();
+    }
+  }
+
   const chunkSize = 400;
   for (let i = 0; i < properties.length; i += chunkSize) {
     const chunk = properties.slice(i, i + chunkSize);
@@ -74,4 +87,10 @@ export async function upsertProperty(property: Property): Promise<void> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");
   await setDoc(doc(db, COLLECTION, property.id), { ...property }, { merge: true });
+}
+
+export async function deleteProperty(id: string): Promise<void> {
+  const db = getDb();
+  if (!db) throw new Error("Firebase is not configured");
+  await deleteDoc(doc(db, COLLECTION, id));
 }

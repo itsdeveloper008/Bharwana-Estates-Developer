@@ -82,7 +82,7 @@ function FiltersForm({
           <SelectContent>
             <SelectItem value="ALL">Any origin</SelectItem>
             <SelectItem value="DIRECT_OWNER">Direct from owner</SelectItem>
-            <SelectItem value="BUSINESS">Developer verified</SelectItem>
+            <SelectItem value="BUSINESS">Dealer verified</SelectItem>
           </SelectContent>
         </Select>
       </div>

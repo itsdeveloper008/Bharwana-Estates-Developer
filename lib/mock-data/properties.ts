@@ -8,7 +8,7 @@ export const properties: Property[] = [
     id: "p-01",
     title: "Citrus Court Villa, DHA Phase 5",
     description:
-      "A composed family villa set on a quiet DHA Phase 5 boulevard. Limestone floors, a double-height sitting hall, and a walled garden with citrus trees. Staff quarters and a two-car basement are included. Direct from the owner, no developer markup.",
+      "A composed family villa set on a quiet DHA Phase 5 boulevard. Limestone floors, a double-height sitting hall, and a walled garden with citrus trees. Staff quarters and a two-car basement are included. Direct from the owner, no Dealer markup.",
     listingType: "DIRECT_OWNER",
     status: "PUBLISHED",
     price: 185000000,
@@ -77,7 +77,7 @@ export const properties: Property[] = [
     id: "p-04",
     title: "Clifton Sea-Line Apartment 14B",
     description:
-      "A high-floor apartment on Clifton Block 2 with an uninterrupted sea line. Two parking stalls, a maid’s room, and a recently refitted kitchen. Developer-verified building management and a clear NOC.",
+      "A high-floor apartment on Clifton Block 2 with an uninterrupted sea line. Two parking stalls, a maid’s room, and a recently refitted kitchen. Dealer-verified building management and a clear NOC.",
     listingType: "BUSINESS",
     status: "PUBLISHED",
     price: 67500000,
@@ -376,7 +376,7 @@ export const properties: Property[] = [
     id: "p-17",
     title: "Askari XI Family Apartment",
     description:
-      "A well-managed Askari XI apartment with park views. Three bedrooms, two parking, and a residents’ club. Developer-verified society NOC.",
+      "A well-managed Askari XI apartment with park views. Three bedrooms, two parking, and a residents’ club. Dealer-verified society NOC.",
     listingType: "BUSINESS",
     status: "PUBLISHED",
     price: 33500000,

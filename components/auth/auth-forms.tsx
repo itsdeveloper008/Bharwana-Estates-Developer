@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -9,13 +9,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { findMockUser } from "@/lib/api/users";
 import { useMockAuth } from "@/lib/mock-auth";
-import { users } from "@/lib/mock-data/users";
-import { loginSchema, otpSchema } from "@/lib/schemas";
-import { delay } from "@/lib/utils";
+import { registerSchema, userLoginSchema, type RegisterFormValues, type UserLoginValues } from "@/lib/schemas";
 import type { UserRole } from "@/lib/types";
-import { z } from "zod";
 
 const roleHome: Record<UserRole, string> = {
   BUYER: "/properties",
@@ -24,250 +20,217 @@ const roleHome: Record<UserRole, string> = {
   ADMIN: "/admin",
 };
 
+function safeReturnTo(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
 export function LoginForm() {
   const router = useRouter();
-  const { loginAs } = useMockAuth();
-  const [step, setStep] = useState<"identifier" | "otp">("identifier");
-  const [identifier, setIdentifier] = useState("");
+  const searchParams = useSearchParams();
+  const { login } = useMockAuth();
+  const [error, setError] = useState<string | null>(null);
 
-  const idForm = useForm<z.infer<typeof loginSchema>>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { identifier: "" },
-  });
-  const otpForm = useForm<z.infer<typeof otpSchema>>({
-    resolver: zodResolver(otpSchema),
-    defaultValues: { otp: "" },
+  const form = useForm<UserLoginValues>({
+    resolver: zodResolver(userLoginSchema),
+    defaultValues: { email: "", password: "" },
   });
 
-  async function requestCode(values: z.infer<typeof loginSchema>) {
-    // TODO: replace with real backend call
-    await delay(500);
-    setIdentifier(values.identifier);
-    setStep("otp");
-    toast.message("Use any 6-digit code. This is a UI preview.");
+  async function onSubmit(values: UserLoginValues) {
+    setError(null);
+    const result = await login(values.email, values.password);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    toast.success("Signed in");
+    const returnTo = safeReturnTo(searchParams.get("returnTo"));
+    router.push(returnTo ?? roleHome[result.user.role]);
   }
 
-  async function verify() {
-    // TODO: replace with real backend call
-    await delay(600);
-    const matched = findMockUser(identifier) ?? users.find((user) => user.role === "BUYER");
-    if (!matched) return;
-    loginAs(matched);
-    toast.success(`Signed in as ${matched.fullName}`);
-    router.push(roleHome[matched.role]);
-  }
+  const registerHref = (() => {
+    const returnTo = searchParams.get("returnTo");
+    return returnTo ? `/register?returnTo=${encodeURIComponent(returnTo)}` : "/register";
+  })();
 
   return (
     <div className="space-y-6">
-      {step === "identifier" ? (
-        <Form {...idForm}>
-          <form onSubmit={idForm.handleSubmit(requestCode)} className="space-y-4">
-            <FormField
-              control={idForm.control}
-              name="identifier"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email or phone</FormLabel>
-                  <FormControl>
-                    <Input className="bg-white" placeholder="ahmed.khan@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="w-full" disabled={idForm.formState.isSubmitting}>
-              Send code
-            </Button>
-          </form>
-        </Form>
-      ) : (
-        <Form {...otpForm}>
-          <form onSubmit={otpForm.handleSubmit(verify)} className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              A six-digit code was “sent” to {identifier}. Enter any six digits to continue.
-            </p>
-            <FormField
-              control={otpForm.control}
-              name="otp"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>One-time code</FormLabel>
-                  <FormControl>
-                    <Input className="bg-white tracking-[0.4em]" maxLength={6} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="w-full" disabled={otpForm.formState.isSubmitting}>
-              Verify
-            </Button>
-            <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("identifier")}>
-              Use a different number
-            </Button>
-          </form>
-        </Form>
-      )}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input className="bg-white" type="email" placeholder="imran@bharwana.example" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input className="bg-white" type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
+          </Button>
+        </form>
+      </Form>
 
-      <div>
-        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Review as</p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {users.map((user) => (
-            <Button
-              key={user.id}
-              variant="outline"
-              className="h-auto justify-start px-3 py-2 text-left"
-              onClick={() => {
-                loginAs(user);
-                router.push(roleHome[user.role]);
-              }}
-            >
-              <span>
-                <span className="block text-xs text-forest">{user.fullName}</span>
-                <span className="block text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                  {user.role.replace("_", " ")}
-                </span>
-              </span>
-            </Button>
-          ))}
-        </div>
-      </div>
+      <p className="text-center text-sm text-muted-foreground">
+        New here?{" "}
+        <Link href={registerHref} className="text-forest underline-offset-4 hover:underline">
+          Create an account
+        </Link>
+      </p>
+      <p className="text-center text-[11px] text-muted-foreground">
+        Demo owner: imran@bharwana.example / owner123
+      </p>
     </div>
   );
 }
 
 export function RegisterForm() {
   const router = useRouter();
-  const { loginAs } = useMockAuth();
-  const [step, setStep] = useState<"details" | "otp">("details");
+  const searchParams = useSearchParams();
+  const { register } = useMockAuth();
+  const [error, setError] = useState<string | null>(null);
 
-  const form = useForm({
-    resolver: zodResolver(
-      z.object({
-        fullName: z.string().min(2),
-        email: z.string().email(),
-        phone: z.string().min(10),
-        role: z.enum(["BUYER", "HOUSE_OWNER"]),
-      }),
-    ),
+  const form = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
     defaultValues: {
       fullName: "",
       email: "",
       phone: "",
-      role: "BUYER" as const,
+      password: "",
+      role: "HOUSE_OWNER",
     },
   });
 
-  async function onSubmit() {
-    // TODO: replace with real backend call
-    if (step === "details") {
-      await delay(400);
-      setStep("otp");
-      return;
-    }
-    await delay(500);
-    const values = form.getValues();
-    loginAs({
-      id: `u-${Date.now()}`,
+  async function onSubmit(values: RegisterFormValues) {
+    setError(null);
+    const result = await register({
       fullName: values.fullName,
       email: values.email,
       phone: values.phone,
+      password: values.password,
       role: values.role,
     });
-    toast.success("Account created (mock).");
-    router.push(values.role === "HOUSE_OWNER" ? "/owner" : "/properties");
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    toast.success("Account created");
+    const returnTo = safeReturnTo(searchParams.get("returnTo"));
+    router.push(returnTo ?? roleHome[values.role]);
   }
+
+  const loginHref = (() => {
+    const returnTo = searchParams.get("returnTo");
+    return returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : "/login";
+  })();
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {step === "details" ? (
-          <>
-            <FormField
-              control={form.control}
-              name="fullName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full name</FormLabel>
-                  <FormControl>
-                    <Input className="bg-white" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input className="bg-white" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone</FormLabel>
-                  <FormControl>
-                    <Input className="bg-white" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>I am a</FormLabel>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      variant={field.value === "BUYER" ? "secondary" : "outline"}
-                      onClick={() => field.onChange("BUYER")}
-                    >
-                      Buyer
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={field.value === "HOUSE_OWNER" ? "secondary" : "outline"}
-                      onClick={() => field.onChange("HOUSE_OWNER")}
-                    >
-                      House owner
-                    </Button>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Confirm the code sent to {form.getValues("phone")}. Any six digits will do in this preview.
-          </p>
-        )}
-        {step === "otp" && (
-          <Input className="bg-white tracking-[0.4em]" maxLength={6} placeholder="000000" required />
-        )}
-        <Button type="submit" className="w-full">
-          {step === "details" ? "Continue" : "Create account"}
+        <FormField
+          control={form.control}
+          name="fullName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Full name</FormLabel>
+              <FormControl>
+                <Input className="bg-white" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input className="bg-white" type="email" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="phone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Phone</FormLabel>
+              <FormControl>
+                <Input className="bg-white" placeholder="+92 3…" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Password</FormLabel>
+              <FormControl>
+                <Input className="bg-white" type="password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="role"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>I am a</FormLabel>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={field.value === "BUYER" ? "secondary" : "outline"}
+                  onClick={() => field.onChange("BUYER")}
+                >
+                  Buyer
+                </Button>
+                <Button
+                  type="button"
+                  variant={field.value === "HOUSE_OWNER" ? "secondary" : "outline"}
+                  onClick={() => field.onChange("HOUSE_OWNER")}
+                >
+                  House owner
+                </Button>
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? "Creating…" : "Create account"}
         </Button>
-        {step === "otp" && (
-          <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("details")}>
-            Back
-          </Button>
-        )}
         <p className="text-center text-sm text-muted-foreground">
           Already on the floor?{" "}
-          <Link href="/login" className="text-forest underline-offset-4 hover:underline">
+          <Link href={loginHref} className="text-forest underline-offset-4 hover:underline">
             Sign in
           </Link>
         </p>

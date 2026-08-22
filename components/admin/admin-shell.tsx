@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   Building2,
+  ClipboardCheck,
   Handshake,
   LayoutDashboard,
   LogOut,
@@ -15,15 +16,18 @@ import {
   X,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAdminAuth } from "@/lib/admin-auth";
+import { useMockStore } from "@/lib/mock-store";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/submissions", label: "Submissions", icon: ClipboardCheck, badgeKey: "pending" as const },
   { href: "/admin/properties", label: "Properties", icon: Building2 },
-  { href: "/admin/developers", label: "Developers", icon: Handshake },
+  { href: "/admin/developers", label: "Dealers", icon: Handshake },
   { href: "/admin/inquiries", label: "Inquiries", icon: MessageSquare },
   { href: "/admin/team", label: "Team", icon: UsersRound },
   { href: "/admin/users", label: "Users", icon: Users },
@@ -31,6 +35,8 @@ const navItems = [
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { properties } = useMockStore();
+  const pendingCount = properties.filter((property) => property.status === "PENDING_APPROVAL").length;
 
   return (
     <nav className="flex flex-col gap-1">
@@ -49,7 +55,12 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             )}
           >
             <item.icon className={cn("h-4 w-4", active ? "text-gold" : "text-forest/50")} />
-            {item.label}
+            <span className="flex-1">{item.label}</span>
+            {"badgeKey" in item && item.badgeKey === "pending" && pendingCount > 0 ? (
+              <Badge variant="pending" className="ml-auto text-[10px]">
+                {pendingCount}
+              </Badge>
+            ) : null}
           </Link>
         );
       })}

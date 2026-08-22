@@ -2,9 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import { ArrowLeft, Mail, MapPin, Phone } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useTeamStore } from "@/lib/team-store";
 
 function LinkedInIcon({ className }: { className?: string }) {
@@ -270,17 +272,13 @@ export function TeamProfile({ memberId }: { memberId: string }) {
 
 export function TeamDirectory() {
   const { members } = useTeamStore();
-
-  const accents = [
-    { mist: "from-ivory/25 via-ivory/5", glow: "bg-ivory/15", edge: "border-gold/50" },
-    { mist: "from-gold/35 via-gold/10", glow: "bg-gold/20", edge: "border-gold/60" },
-    { mist: "from-gold-600/30 via-forest/40", glow: "bg-gold/15", edge: "border-gold/45" },
-    { mist: "from-forest-800/60 via-forest/30", glow: "bg-forest-800/50", edge: "border-gold/40" },
-  ] as const;
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const profile = members.find((member) => member.id === profileId) ?? null;
 
   return (
-    <div className="bg-forest">
-      <section className="relative overflow-hidden border-b border-gold/20 bg-forest px-4 py-16 text-center sm:px-6 sm:py-20">
+    <div className="relative bg-gradient-to-b from-forest via-[#0c2418] to-[#081910] text-ivory">
+      <section className="relative overflow-hidden px-4 py-16 text-center sm:px-6 sm:py-20">
         <Image
           src="/logo.png"
           alt=""
@@ -297,95 +295,172 @@ export function TeamDirectory() {
         </p>
       </section>
 
-      {members.map((member, index) => {
-        const accent = accents[index % accents.length];
-        return (
-          <Link
-            key={member.id}
-            href={`/team/${member.id}`}
-            className="group relative block min-h-[100svh] overflow-hidden bg-[#081910]"
-          >
-            <div
-              className={`pointer-events-none absolute inset-x-[-10%] bottom-[-8%] z-[1] h-[55%] rounded-[100%] blur-3xl ${accent.glow}`}
-              aria-hidden
-            />
-            <div
-              className={`pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-[48%] bg-gradient-to-t ${accent.mist} to-transparent`}
-              aria-hidden
-            />
-            <div className="pointer-events-none absolute inset-0 z-[3] bg-gradient-to-b from-forest/80 via-transparent to-[#081910]/90" aria-hidden />
+      <nav
+        className="pointer-events-none fixed left-4 top-1/2 z-30 hidden -translate-y-1/2 flex-col gap-2 xl:flex"
+        aria-label="Team index"
+      >
+        {members.map((member) => {
+          const initials = member.fullName
+            .split(" ")
+            .map((part) => part[0])
+            .join("")
+            .slice(0, 2);
+          const active = activeId === member.id;
+          return (
+            <a
+              key={member.id}
+              href={`#${member.id}`}
+              className={`pointer-events-auto border px-2 py-1.5 text-[10px] uppercase tracking-[0.16em] transition-colors ${
+                active
+                  ? "border-gold bg-gold/15 text-gold"
+                  : "border-ivory/15 text-ivory/45 hover:border-gold/40 hover:text-gold"
+              }`}
+            >
+              {initials}
+            </a>
+          );
+        })}
+      </nav>
 
-            <div
-              className={`pointer-events-none absolute inset-[7%] z-10 border ${accent.edge} sm:inset-[9%] lg:inset-[10%_12%]`}
-              aria-hidden
-            />
-
-            <div className="relative z-20 mx-auto flex min-h-[100svh] max-w-7xl flex-col px-4 py-16 sm:px-8 lg:px-12">
-              <div className="grid flex-1 items-center gap-8 pt-6 lg:grid-cols-[1fr_minmax(0,0.95fr)_1fr] lg:gap-4 lg:pt-10">
-                <motion.div
-                  initial={{ opacity: 0, x: -16 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, amount: 0.4 }}
-                  transition={{ duration: 0.6 }}
-                  className="relative z-30 order-2 self-center text-left lg:order-1 lg:pl-2"
-                >
-                  <p className="font-serif text-3xl uppercase tracking-[0.08em] text-gold sm:text-4xl lg:text-5xl">
-                    {member.fullName}
-                  </p>
-                  <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-ivory/65">
-                    {member.role}
-                  </p>
-                  {member.department ? (
-                    <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-gold/70">
-                      {member.department}
-                    </p>
-                  ) : null}
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 24 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.35 }}
-                  transition={{ duration: 0.7 }}
-                  className="relative z-20 order-1 mx-auto aspect-[3/4] w-full max-w-[320px] sm:max-w-[380px] lg:order-2 lg:max-w-none lg:w-full"
-                >
-                  <div className="absolute -inset-x-6 bottom-0 top-1/3 bg-gradient-to-t from-[#081910] via-[#081910]/40 to-transparent lg:-inset-x-10" />
-                  <Image
-                    src={member.photoUrl}
-                    alt={member.fullName}
-                    fill
-                    priority={index === 0}
-                    className="object-contain object-bottom transition-transform duration-700 group-hover:scale-[1.03]"
-                    sizes="(max-width: 1024px) 80vw, 36vw"
-                  />
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, x: 16 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, amount: 0.4 }}
-                  transition={{ duration: 0.6, delay: 0.05 }}
-                  className="relative z-30 order-3 self-center text-left lg:pr-2 lg:text-right"
-                >
-                  <span className="font-serif text-5xl leading-none text-gold/50 lg:text-6xl" aria-hidden>
-                    ”
-                  </span>
-                  <p className="mt-2 font-serif text-lg leading-snug text-ivory/85 sm:text-xl lg:text-2xl">
-                    {member.quote ?? member.bio}
-                  </p>
-                  <span className="mt-6 inline-block text-[10px] uppercase tracking-[0.22em] text-gold transition-colors group-hover:text-ivory">
-                    View full profile
-                  </span>
-                </motion.div>
+      <div className="mx-auto max-w-6xl px-4 pb-24 sm:px-6 lg:px-8">
+        {members.map((member, index) => {
+          const reversed = index % 2 === 1;
+          return (
+            <motion.article
+              key={member.id}
+              id={member.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.35 }}
+              onViewportEnter={() => setActiveId(member.id)}
+              transition={{ duration: 0.45, ease: "easeOut", delay: Math.min(index * 0.04, 0.16) }}
+              className={`grid items-center gap-8 py-12 sm:gap-10 sm:py-14 lg:grid-cols-2 lg:gap-14 lg:py-16 ${
+                index > 0 ? "border-t border-gold/15" : ""
+              }`}
+            >
+              <div
+                className={`group relative mx-auto aspect-[4/5] w-full max-w-md overflow-hidden bg-forest-800 ${
+                  reversed ? "lg:order-2" : ""
+                }`}
+              >
+                <Image
+                  src={member.photoUrl}
+                  alt={member.fullName}
+                  fill
+                  priority={index === 0}
+                  className="object-cover object-top transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                  sizes="(max-width: 1024px) 90vw, 420px"
+                />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-forest/50 via-transparent to-forest/10 opacity-70 mix-blend-multiply transition-opacity duration-500 group-hover:opacity-90" />
+                <div className="pointer-events-none absolute inset-0 bg-gold/0 transition-colors duration-500 group-hover:bg-gold/10" />
               </div>
 
-              <p className="relative z-30 mt-10 pb-4 text-center font-serif text-2xl uppercase tracking-[0.35em] text-gold/90 sm:text-3xl md:text-4xl lg:tracking-[0.42em]">
-                Bharwana Estates
-              </p>
-            </div>
-          </Link>
-        );
-      })}
+              <div className={`max-w-xl ${reversed ? "lg:order-1 lg:text-right" : ""}`}>
+                <h2 className="font-serif text-3xl text-ivory sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
+                  {member.fullName}
+                </h2>
+                <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-gold">{member.role}</p>
+                {member.department ? (
+                  <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-ivory/45">
+                    {member.department}
+                  </p>
+                ) : null}
+                <div className={`mt-6 ${reversed ? "lg:ml-auto" : ""}`}>
+                  <span className="font-serif text-3xl leading-none text-gold/45" aria-hidden>
+                    ”
+                  </span>
+                  <p
+                    className={`mt-1 font-serif text-lg italic leading-relaxed text-ivory/80 sm:text-xl ${
+                      reversed ? "lg:text-right" : ""
+                    }`}
+                  >
+                    {member.quote ?? member.bio}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setProfileId(member.id)}
+                  className={`mt-8 inline-flex text-[11px] uppercase tracking-[0.2em] text-gold transition-colors hover:text-ivory ${
+                    reversed ? "lg:ml-auto" : ""
+                  }`}
+                >
+                  <span className="border-b border-gold/40 pb-0.5 transition-colors hover:border-gold">
+                    View full profile →
+                  </span>
+                </button>
+              </div>
+            </motion.article>
+          );
+        })}
+      </div>
+
+      <Sheet open={Boolean(profile)} onOpenChange={(open) => !open && setProfileId(null)}>
+        <SheetContent className="w-full overflow-y-auto bg-ivory sm:max-w-lg">
+          {profile && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="font-serif text-3xl text-forest">{profile.fullName}</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6 space-y-6">
+                <div className="relative aspect-[4/5] max-h-[360px] overflow-hidden bg-forest">
+                  <Image
+                    src={profile.photoUrl}
+                    alt={profile.fullName}
+                    fill
+                    className="object-cover object-top"
+                    sizes="480px"
+                  />
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">{profile.role}</p>
+                  {profile.department ? (
+                    <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      {profile.department}
+                    </p>
+                  ) : null}
+                  {profile.quote ? (
+                    <p className="mt-5 font-serif text-xl italic leading-snug text-forest/85">
+                      “{profile.quote}”
+                    </p>
+                  ) : null}
+                  <p className="mt-5 text-sm leading-relaxed text-forest/75 whitespace-pre-line">
+                    {profile.about || profile.bio}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {profile.email && (
+                    <Button asChild size="sm">
+                      <a href={`mailto:${profile.email}`}>
+                        <Mail className="h-4 w-4" />
+                        Email
+                      </a>
+                    </Button>
+                  )}
+                  {profile.phone && (
+                    <Button asChild size="sm" variant="outline">
+                      <a href={`tel:${profile.phone.replace(/\s/g, "")}`}>
+                        <Phone className="h-4 w-4" />
+                        Call
+                      </a>
+                    </Button>
+                  )}
+                  {profile.linkedinUrl && profile.linkedinUrl !== "#" && (
+                    <Button asChild size="sm" variant="outline">
+                      <a href={profile.linkedinUrl} target="_blank" rel="noreferrer">
+                        <LinkedInIcon className="h-4 w-4" />
+                        LinkedIn
+                      </a>
+                    </Button>
+                  )}
+                  <Button asChild size="sm" variant="ghost">
+                    <Link href={`/team/${profile.id}`}>Open full page</Link>
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

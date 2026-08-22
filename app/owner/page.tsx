@@ -5,7 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
-import { formatDate, formatPrice, statusLabel } from "@/lib/format";
+import { formatDate, formatPrice, inquiryChannelLabel, statusLabel } from "@/lib/format";
+import type { PropertyStatus } from "@/lib/types";
+
+function statusBadgeVariant(status: PropertyStatus) {
+  if (status === "PENDING_APPROVAL") return "pending" as const;
+  if (status === "REJECTED") return "rejected" as const;
+  if (status === "PUBLISHED") return "verified" as const;
+  return "outline" as const;
+}
 
 export default function OwnerPage() {
   const { user } = useMockAuth();
@@ -29,19 +37,36 @@ export default function OwnerPage() {
       </section>
       <div className="divide-y divide-forest/10 border-y border-forest/10">
         {mine.map((property) => (
-          <Link
+          <div
             key={property.id}
-            href={`/property/${property.id}`}
-            className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
           >
-            <div>
-              <p className="font-medium text-forest">{property.title}</p>
-              <p className="text-sm text-muted-foreground">
-                {property.city} · {formatPrice(property.price)}
-              </p>
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="relative h-16 w-24 shrink-0 overflow-hidden bg-cream">
+                {property.images[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={property.images[0]} alt="" className="h-full w-full object-cover" />
+                ) : null}
+              </div>
+              <div className="min-w-0">
+                <p className="font-medium text-forest">{property.title}</p>
+                <p className="text-sm text-muted-foreground">
+                  {property.city} · {formatPrice(property.price)}
+                </p>
+                {property.status === "REJECTED" && property.rejectionReason ? (
+                  <p className="mt-2 text-sm text-destructive">Reason: {property.rejectionReason}</p>
+                ) : null}
+              </div>
             </div>
-            <Badge variant="outline">{statusLabel(property.status)}</Badge>
-          </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={statusBadgeVariant(property.status)}>{statusLabel(property.status)}</Badge>
+              {property.status === "PUBLISHED" || property.status === "RESERVED" ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/property/${property.id}`}>View</Link>
+                </Button>
+              ) : null}
+            </div>
+          </div>
         ))}
         {mine.length === 0 && (
           <p className="py-8 text-sm text-muted-foreground">No listings yet. Add a residence to begin.</p>
@@ -56,9 +81,14 @@ export default function OwnerPage() {
             const property = properties.find((item) => item.id === inquiry.propertyId);
             return (
               <div key={inquiry.id} className="py-4">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="font-medium text-forest">{property?.title ?? inquiry.propertyId}</p>
-                  <Badge variant="outline">{inquiry.status.replace("_", " ")}</Badge>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant={inquiry.channel === "PLATFORM_ASSISTED" ? "platform" : "direct"}>
+                      {inquiryChannelLabel(inquiry.channel)}
+                    </Badge>
+                    <Badge variant="outline">{inquiry.status.replace("_", " ")}</Badge>
+                  </div>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">{inquiry.notes}</p>
                 <p className="mt-1 text-xs uppercase tracking-[0.12em] text-muted-foreground">

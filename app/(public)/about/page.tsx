@@ -7,7 +7,7 @@ import { ValuesGrid } from "@/components/about/ValuesGrid";
 export const metadata = {
   title: "About Us",
   description:
-    "The story, values, and people behind Bharwana Estates Developer, private homes and developer-verified residences.",
+    "The story, values, and people behind Bharwana Estates Dealer, private homes and Dealer-verified residences.",
 };
 
 export default function AboutPage() {

@@ -17,6 +17,10 @@ const badgeVariants = cva(
         outline: "border-forest/15 text-forest",
         owner: "border-transparent bg-forest text-ivory tracking-wide",
         verified: "border-gold/40 bg-gold-50 text-gold-700 tracking-wide",
+        pending: "border-amber-700/25 bg-amber-50 text-amber-900 tracking-wide",
+        rejected: "border-destructive/30 bg-destructive/5 text-destructive tracking-wide",
+        platform: "border-transparent bg-gold text-forest tracking-wide",
+        direct: "border-forest/20 bg-transparent text-forest/70 tracking-wide",
       },
     },
     defaultVariants: {

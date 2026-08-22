@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { toast } from "sonner";
+import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -9,9 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { users } from "@/lib/mock-data/users";
+import { useAdminAuth } from "@/lib/admin-auth";
+import { users as seedUsers } from "@/lib/mock-data/users";
+import type { User } from "@/lib/types";
 
 export default function AdminUsersPage() {
+  const { admin } = useAdminAuth();
+  const [users, setUsers] = useState<User[]>(seedUsers);
+
   return (
     <div>
       <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Accounts</p>
@@ -27,19 +35,34 @@ export default function AdminUsersPage() {
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell className="font-medium">{user.fullName}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{user.phone}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{user.role.replaceAll("_", " ")}</Badge>
-                </TableCell>
-              </TableRow>
-            ))}
+            {users.map((user) => {
+              const isSelf = Boolean(admin?.email && admin.email.toLowerCase() === user.email.toLowerCase());
+              return (
+                <TableRow key={user.id}>
+                  <TableCell className="font-medium">{user.fullName}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>{user.phone}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{user.role.replaceAll("_", " ")}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <ConfirmDeleteButton
+                      label={user.fullName}
+                      disabled={isSelf}
+                      disabledHint="You cannot delete the account matching your signed-in admin email."
+                      onConfirm={() => {
+                        setUsers((current) => current.filter((item) => item.id !== user.id));
+                        toast.success(`Deleted “${user.fullName}”.`);
+                      }}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

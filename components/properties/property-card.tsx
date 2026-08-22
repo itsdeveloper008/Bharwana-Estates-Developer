@@ -26,7 +26,7 @@ export function PropertyCard({
 
   const media = (
     <>
-      {property.images[0]?.startsWith("data:") ? (
+      {property.images[0]?.startsWith("data:") || property.images[0]?.startsWith("blob:") ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={property.images[0]}

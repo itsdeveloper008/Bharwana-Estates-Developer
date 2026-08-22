@@ -12,7 +12,10 @@ export type InquiryFormValues = z.infer<typeof inquiryFormSchema>;
 
 export const propertyFormSchema = z.object({
   title: z.string().min(8, "Title should be at least 8 characters"),
-  description: z.string().min(40, "Give buyers a fuller picture"),
+  description: z
+    .string()
+    .min(40, "Give buyers a fuller picture")
+    .max(1200, "Keep the description under 1,200 characters"),
   listingType: z.enum(["DIRECT_OWNER", "BUSINESS"]),
   price: z.number().positive("Enter a price"),
   areaSqft: z.number().positive("Enter the covered area"),
@@ -38,10 +41,18 @@ export const registerSchema = z.object({
   fullName: z.string().min(2, "Enter your name"),
   email: z.string().email("Enter a valid email"),
   phone: z.string().min(10, "Enter a valid phone"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["BUYER", "HOUSE_OWNER"]),
 });
 
 export type RegisterFormValues = z.infer<typeof registerSchema>;
+
+export const userLoginSchema = z.object({
+  email: z.string().min(1, "Email is required").email("Enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+export type UserLoginValues = z.infer<typeof userLoginSchema>;
 
 export const adminLoginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),

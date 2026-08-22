@@ -23,15 +23,24 @@ export function formatArea(sqft: number) {
 }
 
 export function listingBadge(type: ListingType) {
-  return type === "DIRECT_OWNER" ? "Direct from Owner" : "Developer Verified";
+  return type === "DIRECT_OWNER" ? "Direct from Owner" : "Dealer Verified";
 }
 
 export function statusLabel(status: PropertyStatus) {
+  const labels: Partial<Record<PropertyStatus, string>> = {
+    PENDING_APPROVAL: "Pending Review",
+    REJECTED: "Rejected",
+  };
+  if (labels[status]) return labels[status]!;
   return status
     .toLowerCase()
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+export function inquiryChannelLabel(channel: "PLATFORM_ASSISTED" | "DIRECT_TO_SELLER") {
+  return channel === "PLATFORM_ASSISTED" ? "Platform Assisted" : "Direct Contact";
 }
 
 export function inquiryStatusLabel(status: InquiryStatus) {

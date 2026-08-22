@@ -1,24 +1,35 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { Bath, BedDouble, Heart, Maximize2, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InquiryModal } from "@/components/inquiries/inquiry-modal";
 import { PropertyGallery } from "@/components/properties/property-gallery";
 import { useFavorites } from "@/lib/favorites-context";
+import { useMockAuth } from "@/lib/mock-auth";
 import { formatArea, formatDate, formatPrice, formatPriceFull, listingBadge, statusLabel } from "@/lib/format";
 import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const MiniMap = dynamic(() => import("@/components/map/map-canvas").then((mod) => mod.MiniMap), { ssr: false });
 
-export function PropertyDetail({ property }: { property: Property }) {
+function PropertyDetailInner({ property }: { property: Property }) {
   const [open, setOpen] = useState(false);
+  const { user, isReady } = useMockAuth();
+  const searchParams = useSearchParams();
   const { isSaved, toggle } = useFavorites();
   const saved = isSaved(property.id);
   const ownerListing = property.listingType === "DIRECT_OWNER";
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (searchParams.get("intent") === "contact" && user) {
+      setOpen(true);
+    }
+  }, [isReady, user, searchParams]);
 
   const specs = useMemo(
     () => [
@@ -67,7 +78,7 @@ export function PropertyDetail({ property }: { property: Property }) {
           </p>
           <div className="mt-6 flex flex-col gap-3">
             <Button size="lg" onClick={() => setOpen(true)}>
-              {ownerListing ? "Contact owner" : "Inquire / book visit"}
+              {ownerListing ? "How to proceed" : "Inquire / book visit"}
             </Button>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => toggle(property.id)}>
@@ -88,5 +99,13 @@ export function PropertyDetail({ property }: { property: Property }) {
       </div>
       <InquiryModal property={property} open={open} onOpenChange={setOpen} />
     </div>
+  );
+}
+
+export function PropertyDetail({ property }: { property: Property }) {
+  return (
+    <Suspense fallback={<div className="px-6 py-20 text-sm text-muted-foreground">Loading residence…</div>}>
+      <PropertyDetailInner property={property} />
+    </Suspense>
   );
 }

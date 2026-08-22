@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Building2, CloudUpload, Handshake, MessageSquare, UsersRound } from "lucide-react";
+import { Building2, ClipboardCheck, Handshake, MessageSquare, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
@@ -11,8 +11,7 @@ import { useMockStore } from "@/lib/mock-store";
 import { useTeamStore } from "@/lib/team-store";
 
 export default function AdminDashboardPage() {
-  const { properties, inquiries, usingFirestore: propsOnFirestore, seedFirestoreProperties } =
-    useMockStore();
+  const { properties, inquiries, usingFirestoreInquiries } = useMockStore();
   const { members, usingFirestore: teamOnFirestore, seedFirestore } = useTeamStore();
   const [seeding, setSeeding] = useState(false);
   const firebaseReady = isFirebaseConfigured();
@@ -20,8 +19,15 @@ export default function AdminDashboardPage() {
   const activeInquiries = inquiries.filter(
     (inquiry) => !["CLOSED_WON", "CLOSED_LOST"].includes(inquiry.status),
   ).length;
+  const pendingSubmissions = properties.filter((property) => property.status === "PENDING_APPROVAL").length;
 
   const stats = [
+    {
+      label: "Pending Submissions",
+      value: pendingSubmissions,
+      href: "/admin/submissions",
+      icon: ClipboardCheck,
+    },
     {
       label: "Total Properties",
       value: properties.length,
@@ -41,18 +47,17 @@ export default function AdminDashboardPage() {
       icon: UsersRound,
     },
     {
-      label: "Developers",
+      label: "Dealers",
       value: developers.length,
       href: "/admin/developers",
       icon: Handshake,
     },
   ];
 
-  async function handleSeed() {
+  async function handleSeedTeam() {
     setSeeding(true);
     try {
       await seedFirestore();
-      await seedFirestoreProperties();
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : "Seed failed");
@@ -67,13 +72,13 @@ export default function AdminDashboardPage() {
       <h1 className="font-serif text-3xl">Dashboard</h1>
       <p className="mt-2 max-w-xl text-sm text-muted-foreground">
         {firebaseReady
-          ? `Firebase connected. Team ${teamOnFirestore ? "on" : "off"} Firestore · Properties ${
-              propsOnFirestore ? "on" : "off"
-            } Firestore.`
-          : "Firebase env not set, using local mock/seed data."}
+          ? `Firebase connected. Inquiries ${usingFirestoreInquiries ? "live on" : "local (fallback)"} Firestore · Team ${
+              teamOnFirestore ? "on" : "off"
+            } Firestore · Properties remain mock.`
+          : "Firebase env not set — inquiries fall back to local mock until keys are added."}
       </p>
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {stats.map((stat) => (
           <Link
             key={stat.label}
@@ -96,23 +101,15 @@ export default function AdminDashboardPage() {
             <Link href="/admin/team">Manage team</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/about" target="_blank">
-              View About page
-            </Link>
+            <Link href="/admin/submissions">Verification queue</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/admin/properties">Review properties</Link>
+            <Link href="/admin/inquiries">Inquiries</Link>
           </Button>
-          <Button variant="secondary" disabled={!firebaseReady || seeding} onClick={() => void handleSeed()}>
-            <CloudUpload className="h-4 w-4" />
-            {seeding ? "Seeding…" : "Seed Firestore"}
+          <Button variant="secondary" disabled={!firebaseReady || seeding} onClick={() => void handleSeedTeam()}>
+            {seeding ? "Seeding…" : "Seed team to Firestore"}
           </Button>
         </div>
-        {!firebaseReady && (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Add Firebase keys to <code>.env.local</code> to enable seeding and live sync.
-          </p>
-        )}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Navbar } from "@/components/layout/navbar";
+import { OwnerGate } from "@/components/owner/owner-gate";
 import { Button } from "@/components/ui/button";
 import { useMockAuth } from "@/lib/mock-auth";
 import type { UserRole } from "@/lib/types";
@@ -24,7 +25,7 @@ const roleCopy: Record<UserRole, { title: string; description: string }> = {
   },
   ADMIN: {
     title: "Administration",
-    description: "A light ledger of people, developers, and inventory.",
+    description: "A light ledger of people, Dealers, and inventory.",
   },
 };
 
@@ -39,13 +40,30 @@ export function DashboardShell({
   const pathname = usePathname();
   const copy = roleCopy[role];
   const demoUser = users.find((item) => item.role === role);
-  const guestAdd = role === "HOUSE_OWNER" && pathname?.includes("/add-property");
 
-  if ((!user || user.role !== role) && guestAdd) {
+  if (role === "HOUSE_OWNER") {
     return (
       <div className="min-h-screen bg-ivory">
         <Navbar />
-        <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">{children}</div>
+        <OwnerGate>
+          <div className="border-b border-forest/10 bg-cream/50">
+            <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">{copy.title}</p>
+                <h1 className="font-serif text-2xl sm:text-3xl">{user?.fullName}</h1>
+              </div>
+              {pathname !== "/" && (
+                <Button variant="ghost" asChild>
+                  <Link href="/">
+                    <ArrowLeft className="h-4 w-4" />
+                    Marketplace
+                  </Link>
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">{children}</div>
+        </OwnerGate>
       </div>
     );
   }
@@ -62,7 +80,7 @@ export function DashboardShell({
             Continue as {demoUser?.fullName}
           </Button>
           <p className="mt-4 text-xs text-muted-foreground">
-            Frontend-only mock session. No credentials are stored.
+            Frontend-only mock session. No credentials are stored on a server.
           </p>
         </div>
       </div>

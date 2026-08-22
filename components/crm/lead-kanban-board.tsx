@@ -29,7 +29,7 @@ export function LeadKanbanBoard() {
     if (!overId) return;
     const column = COLUMNS.find((item) => item.id === overId);
     if (!column) return;
-    updateInquiryStatus(String(event.active.id), column.id);
+    void updateInquiryStatus(String(event.active.id), column.id);
   }
 
   return (
@@ -52,7 +52,7 @@ export function LeadKanbanBoard() {
                           size="sm"
                           variant="ghost"
                           className="h-7 px-2 text-[10px] uppercase tracking-[0.12em]"
-                          onClick={() => updateInquiryStatus(inquiry.id, item.id)}
+                          onClick={() => void updateInquiryStatus(inquiry.id, item.id)}
                         >
                           {item.title}
                         </Button>

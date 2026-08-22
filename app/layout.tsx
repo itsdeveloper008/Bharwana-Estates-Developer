@@ -22,11 +22,11 @@ const cinzel = Cinzel({
 
 export const metadata: Metadata = {
   title: {
-    default: "Bharwana Estates Developer",
+    default: "Bharwana Estates Dealer",
     template: "%s · Bharwana Estates",
   },
   description:
-    "A considered marketplace for private homes and developer-verified residences across Pakistan.",
+    "A considered marketplace for private homes and Dealer-verified residences across Pakistan.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

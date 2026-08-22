@@ -3,7 +3,7 @@ import type { Developer } from "@/lib/types";
 export const developers: Developer[] = [
   {
     id: "d-bharwana",
-    companyName: "Bharwana Estates Developer",
+    companyName: "Bharwana Estates Dealer",
     contactPerson: "Imran Bharwana",
     commissionRate: 0.04,
   },

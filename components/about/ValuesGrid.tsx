@@ -20,7 +20,7 @@ const values = [
     icon: Handshake,
     title: "Verified Listings",
     description:
-      "Owner homes and developer stock are checked before they earn a place in the collection.",
+      "Owner homes and Dealer stock are checked before they earn a place in the collection.",
   },
   {
     icon: Users,

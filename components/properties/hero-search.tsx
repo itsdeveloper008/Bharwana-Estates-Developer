@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { id: "buy", label: "Buy" },
   { id: "owner", label: "Owner" },
-  { id: "developer", label: "Developer" },
+  { id: "dealer", label: "Dealer" },
   { id: "map", label: "Map", badge: "NEW" },
 ] as const;
 
@@ -37,7 +37,7 @@ const CITY_CARDS = [
 const TRUST = [
   { icon: ShieldCheck, label: "Verified listings" },
   { icon: CheckCircle2, label: "Trusted counsel" },
-  { icon: Home, label: "Direct & developer" },
+  { icon: Home, label: "Direct & Dealer" },
   { icon: Sparkles, label: "Quiet process" },
 ] as const;
 
@@ -53,7 +53,7 @@ export function HeroSearch() {
 
   function listingFromTab(next: TabId) {
     if (next === "owner") return "DIRECT_OWNER";
-    if (next === "developer") return "BUSINESS";
+    if (next === "dealer") return "BUSINESS";
     return "ALL";
   }
 
@@ -141,7 +141,7 @@ export function HeroSearch() {
               <SelectContent>
                 <SelectItem value="ALL">Homes</SelectItem>
                 <SelectItem value="DIRECT_OWNER">Direct owner</SelectItem>
-                <SelectItem value="BUSINESS">Developer</SelectItem>
+                <SelectItem value="BUSINESS">Dealer</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -189,20 +189,6 @@ export function HeroSearch() {
             Search
           </Button>
         </div>
-
-        <Link
-          href="/about"
-          className="flex items-center justify-between gap-3 bg-forest px-5 py-3 text-left text-sm text-ivory transition-colors hover:bg-forest-800"
-        >
-          <span>
-            <span className="font-medium text-gold">Bharwana</span>
-            <span className="mx-2 rounded-sm bg-gold/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold">
-              New
-            </span>
-            Private residences and developer stock, presented as a brochure.
-          </span>
-          <ArrowRight className="h-4 w-4 shrink-0 text-gold" />
-        </Link>
       </div>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
