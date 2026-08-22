@@ -44,9 +44,9 @@ function SocialIcon({ name }: { name: "linkedin" | "instagram" | "facebook" }) {
 }
 
 const socials = [
-  { href: "https://bharwanaestates.com/", label: "LinkedIn", name: "linkedin" as const },
-  { href: "https://bharwanaestates.com/", label: "Instagram", name: "instagram" as const },
-  { href: "https://bharwanaestates.com/", label: "Facebook", name: "facebook" as const },
+  { href: "https://www.linkedin.com/company/bharwana-estates-developer/", label: "LinkedIn", name: "linkedin" as const },
+  { href: "https://www.instagram.com/bharwanaestates", label: "Instagram", name: "instagram" as const },
+  { href: "https://www.facebook.com/share/1Hnf1jSJ7q/?mibextid=wwXIfr", label: "Facebook", name: "facebook" as const },
 ];
 
 export function Footer() {
@@ -127,9 +127,9 @@ export function Footer() {
         </div>
 
         <div>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-gold">Atelier</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-gold">Address</p>
           <p className="mt-4 text-sm leading-relaxed text-ivory/80">
-            Shop No. 42, First Floor
+            Office No. 42, First Floor
             <br />
             Main Boulevard, Buch Executive Villas
             <br />

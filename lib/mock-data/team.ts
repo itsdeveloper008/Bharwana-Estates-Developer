@@ -42,7 +42,7 @@ export const teamMembers: TeamMember[] = [
     about:
       "Falak Sher is the Chief Executive Officer of Bharwana Estates Dealer. He sets the tone for how every residence is introduced, with clarity, discretion, and respect for the family behind the address. Under his leadership the firm has grown as a single floor for both direct-owner homes and Dealer-verified stock, so buyers never have to choose between honesty and presentation.\n\nHe focuses on long-term trust over short-term volume: careful documentation, measured site visits, and a sales culture that moves at the pace of a viewing rather than a funnel. Clients know him for calm counsel and for insisting that every listing earns its place on the floor.",
     quote: "A house deserves a careful introduction, never a hurried pitch.",
-    photoUrl: "/team/falak-sher-cutout.png",
+    photoUrl: "/team/falak-sher.jpeg",
     email: "falak@bharwana.example",
     phone: "+92 300 000 1001",
     expertise: [
@@ -138,7 +138,7 @@ export const teamMembers: TeamMember[] = [
     about:
       "Asfand Qurnain Ambiya is Video Editor at Bharwana Estates Dealer. He shapes walkthroughs and brand films so a residence is felt before it is visited, pacing, light, and silence as much as spectacle.\n\nHis edits favour atmosphere over noise: doors opening, garden light, the weight of a hall. The goal is simple, when a buyer presses play, they should already understand the character of the home.",
     quote: "A home should be felt on screen before it is walked in person.",
-    photoUrl: "/team/asfand-ambiya-cutout.png",
+    photoUrl: "/team/asfand-ambiya.jpeg",
     email: "asfand@bharwana.example",
     phone: "+92 300 000 1004",
     expertise: [

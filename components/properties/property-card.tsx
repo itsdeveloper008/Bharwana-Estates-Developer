@@ -2,13 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Bath, BedDouble, Heart, Maximize2 } from "lucide-react";
+import { Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useFavorites } from "@/lib/favorites-context";
 import { formatArea, formatPrice, listingBadge } from "@/lib/format";
 import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+function truncate(text: string, max = 110) {
+  const clean = text.trim();
+  if (clean.length <= max) return clean;
+  return `${clean.slice(0, max).trimEnd()}…`;
+}
 
 export function PropertyCard({
   property,
@@ -23,6 +28,7 @@ export function PropertyCard({
 }) {
   const { isSaved, toggle } = useFavorites();
   const saved = isSaved(property.id);
+  const href = `/property/${property.id}`;
 
   const media = (
     <>
@@ -31,14 +37,14 @@ export function PropertyCard({
         <img
           src={property.images[0]}
           alt={property.title}
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
         />
       ) : (
         <Image
           src={property.images[0]}
           alt={property.title}
           fill
-          className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+          className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
           sizes="(max-width: 768px) 100vw, 33vw"
         />
       )}
@@ -51,11 +57,63 @@ export function PropertyCard({
     </>
   );
 
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-lg font-semibold tracking-tight text-forest">{property.title}</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">{property.city}</p>
+        </div>
+        <button
+          type="button"
+          aria-label={saved ? "Remove from saved" : "Save property"}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggle(property.id);
+          }}
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-forest/10 bg-white text-forest/50 transition-colors hover:border-gold/40 hover:text-gold",
+            saved && "border-gold/40 text-gold",
+          )}
+        >
+          <Heart className={cn("h-4 w-4", saved && "fill-gold")} />
+        </button>
+      </div>
+
+      <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+        {truncate(property.description)}
+      </p>
+
+      <div className="mt-5 flex items-end justify-between gap-3">
+        <div className="grid min-w-0 flex-1 grid-cols-3 gap-2">
+          <div>
+            <p className="text-sm font-semibold text-forest">{property.bedrooms}</p>
+            <p className="text-[11px] text-muted-foreground">Bedrooms</p>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-forest">{property.bathrooms}</p>
+            <p className="text-[11px] text-muted-foreground">Bathrooms</p>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-forest">{formatArea(property.areaSqft).replace(" sqft", "")}</p>
+            <p className="text-[11px] text-muted-foreground">Sqft</p>
+          </div>
+        </div>
+        <span className="inline-flex shrink-0 items-center rounded-full bg-gradient-to-r from-forest to-[#1a4a30] px-4 py-2 text-xs font-medium text-ivory shadow-sm transition group-hover:from-forest group-hover:to-gold-700">
+          See more
+        </span>
+      </div>
+
+      <p className="mt-3 text-sm font-medium text-gold-700">{formatPrice(property.price)}</p>
+    </>
+  );
+
   return (
     <article
       className={cn(
-        "group overflow-hidden bg-card transition-shadow duration-300 hover:shadow-lift",
-        layout === "list" && "grid grid-cols-1 sm:grid-cols-[220px_1fr]",
+        "group overflow-hidden rounded-[1.35rem] border border-forest/5 bg-white shadow-[0_8px_30px_rgba(15,46,29,0.06)] transition-shadow duration-300 hover:shadow-[0_12px_36px_rgba(15,46,29,0.1)]",
+        layout === "list" && "sm:grid sm:grid-cols-[240px_1fr]",
       )}
       onMouseEnter={() => onHover?.(property.id)}
       onMouseLeave={() => onHover?.(null)}
@@ -63,49 +121,35 @@ export function PropertyCard({
       {onSelect ? (
         <button
           type="button"
-          className="relative block aspect-[4/3] w-full overflow-hidden text-left"
+          className={cn(
+            "relative block w-full overflow-hidden text-left",
+            layout === "list" ? "aspect-[4/3] sm:h-full sm:min-h-[220px]" : "aspect-[16/11]",
+          )}
           onClick={() => onSelect(property.id)}
         >
           {media}
         </button>
       ) : (
-        <Link href={`/property/${property.id}`} className="relative block aspect-[4/3] overflow-hidden">
+        <Link
+          href={href}
+          className={cn(
+            "relative block overflow-hidden",
+            layout === "list" ? "aspect-[4/3] sm:h-full sm:min-h-[220px]" : "aspect-[16/11]",
+          )}
+        >
           {media}
         </Link>
       )}
-      <div className="flex flex-col p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="font-serif text-xl text-gold-700">{formatPrice(property.price)}</p>
-            <Link href={`/property/${property.id}`} className="mt-1 block font-medium text-forest hover:text-gold-700">
-              {property.title}
-            </Link>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {property.address}, {property.city}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={saved ? "Remove from saved" : "Save property"}
-            onClick={() => toggle(property.id)}
-            className={cn(saved && "text-gold")}
-          >
-            <Heart className={cn("h-4 w-4", saved && "fill-gold")} />
-          </Button>
-        </div>
-        <div className="mt-4 flex gap-4 text-xs uppercase tracking-[0.12em] text-forest/70">
-          <span className="inline-flex items-center gap-1">
-            <BedDouble className="h-3.5 w-3.5" /> {property.bedrooms} bed
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Bath className="h-3.5 w-3.5" /> {property.bathrooms} bath
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Maximize2 className="h-3.5 w-3.5" /> {formatArea(property.areaSqft)}
-          </span>
-        </div>
-      </div>
+
+      {onSelect ? (
+        <button type="button" className="flex w-full flex-col p-5 text-left" onClick={() => onSelect(property.id)}>
+          {body}
+        </button>
+      ) : (
+        <Link href={href} className="flex flex-col p-5">
+          {body}
+        </Link>
+      )}
     </article>
   );
 }
