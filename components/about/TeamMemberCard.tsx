@@ -32,7 +32,7 @@ export function TeamMemberCard({
             src={member.photoUrl}
             alt={member.fullName}
             fill
-            className="object-contain object-bottom transition-transform duration-700 group-hover:scale-[1.02]"
+            className="object-cover object-top transition-transform duration-700 group-hover:scale-[1.02]"
             sizes="(max-width: 1024px) 100vw, 50vw"
             priority
           />
@@ -73,7 +73,7 @@ export function TeamMemberCard({
           src={member.photoUrl}
           alt={member.fullName}
           fill
-          className="object-contain object-bottom transition-transform duration-700 group-hover:scale-[1.04]"
+          className="object-cover object-top transition-transform duration-700 group-hover:scale-[1.04]"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-forest/80 via-forest/20 to-transparent p-5 pt-16 opacity-0 transition-opacity duration-300 group-hover:opacity-100">

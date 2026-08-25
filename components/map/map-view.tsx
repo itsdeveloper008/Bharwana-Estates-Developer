@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Map, { Marker, NavigationControl, Popup } from "react-map-gl/maplibre";
+import Map, { Marker, NavigationControl } from "react-map-gl/maplibre";
 import type { MapRef } from "react-map-gl/maplibre";
 import Supercluster from "supercluster";
+import { AnimatePresence, motion } from "framer-motion";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { PropertyPin } from "@/components/map/property-pin";
 import { MapPreviewCard } from "@/components/map/map-fallback";
 import { Button } from "@/components/ui/button";
-import { formatPrice, listingBadge } from "@/lib/format";
 import {
   CITY_COORDS,
   DEFAULT_MAP_VIEW,
@@ -148,7 +148,8 @@ export function MapView({
     if (!focusId) return;
     const property = byId[focusId];
     if (!property || !mapRef.current) return;
-    setSelectedId(focusId);
+    // Fly to the listing from the sidebar without opening the map preview card
+    setSelectedId(null);
     mapRef.current.flyTo({
       center: [property.longitude, property.latitude],
       zoom: Math.max(mapRef.current.getZoom(), 13),
@@ -233,37 +234,36 @@ export function MapView({
                     mapRef.current?.flyTo({ center: [longitude, latitude], zoom: expansion, duration: 500 });
                     return;
                   }
+                  if (!propertyId) return;
                   setSelectedId(propertyId);
+                  mapRef.current?.flyTo({
+                    center: [longitude, latitude],
+                    zoom: Math.max(mapRef.current.getZoom(), 13),
+                    duration: 600,
+                  });
                 }}
               />
             </Marker>
           );
         })}
-        {selected && (
-          <Popup
-            longitude={selected.longitude}
-            latitude={selected.latitude}
-            anchor="top"
-            closeOnClick={false}
-            onClose={() => setSelectedId(null)}
-            offset={16}
-            maxWidth="280px"
-            className="bharwana-map-popup"
-          >
-            <MapPreviewCard
-              title={selected.title}
-              price={formatPrice(selected.price)}
-              image={selected.images[0]}
-              href={`/property/${selected.id}`}
-              badge={listingBadge(selected.listingType)}
-              listingType={selected.listingType}
-              bedrooms={selected.bedrooms}
-              bathrooms={selected.bathrooms}
-              areaSqft={selected.areaSqft}
-            />
-          </Popup>
-        )}
       </Map>
+
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            key={selected.id}
+            initial={{ opacity: 0, x: -24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="pointer-events-none absolute inset-y-0 left-0 z-30 flex items-center p-3 sm:p-4"
+          >
+            <div className="pointer-events-auto">
+              <MapPreviewCard property={selected} onClose={() => setSelectedId(null)} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {showSearchArea && onBoundsSearch && (
         <div className="pointer-events-none absolute inset-x-0 top-4 z-20 flex justify-center">
@@ -319,7 +319,7 @@ export function MapView({
       {styleLoaded && properties.length === 0 && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-ivory/70 px-6 backdrop-blur-[2px]">
           <div className="max-w-sm border border-forest/10 bg-ivory p-6 text-center shadow-lift">
-            <p className="font-serif text-xl text-forest">No residences match this area</p>
+            <p className="font-serif text-xl text-forest">No properties match this area</p>
             <p className="mt-2 text-sm text-muted-foreground">Widen the map or clear filters to see homes again.</p>
             {onResetBounds && (
               <Button className="mt-4" onClick={onResetBounds}>

@@ -9,6 +9,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signOut, updateProfile } from "firebase/auth";
+import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { users as seedUsers } from "@/lib/mock-data/users";
 import type { User, UserRole } from "@/lib/types";
 import { delay } from "@/lib/utils";
@@ -24,6 +26,7 @@ const SEED_PASSWORDS: Record<string, string> = {
   "sara.malik@example.com": "buyer123",
   "omar.sheikh@bharwana.example": "sales123",
   "hina.raza@bharwana.example": "sales123",
+  "kamran.dealer@example.com": "dealer123",
 };
 
 type StoredAccount = User & { password: string };
@@ -33,6 +36,7 @@ interface MockAuthContextValue {
   isAuthenticated: boolean;
   isReady: boolean;
   login: (email: string, password: string) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
+  loginWithGoogle: () => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   register: (input: {
     fullName: string;
     email: string;
@@ -108,8 +112,66 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      await delay(500);
       const normalized = email.trim().toLowerCase();
+
+      if (isFirebaseConfigured()) {
+        const auth = getFirebaseAuth();
+        if (auth) {
+          try {
+            const credential = await signInWithEmailAndPassword(auth, normalized, password);
+            const firebaseUser = credential.user;
+            const registered = readRegistered();
+            const existing =
+              registered.find((item) => item.email.toLowerCase() === normalized) ??
+              seedUsers.find((item) => item.email.toLowerCase() === normalized);
+
+            const nextUser: User = existing
+              ? {
+                  ...toPublicUser(existing),
+                  fullName: firebaseUser.displayName?.trim() || toPublicUser(existing).fullName,
+                  avatarUrl: firebaseUser.photoURL ?? toPublicUser(existing).avatarUrl,
+                }
+              : {
+                  id: firebaseUser.uid,
+                  fullName: firebaseUser.displayName?.trim() || normalized.split("@")[0] || "Member",
+                  email: normalized,
+                  phone: firebaseUser.phoneNumber ?? "",
+                  role: "HOUSE_OWNER",
+                  avatarUrl: firebaseUser.photoURL ?? undefined,
+                };
+
+            if (!existing) {
+              writeRegistered([...registered, { ...nextUser, password: "" }]);
+            }
+
+            persist(nextUser);
+            return { ok: true as const, user: nextUser };
+          } catch (error) {
+            const code =
+              error && typeof error === "object" && "code" in error
+                ? String((error as { code?: string }).code)
+                : "";
+            if (
+              code === "auth/too-many-requests" ||
+              code === "auth/user-disabled" ||
+              code === "auth/invalid-email"
+            ) {
+              return {
+                ok: false as const,
+                error:
+                  code === "auth/too-many-requests"
+                    ? "Too many attempts. Try again later."
+                    : code === "auth/user-disabled"
+                      ? "This account has been disabled."
+                      : "Invalid email or password",
+              };
+            }
+            // Fall through to local demo accounts when Firebase user is missing
+          }
+        }
+      }
+
+      await delay(400);
       const registered = readRegistered();
       const fromRegister = registered.find((item) => item.email.toLowerCase() === normalized);
       if (fromRegister) {
@@ -132,6 +194,74 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
+  const loginWithGoogle = useCallback(async () => {
+    if (!isFirebaseConfigured()) {
+      return {
+        ok: false as const,
+        error: "Google sign-in is not configured. Add Firebase env vars.",
+      };
+    }
+    const auth = getFirebaseAuth();
+    if (!auth) {
+      return { ok: false as const, error: "Google sign-in is unavailable right now." };
+    }
+
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const credential = await signInWithPopup(auth, provider);
+      const firebaseUser = credential.user;
+      const email = (firebaseUser.email ?? "").trim().toLowerCase();
+      if (!email) {
+        return { ok: false as const, error: "Google account did not return an email." };
+      }
+
+      const registered = readRegistered();
+      const existing =
+        registered.find((item) => item.email.toLowerCase() === email) ??
+        seedUsers.find((item) => item.email.toLowerCase() === email);
+
+      const nextUser: User = existing
+        ? {
+            ...toPublicUser(existing),
+            fullName: firebaseUser.displayName?.trim() || toPublicUser(existing).fullName,
+            avatarUrl: firebaseUser.photoURL ?? toPublicUser(existing).avatarUrl,
+          }
+        : {
+            id: firebaseUser.uid,
+            fullName: firebaseUser.displayName?.trim() || email.split("@")[0] || "Guest",
+            email,
+            phone: firebaseUser.phoneNumber ?? "",
+            role: "HOUSE_OWNER",
+            avatarUrl: firebaseUser.photoURL ?? undefined,
+          };
+
+      if (!existing) {
+        const account: StoredAccount = { ...nextUser, password: "" };
+        writeRegistered([...registered, account]);
+      }
+
+      persist(nextUser);
+      return { ok: true as const, user: nextUser };
+    } catch (error) {
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code?: string }).code)
+          : "";
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        return { ok: false as const, error: "Google sign-in was cancelled." };
+      }
+      if (code === "auth/unauthorized-domain") {
+        return {
+          ok: false as const,
+          error: "This domain is not authorized for Google sign-in in Firebase.",
+        };
+      }
+      console.error("Google sign-in failed", error);
+      return { ok: false as const, error: "Could not sign in with Google. Try again." };
+    }
+  }, [persist]);
+
   const register = useCallback(
     async (input: {
       fullName: string;
@@ -140,7 +270,6 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       password: string;
       role?: UserRole;
     }) => {
-      await delay(500);
       const email = input.email.trim().toLowerCase();
       const registered = readRegistered();
       if (
@@ -150,6 +279,45 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         return { ok: false as const, error: "An account with this email already exists" };
       }
 
+      if (isFirebaseConfigured()) {
+        const auth = getFirebaseAuth();
+        if (auth) {
+          try {
+            const credential = await createUserWithEmailAndPassword(auth, email, input.password);
+            if (input.fullName.trim()) {
+              await updateProfile(credential.user, { displayName: input.fullName.trim() });
+            }
+            const account: StoredAccount = {
+              id: credential.user.uid,
+              fullName: input.fullName.trim(),
+              email,
+              phone: input.phone.trim(),
+              role: input.role ?? "HOUSE_OWNER",
+              password: "",
+              avatarUrl: credential.user.photoURL ?? undefined,
+            };
+            writeRegistered([...registered, account]);
+            const publicUser = toPublicUser(account);
+            persist(publicUser);
+            return { ok: true as const, user: publicUser };
+          } catch (error) {
+            const code =
+              error && typeof error === "object" && "code" in error
+                ? String((error as { code?: string }).code)
+                : "";
+            if (code === "auth/email-already-in-use") {
+              return { ok: false as const, error: "An account with this email already exists" };
+            }
+            if (code === "auth/weak-password") {
+              return { ok: false as const, error: "Password should be at least 6 characters" };
+            }
+            console.error("Firebase register failed", error);
+            return { ok: false as const, error: "Could not create account. Try again." };
+          }
+        }
+      }
+
+      await delay(400);
       const account: StoredAccount = {
         id: `u-${Date.now()}`,
         fullName: input.fullName.trim(),
@@ -168,6 +336,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     persist(null);
+    const auth = getFirebaseAuth();
+    if (auth) void signOut(auth).catch(() => undefined);
   }, [persist]);
 
   const value = useMemo(
@@ -176,12 +346,13 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(user),
       isReady,
       login,
+      loginWithGoogle,
       register,
       loginAs,
       loginAsRole,
       logout,
     }),
-    [user, isReady, login, register, loginAs, loginAsRole, logout],
+    [user, isReady, login, loginWithGoogle, register, loginAs, loginAsRole, logout],
   );
 
   return <MockAuthContext.Provider value={value}>{children}</MockAuthContext.Provider>;

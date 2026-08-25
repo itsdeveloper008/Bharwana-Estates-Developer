@@ -15,13 +15,12 @@ import {
   deleteTeamMember as deleteTeamMemberDoc,
   reorderTeamMembers as reorderTeamMembersDoc,
   resolveTeamPhotoUrl,
-  seedTeamMembers as writeSeedTeamToFirestore,
   subscribeTeamMembers,
   upsertTeamMember,
 } from "@/lib/firestore/team";
 import { teamMembers as localSeedTeam, type TeamMember } from "@/lib/mock-data/team";
 
-const STORAGE_KEY = "bharwana_team_members_v5";
+const STORAGE_KEY = "bharwana_team_members_v6";
 
 export type TeamMemberInput = Omit<TeamMember, "id">;
 
@@ -33,7 +32,6 @@ interface TeamStoreContextValue {
   updateMember: (id: string, input: TeamMemberInput) => Promise<void>;
   deleteMember: (id: string) => Promise<void>;
   reorderMembers: (orderedIds: string[]) => Promise<void>;
-  seedFirestore: () => Promise<void>;
 }
 
 const TeamStoreContext = createContext<TeamStoreContextValue | undefined>(undefined);
@@ -159,18 +157,6 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const seedFirestore = useCallback(async () => {
-    if (!isFirebaseConfigured()) {
-      throw new Error("Add Firebase env vars first");
-    }
-    const count = await writeSeedTeamToFirestore(localSeedTeam, true);
-    if (count === 0) {
-      toast.message("Firestore team collection already has data.");
-    } else {
-      toast.success(`Seeded ${count} team members to Firestore.`);
-    }
-  }, []);
-
   const value = useMemo(
     () => ({
       members,
@@ -180,7 +166,6 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
       updateMember,
       deleteMember,
       reorderMembers,
-      seedFirestore,
     }),
     [
       members,
@@ -190,7 +175,6 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
       updateMember,
       deleteMember,
       reorderMembers,
-      seedFirestore,
     ],
   );
 

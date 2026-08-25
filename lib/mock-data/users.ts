@@ -34,6 +34,14 @@ export const users: User[] = [
     avatarUrl: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=200&q=80",
   },
   {
+    id: "u-dealer-1",
+    fullName: "Kamran Ali",
+    email: "kamran.dealer@example.com",
+    phone: "+92 300 9988776",
+    role: "DEALER",
+    avatarUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=200&q=80",
+  },
+  {
     id: "u-sales-1",
     fullName: "Omar Sheikh",
     email: "omar.sheikh@bharwana.example",

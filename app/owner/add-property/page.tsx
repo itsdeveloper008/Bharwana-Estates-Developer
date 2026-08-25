@@ -14,10 +14,10 @@ export default function AddPropertyPage() {
         {user?.fullName ? (
           <>
             Listing as <span className="text-forest">{user.fullName}</span>. Photographs stay on this device until
-            storage is connected; publish writes to the review queue.
+            storage is connected; publish writes to the shared review queue.
           </>
         ) : (
-          "Photographs stay on this device. Publish writes to the review queue."
+          "Fill every step freely. Sign in only when you publish — your details stay on this page."
         )}
       </p>
       <PropertyForm />

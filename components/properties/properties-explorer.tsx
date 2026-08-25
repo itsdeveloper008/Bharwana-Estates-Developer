@@ -19,7 +19,7 @@ export function PropertiesExplorer() {
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <div className="mb-8">
         <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">The collection</p>
-        <h1 className="mt-2 font-serif text-4xl sm:text-5xl">Residences</h1>
+        <h1 className="mt-2 font-serif text-4xl sm:text-5xl">Properties</h1>
       </div>
       <FilterBar resultCount={results.length} />
       <div

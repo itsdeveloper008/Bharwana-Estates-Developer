@@ -40,7 +40,7 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export default function AdminSubmissionsPage() {
-  const { properties, updateProperty, deleteProperty } = useMockStore();
+  const { properties, developers, updateProperty, deleteProperty } = useMockStore();
   const [tab, setTab] = useState<Tab>("PENDING_APPROVAL");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -59,7 +59,21 @@ export default function AdminSubmissionsPage() {
   const selected = properties.find((property) => property.id === selectedId) ?? null;
   const pendingCount = properties.filter((property) => property.status === "PENDING_APPROVAL").length;
 
+  function dealerForProperty(property: Property) {
+    if (!property.developerId) return undefined;
+    return developers.find((developer) => developer.id === property.developerId);
+  }
+
+  function dealerBlocksApproval(property: Property) {
+    const dealer = dealerForProperty(property);
+    return Boolean(dealer && dealer.status === "PENDING_REVIEW");
+  }
+
   async function approve(property: Property) {
+    if (dealerBlocksApproval(property)) {
+      toast.error("Approve the dealer account before publishing this listing.");
+      return;
+    }
     await updateProperty(property.id, { status: "PUBLISHED", rejectionReason: undefined });
     toast.success("Property published");
     setSelectedId(null);
@@ -238,20 +252,31 @@ export default function AdminSubmissionsPage() {
                   ) : null}
                 </div>
                 {selected.status === "PENDING_APPROVAL" && (
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button className="flex-1" onClick={() => void approve(selected)}>
-                      Approve & publish
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => {
-                        setRejectReason("");
-                        setRejectOpen(true);
-                      }}
-                    >
-                      Reject
-                    </Button>
+                  <div className="flex flex-col gap-2">
+                    {dealerBlocksApproval(selected) && (
+                      <p className="border border-amber-600/25 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                        Dealer account pending approval — approve the dealer first.
+                      </p>
+                    )}
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        className="flex-1"
+                        disabled={dealerBlocksApproval(selected)}
+                        onClick={() => void approve(selected)}
+                      >
+                        Approve & publish
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          setRejectReason("");
+                          setRejectOpen(true);
+                        }}
+                      >
+                        Reject
+                      </Button>
+                    </div>
                   </div>
                 )}
                 <div className="border-t border-forest/10 pt-4">

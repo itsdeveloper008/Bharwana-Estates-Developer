@@ -1,6 +1,12 @@
 import { delay } from "@/lib/utils";
 import { properties as seedProperties } from "@/lib/mock-data/properties";
-import type { ListingType, Property, PropertyFilters } from "@/lib/types";
+import type {
+  ListingPurpose,
+  ListingType,
+  Property,
+  PropertyCategory,
+  PropertyFilters,
+} from "@/lib/types";
 
 export function filtersFromSearchParams(
   searchParams: URLSearchParams | Record<string, string | string[] | undefined>,
@@ -16,6 +22,16 @@ export function filtersFromSearchParams(
   const bedrooms = get("beds");
   const bathrooms = get("baths");
   const minArea = get("minArea");
+  const maxArea = get("maxArea");
+  const intent = get("intent");
+  const category = get("category");
+  const subtype = get("subtype");
+  const purpose: ListingPurpose | undefined =
+    intent === "rental" || intent === "rent"
+      ? "RENT"
+      : intent === "buy" || intent === "sale"
+        ? "SALE"
+        : undefined;
   return {
     query: get("q") || undefined,
     city: get("city") || undefined,
@@ -23,11 +39,18 @@ export function filtersFromSearchParams(
       listingType === "DIRECT_OWNER" || listingType === "BUSINESS"
         ? (listingType as ListingType)
         : undefined,
+    purpose,
+    category:
+      category === "HOME" || category === "PLOTS" || category === "COMMERCIAL"
+        ? (category as PropertyCategory)
+        : undefined,
+    subtype: subtype || undefined,
     minPrice: minPrice ? Number(minPrice) : undefined,
     maxPrice: maxPrice ? Number(maxPrice) : undefined,
     bedrooms: bedrooms ? Number(bedrooms) : undefined,
     bathrooms: bathrooms ? Number(bathrooms) : undefined,
     minArea: minArea ? Number(minArea) : undefined,
+    maxArea: maxArea ? Number(maxArea) : undefined,
   };
 }
 
@@ -51,11 +74,18 @@ export function filterProperties(
     if (filters.listingType && filters.listingType !== "ALL" && property.listingType !== filters.listingType) {
       return false;
     }
+    if (filters.purpose) {
+      const purpose = property.purpose ?? "SALE";
+      if (purpose !== filters.purpose) return false;
+    }
+    if (filters.category && (property.category ?? "HOME") !== filters.category) return false;
+    if (filters.subtype && property.subtype !== filters.subtype) return false;
     if (filters.minPrice && property.price < filters.minPrice) return false;
     if (filters.maxPrice && property.price > filters.maxPrice) return false;
     if (filters.bedrooms && property.bedrooms < filters.bedrooms) return false;
     if (filters.bathrooms && property.bathrooms < filters.bathrooms) return false;
     if (filters.minArea && property.areaSqft < filters.minArea) return false;
+    if (filters.maxArea && property.areaSqft > filters.maxArea) return false;
     if (filters.bounds) {
       const { north, south, east, west } = filters.bounds;
       if (

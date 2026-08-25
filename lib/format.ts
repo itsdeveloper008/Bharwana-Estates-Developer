@@ -1,4 +1,4 @@
-import type { InquiryStatus, ListingType, PropertyStatus } from "./types";
+import type { CommissionStatus, InquiryStatus, ListingType, PropertyStatus } from "./types";
 
 export function formatPrice(amount: number) {
   if (amount >= 10_000_000) {
@@ -54,6 +54,19 @@ export function inquiryStatusLabel(status: InquiryStatus) {
     CLOSED_LOST: "Lost",
   };
   return labels[status];
+}
+
+export function commissionStatusLabel(status: CommissionStatus) {
+  const labels: Record<CommissionStatus, string> = {
+    PENDING: "Pending",
+    INVOICED: "Invoiced",
+    PAID: "Paid",
+  };
+  return labels[status];
+}
+
+export function formatCommissionRate(rate: number) {
+  return `${(rate * 100).toFixed(1)}%`;
 }
 
 export function formatDate(iso: string) {

@@ -24,7 +24,7 @@ export function AboutCTA() {
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild size="lg">
-            <Link href="/login?returnTo=%2Fowner%2Fadd-property">List a property</Link>
+            <Link href="/owner/add-property">List a property</Link>
           </Button>
           <Button
             asChild
@@ -32,7 +32,7 @@ export function AboutCTA() {
             variant="outline"
             className="border-ivory/30 bg-transparent text-ivory hover:bg-ivory hover:text-forest"
           >
-            <Link href="/properties">View residences</Link>
+            <Link href="/properties">View properties</Link>
           </Button>
         </div>
       </motion.div>

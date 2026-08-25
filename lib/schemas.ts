@@ -17,6 +17,9 @@ export const propertyFormSchema = z.object({
     .min(40, "Give buyers a fuller picture")
     .max(1200, "Keep the description under 1,200 characters"),
   listingType: z.enum(["DIRECT_OWNER", "BUSINESS"]),
+  purpose: z.enum(["SALE", "RENT"]),
+  category: z.enum(["HOME", "PLOTS", "COMMERCIAL"]),
+  subtype: z.string().min(2, "Select a property type"),
   price: z.number().positive("Enter a price"),
   areaSqft: z.number().positive("Enter the covered area"),
   bedrooms: z.number().int().min(0),
@@ -37,13 +40,34 @@ export const otpSchema = z.object({
   otp: z.string().length(6, "Enter the 6-digit code"),
 });
 
-export const registerSchema = z.object({
-  fullName: z.string().min(2, "Enter your name"),
-  email: z.string().email("Enter a valid email"),
-  phone: z.string().min(10, "Enter a valid phone"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["BUYER", "HOUSE_OWNER"]),
-});
+export const registerSchema = z
+  .object({
+    fullName: z.string().min(2, "Enter your name"),
+    email: z.string().email("Enter a valid email"),
+    phone: z.string().min(10, "Enter a valid phone"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    role: z.enum(["BUYER", "HOUSE_OWNER", "DEALER"]),
+    agencyName: z.string().optional(),
+    registrationNumber: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.role !== "DEALER") return;
+    if (!data.agencyName || data.agencyName.trim().length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter your agency or company name",
+        path: ["agencyName"],
+      });
+    }
+    const reg = data.registrationNumber?.trim();
+    if (reg && !/^[A-Za-z0-9\-\/]{5,25}$/.test(reg)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Use 5–25 letters, numbers, dashes, or slashes",
+        path: ["registrationNumber"],
+      });
+    }
+  });
 
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 

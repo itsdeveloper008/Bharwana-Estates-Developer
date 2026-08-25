@@ -47,12 +47,12 @@ export function MapExplorer() {
       <div className="border-b border-forest/10 bg-ivory px-4 py-4 sm:px-6">
         <FilterBar resultCount={results.length} />
       </div>
-      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[minmax(320px,38%)_1fr]">
+      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr]">
         <ScrollArea className="h-[50vh] border-b border-forest/10 lg:h-[calc(100vh-9.5rem)] lg:border-b-0 lg:border-r">
-          <div className="space-y-px bg-cream/40 p-3">
+          <div className="space-y-2 bg-cream/40 p-2">
             {bounds && (
-              <div className="mb-2 flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
-                <span>Showing residences in the map frame</span>
+              <div className="mb-1 flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
+                <span>Showing properties in the map frame</span>
                 <button type="button" className="text-forest underline-offset-2 hover:underline" onClick={resetBounds}>
                   Show all
                 </button>
@@ -72,7 +72,7 @@ export function MapExplorer() {
             ))}
             {results.length === 0 && (
               <div className="p-8 text-center">
-                <p className="text-sm text-muted-foreground">No residences in this frame.</p>
+                <p className="text-sm text-muted-foreground">No properties in this frame.</p>
                 <Button variant="outline" size="sm" className="mt-4" onClick={resetAll}>
                   Reset filters
                 </Button>

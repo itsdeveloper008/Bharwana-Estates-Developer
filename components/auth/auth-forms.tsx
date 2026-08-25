@@ -1,28 +1,156 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, type Ref } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { Briefcase, Eye, EyeOff, Home, Loader2, UserRound } from "lucide-react";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
+import { AuthCrossLink } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useMockAuth } from "@/lib/mock-auth";
+import { useMockStore } from "@/lib/mock-store";
 import { registerSchema, userLoginSchema, type RegisterFormValues, type UserLoginValues } from "@/lib/schemas";
-import type { UserRole } from "@/lib/types";
+import { DEFAULT_DEALER_COMMISSION_RATE, type User, type UserRole } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const roleHome: Record<UserRole, string> = {
   BUYER: "/properties",
   HOUSE_OWNER: "/owner",
+  DEALER: "/dealer",
   SALES_REP: "/sales",
   ADMIN: "/admin",
 };
 
+const ROLE_OPTIONS: {
+  id: "BUYER" | "HOUSE_OWNER" | "DEALER";
+  label: string;
+  hint: string;
+  icon: typeof UserRound;
+}[] = [
+  { id: "BUYER", label: "Buyer", hint: "Browse and inquire", icon: UserRound },
+  { id: "HOUSE_OWNER", label: "House Owner", hint: "List your residence", icon: Home },
+  { id: "DEALER", label: "Dealer", hint: "List inventory, earn through Bharwana", icon: Briefcase },
+];
+
 function safeReturnTo(raw: string | null): string | null {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
   return raw;
+}
+
+function GoogleMark({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+      />
+    </svg>
+  );
+}
+
+function OrDivider() {
+  return (
+    <div className="relative py-1">
+      <div className="absolute inset-0 flex items-center" aria-hidden>
+        <div className="w-full border-t border-forest/10" />
+      </div>
+      <div className="relative flex justify-center text-[11px] uppercase tracking-[0.16em]">
+        <span className="bg-ivory px-3 text-muted-foreground">or</span>
+      </div>
+    </div>
+  );
+}
+
+function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) {
+  const { loginWithGoogle } = useMockAuth();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleClick() {
+    setError(null);
+    setPending(true);
+    const result = await loginWithGoogle();
+    setPending(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    toast.success("Signed in with Google");
+    onSuccess(result.user);
+  }
+
+  return (
+    <div className="space-y-2">
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full border-forest/15 bg-white text-forest hover:border-forest/25 hover:bg-white hover:text-forest"
+        disabled={pending}
+        onClick={() => void handleClick()}
+      >
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark className="h-4 w-4" />}
+        {pending ? "Connecting…" : "Continue with Google"}
+      </Button>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+export { ContinueWithGoogle };
+
+function PasswordField({
+  field,
+  fieldState,
+  autoComplete,
+}: {
+  field: { value: string; onChange: (...args: unknown[]) => void; onBlur: () => void; name: string; ref: Ref<HTMLInputElement> };
+  fieldState: { error?: { message?: string } };
+  autoComplete?: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <FormItem>
+      <FormLabel>Password</FormLabel>
+      <FormControl>
+        <div className="relative">
+          <Input
+            type={show ? "text" : "password"}
+            autoComplete={autoComplete}
+            placeholder="••••••••"
+            className={cn(
+              "bg-white pr-10",
+              fieldState.error && "border-destructive focus-visible:ring-destructive",
+            )}
+            {...field}
+          />
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-forest/50 transition-colors duration-200 hover:text-forest"
+            onClick={() => setShow((value) => !value)}
+            aria-label={show ? "Hide password" : "Show password"}
+          >
+            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  );
 }
 
 export function LoginForm() {
@@ -33,8 +161,14 @@ export function LoginForm() {
 
   const form = useForm<UserLoginValues>({
     resolver: zodResolver(userLoginSchema),
+    mode: "onBlur",
     defaultValues: { email: "", password: "" },
   });
+
+  function goAfterAuth(role: UserRole) {
+    const returnTo = safeReturnTo(searchParams.get("returnTo"));
+    router.push(returnTo ?? roleHome[role]);
+  }
 
   async function onSubmit(values: UserLoginValues) {
     setError(null);
@@ -44,14 +178,8 @@ export function LoginForm() {
       return;
     }
     toast.success("Signed in");
-    const returnTo = safeReturnTo(searchParams.get("returnTo"));
-    router.push(returnTo ?? roleHome[result.user.role]);
+    goAfterAuth(result.user.role);
   }
-
-  const registerHref = (() => {
-    const returnTo = searchParams.get("returnTo");
-    return returnTo ? `/register?returnTo=${encodeURIComponent(returnTo)}` : "/register";
-  })();
 
   return (
     <div className="space-y-6">
@@ -60,11 +188,20 @@ export function LoginForm() {
           <FormField
             control={form.control}
             name="email"
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input className="bg-white" type="email" placeholder="imran@bharwana.example" {...field} />
+                  <Input
+                    className={cn(
+                      "bg-white",
+                      fieldState.error && "border-destructive focus-visible:ring-destructive",
+                    )}
+                    type="email"
+                    placeholder="you@email.com"
+                    autoComplete="email"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -73,32 +210,30 @@ export function LoginForm() {
           <FormField
             control={form.control}
             name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input className="bg-white" type="password" placeholder="••••••••" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+            render={({ field, fieldState }) => (
+              <PasswordField field={field} fieldState={fieldState} autoComplete="current-password" />
             )}
           />
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
           <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
+            {form.formState.isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Signing in…
+              </>
+            ) : (
+              "Sign in"
+            )}
           </Button>
         </form>
       </Form>
 
-      <p className="text-center text-sm text-muted-foreground">
-        New here?{" "}
-        <Link href={registerHref} className="text-forest underline-offset-4 hover:underline">
-          Create an account
-        </Link>
-      </p>
-      <p className="text-center text-[11px] text-muted-foreground">
-        Demo owner: imran@bharwana.example / owner123
-      </p>
+      <OrDivider />
+      <ContinueWithGoogle onSuccess={(authed) => goAfterAuth(authed.role)} />
     </div>
   );
 }
@@ -107,18 +242,30 @@ export function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { register } = useMockAuth();
+  const { addDeveloper } = useMockStore();
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
+    mode: "onBlur",
     defaultValues: {
       fullName: "",
       email: "",
       phone: "",
       password: "",
       role: "HOUSE_OWNER",
+      agencyName: "",
+      registrationNumber: "",
     },
   });
+
+  const selectedRole = useWatch({ control: form.control, name: "role" });
+
+  function goAfterAuth(role: UserRole) {
+    const returnTo = safeReturnTo(searchParams.get("returnTo"));
+    router.push(returnTo ?? roleHome[role]);
+  }
 
   async function onSubmit(values: RegisterFormValues) {
     setError(null);
@@ -133,9 +280,22 @@ export function RegisterForm() {
       setError(result.error);
       return;
     }
-    toast.success("Account created");
-    const returnTo = safeReturnTo(searchParams.get("returnTo"));
-    router.push(returnTo ?? roleHome[values.role]);
+
+    if (values.role === "DEALER") {
+      await addDeveloper({
+        id: `d-${Date.now()}`,
+        companyName: values.agencyName!.trim(),
+        contactPerson: values.fullName.trim(),
+        commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
+        dealerUserId: result.user.id,
+        status: "PENDING_REVIEW",
+        origin: "SELF_REGISTERED",
+        registrationNumber: values.registrationNumber?.trim() || undefined,
+      });
+    }
+
+    toast.success(values.role === "DEALER" ? "Dealer account created — pending review" : "Account created");
+    goAfterAuth(values.role);
   }
 
   const loginHref = (() => {
@@ -144,97 +304,206 @@ export function RegisterForm() {
   })();
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="fullName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Full name</FormLabel>
-              <FormControl>
-                <Input className="bg-white" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+    <div className="space-y-6">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="fullName"
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormLabel>Full name</FormLabel>
+                <FormControl>
+                  <Input
+                    className={cn(
+                      "bg-white",
+                      fieldState.error && "border-destructive focus-visible:ring-destructive",
+                    )}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    className={cn(
+                      "bg-white",
+                      fieldState.error && "border-destructive focus-visible:ring-destructive",
+                    )}
+                    type="email"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="phone"
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormLabel>Phone</FormLabel>
+                <FormControl>
+                  <Input
+                    className={cn(
+                      "bg-white",
+                      fieldState.error && "border-destructive focus-visible:ring-destructive",
+                    )}
+                    placeholder="+92 3…"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      className={cn(
+                        "bg-white pr-10",
+                        fieldState.error && "border-destructive focus-visible:ring-destructive",
+                      )}
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-forest/50 transition-colors duration-200 hover:text-forest"
+                      onClick={() => setShowPassword((value) => !value)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="role"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>I am a</FormLabel>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {ROLE_OPTIONS.map((option) => {
+                    const active = field.value === option.id;
+                    const Icon = option.icon;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => field.onChange(option.id)}
+                        className={cn(
+                          "rounded-lg border px-3 py-3 text-left transition-colors duration-200",
+                          active
+                            ? "border-gold bg-gold/10 text-forest"
+                            : "border-forest/15 bg-white text-forest hover:border-gold/45",
+                        )}
+                      >
+                        <Icon className={cn("h-4 w-4", active ? "text-gold-700" : "text-forest/45")} strokeWidth={1.5} />
+                        <span className="mt-2 block text-sm font-medium">{option.label}</span>
+                        <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                          {option.hint}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {selectedRole === "DEALER" && (
+            <div className="space-y-4 rounded-lg border border-forest/10 bg-cream/40 p-4">
+              <FormField
+                control={form.control}
+                name="agencyName"
+                render={({ field, fieldState }) => (
+                  <FormItem>
+                    <FormLabel>Agency / Company Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        className={cn(
+                          "bg-white",
+                          fieldState.error && "border-destructive focus-visible:ring-destructive",
+                        )}
+                        placeholder="e.g. Ali Realty"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="registrationNumber"
+                render={({ field, fieldState }) => (
+                  <FormItem>
+                    <FormLabel>CNIC or Business Registration (optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        className={cn(
+                          "bg-white",
+                          fieldState.error && "border-destructive focus-visible:ring-destructive",
+                        )}
+                        placeholder="e.g. 34201-1234567-1"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Dealer accounts list under Bharwana&apos;s standard commission structure. Your account will be
+                reviewed before your first listing is approved.
+              </p>
+            </div>
           )}
-        />
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input className="bg-white" type="email" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
           )}
-        />
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Phone</FormLabel>
-              <FormControl>
-                <Input className="bg-white" placeholder="+92 3…" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input className="bg-white" type="password" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="role"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>I am a</FormLabel>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant={field.value === "BUYER" ? "secondary" : "outline"}
-                  onClick={() => field.onChange("BUYER")}
-                >
-                  Buyer
-                </Button>
-                <Button
-                  type="button"
-                  variant={field.value === "HOUSE_OWNER" ? "secondary" : "outline"}
-                  onClick={() => field.onChange("HOUSE_OWNER")}
-                >
-                  House owner
-                </Button>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Creating…" : "Create account"}
-        </Button>
-        <p className="text-center text-sm text-muted-foreground">
-          Already on the floor?{" "}
-          <Link href={loginHref} className="text-forest underline-offset-4 hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </form>
-    </Form>
+          <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Creating…
+              </>
+            ) : (
+              "Create account"
+            )}
+          </Button>
+          <p className="text-center text-sm text-muted-foreground">
+            Already on the floor? <AuthCrossLink href={loginHref}>Sign in</AuthCrossLink>
+          </p>
+        </form>
+      </Form>
+
+      <OrDivider />
+      <ContinueWithGoogle onSuccess={(authed) => goAfterAuth(authed.role)} />
+    </div>
   );
 }

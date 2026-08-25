@@ -46,8 +46,10 @@ export function FeaturedSection() {
         <div
           className="absolute inset-0"
           style={{
+            // Keep the featured wash warm/light through the bottom so it meets forest cleanly —
+            // no mid-gray or deep-green fade that bands against the next section.
             background:
-              "linear-gradient(135deg, rgba(201,162,75,0.22) 0%, rgba(244,241,234,0.55) 38%, rgba(244,241,234,0.35) 58%, rgba(15,46,29,0.55) 100%)",
+              "linear-gradient(135deg, rgba(201,162,75,0.2) 0%, rgba(250,247,240,0.85) 42%, rgba(250,247,240,0.95) 100%)",
           }}
         />
         <Image
@@ -69,7 +71,7 @@ export function FeaturedSection() {
             href="/properties"
             className="inline-flex h-10 items-center justify-center border border-forest/20 bg-white/80 px-4 text-xs uppercase tracking-[0.14em] text-forest transition-colors hover:border-gold hover:bg-white"
           >
-            All residences
+            All properties
           </Link>
         </div>
         <FeaturedGrid />

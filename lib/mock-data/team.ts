@@ -74,7 +74,7 @@ export const teamMembers: TeamMember[] = [
     about:
       "Talal Mirza is Managing Director at Bharwana Estates Dealer. He turns strategy into a working floor, coordinating listings, sales stewardship, and the operational detail that keeps introductions precise.\n\nFrom possession checks to handover timelines, Talal keeps owners, buyers, and internal teams aligned. He is the person who makes sure a site visit is prepared, a file is complete, and a conversation ends with a clear next step.",
     quote: "Equal footing between buyer and owner is not a slogan, it is an operating standard.",
-    photoUrl: "/team/talal-mirza-cutout.png",
+    photoUrl: "/team/talal-mirza.png",
     email: "talal@bharwana.example",
     phone: "+92 300 000 1002",
     expertise: [
@@ -106,7 +106,7 @@ export const teamMembers: TeamMember[] = [
     about:
       "Abdulrehman Azhar is the Architect and Interior Designer for Bharwana Estates Dealer. He reads a home the way a buyer will live in it, light, proportion, material, and how rooms open into one another.\n\nHis work informs how we photograph, describe, and advise on residences. Whether refining a presentation package or advising on finish quality, he brings a designer’s eye so the floor stays as considered as the buildings themselves.",
     quote: "Space should feel inevitable, light, proportion, and finish in quiet agreement.",
-    photoUrl: "/team/abdulrehman-azhar-cutout.png",
+    photoUrl: "/team/abdulrehman-azhar.jpg",
     email: "abdulrehman@bharwana.example",
     phone: "+92 300 000 1003",
     expertise: [

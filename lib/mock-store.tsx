@@ -18,13 +18,32 @@ import {
   updateInquiryStatusRemote,
   type InquiryInput,
 } from "@/lib/firestore/inquiries";
+import { developers as seedDevelopers } from "@/lib/mock-data/developers";
 import { inquiries as seedInquiries } from "@/lib/mock-data/inquiries";
 import { properties as seedPropertiesList } from "@/lib/mock-data/properties";
-import type { Inquiry, InquiryStatus, Property } from "@/lib/types";
+import { transactions as seedTransactions } from "@/lib/mock-data/transactions";
+import { users as seedUsers } from "@/lib/mock-data/users";
+import type {
+  CommissionStatus,
+  Developer,
+  Inquiry,
+  InquiryStatus,
+  Property,
+  Transaction,
+  User,
+} from "@/lib/types";
+
+const PROPERTIES_KEY = "bharwana_properties_v1";
+const DEVELOPERS_KEY = "bharwana_developers_v1";
+const TRANSACTIONS_KEY = "bharwana_transactions_v1";
+const USERS_KEY = "bharwana_users_v1";
 
 interface MockStoreContextValue {
   properties: Property[];
   inquiries: Inquiry[];
+  developers: Developer[];
+  transactions: Transaction[];
+  users: User[];
   inquiriesLoading: boolean;
   inquiriesError: string | null;
   usingFirestoreInquiries: boolean;
@@ -34,17 +53,66 @@ interface MockStoreContextValue {
   addInquiry: (input: InquiryInput) => Promise<string>;
   updateInquiryStatus: (id: string, status: InquiryStatus) => Promise<void>;
   removeInquiry: (id: string) => Promise<void>;
+  addDeveloper: (developer: Developer) => Promise<void>;
+  updateDeveloper: (id: string, patch: Partial<Developer>) => Promise<void>;
+  deleteDeveloper: (id: string) => Promise<void>;
+  updateTransaction: (id: string, patch: Partial<Transaction>) => Promise<void>;
+  getDeveloperForUser: (userId: string) => Developer | undefined;
+  addUser: (user: User) => Promise<void>;
 }
 
 const MockStoreContext = createContext<MockStoreContextValue | undefined>(undefined);
 
+function readJsonArray<T>(key: string): T[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as T[];
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function mergeById<T extends { id: string }>(seed: T[], stored: T[] | null): T[] {
+  if (!stored?.length) return seed;
+  const map = new Map<string, T>();
+  for (const item of seed) map.set(item.id, item);
+  for (const item of stored) map.set(item.id, item);
+  return Array.from(map.values());
+}
+
 export function MockStoreProvider({ children }: { children: ReactNode }) {
-  // Properties stay on mock data this pass — do not sync from Firestore.
   const [properties, setProperties] = useState<Property[]>(seedPropertiesList);
+  const [developers, setDevelopers] = useState<Developer[]>(seedDevelopers);
+  const [transactions, setTransactions] = useState<Transaction[]>(seedTransactions);
+  const [users, setUsers] = useState<User[]>(seedUsers);
+  const [hydrated, setHydrated] = useState(false);
   const [inquiryState, setInquiryState] = useState<Inquiry[]>(seedInquiries);
   const [inquiriesLoading, setInquiriesLoading] = useState(false);
   const [inquiriesError, setInquiriesError] = useState<string | null>(null);
   const [usingFirestoreInquiries, setUsingFirestoreInquiries] = useState(false);
+
+  useEffect(() => {
+    setProperties(mergeById(seedPropertiesList, readJsonArray<Property>(PROPERTIES_KEY)));
+    setDevelopers(mergeById(seedDevelopers, readJsonArray<Developer>(DEVELOPERS_KEY)));
+    setTransactions(mergeById(seedTransactions, readJsonArray<Transaction>(TRANSACTIONS_KEY)));
+    setUsers(mergeById(seedUsers, readJsonArray<User>(USERS_KEY)));
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(PROPERTIES_KEY, JSON.stringify(properties));
+      localStorage.setItem(DEVELOPERS_KEY, JSON.stringify(developers));
+      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    } catch (error) {
+      console.error("Could not persist mock store", error);
+    }
+  }, [properties, developers, transactions, users, hydrated]);
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
@@ -90,7 +158,6 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addInquiry = useCallback(async (input: InquiryInput) => {
-    // TODO: Configure Firestore security rules before production.
     if (isFirebaseConfigured()) {
       try {
         return await createInquiry(input);
@@ -145,10 +212,48 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const addDeveloper = useCallback(async (developer: Developer) => {
+    setDevelopers((current) => {
+      const without = current.filter((item) => item.id !== developer.id);
+      return [developer, ...without];
+    });
+  }, []);
+
+  const updateDeveloper = useCallback(async (id: string, patch: Partial<Developer>) => {
+    setDevelopers((current) =>
+      current.map((developer) => (developer.id === id ? { ...developer, ...patch, id } : developer)),
+    );
+  }, []);
+
+  const deleteDeveloper = useCallback(async (id: string) => {
+    setDevelopers((current) => current.filter((developer) => developer.id !== id));
+  }, []);
+
+  const updateTransaction = useCallback(async (id: string, patch: Partial<Transaction>) => {
+    setTransactions((current) =>
+      current.map((tx) => (tx.id === id ? { ...tx, ...patch, id } : tx)),
+    );
+  }, []);
+
+  const getDeveloperForUser = useCallback(
+    (userId: string) => developers.find((developer) => developer.dealerUserId === userId),
+    [developers],
+  );
+
+  const addUser = useCallback(async (user: User) => {
+    setUsers((current) => {
+      const without = current.filter((item) => item.id !== user.id);
+      return [user, ...without];
+    });
+  }, []);
+
   const value = useMemo(
     () => ({
       properties,
       inquiries: inquiryState,
+      developers,
+      transactions,
+      users,
       inquiriesLoading,
       inquiriesError,
       usingFirestoreInquiries,
@@ -158,10 +263,19 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       addInquiry,
       updateInquiryStatus,
       removeInquiry,
+      addDeveloper,
+      updateDeveloper,
+      deleteDeveloper,
+      updateTransaction,
+      getDeveloperForUser,
+      addUser,
     }),
     [
       properties,
       inquiryState,
+      developers,
+      transactions,
+      users,
       inquiriesLoading,
       inquiriesError,
       usingFirestoreInquiries,
@@ -171,6 +285,12 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       addInquiry,
       updateInquiryStatus,
       removeInquiry,
+      addDeveloper,
+      updateDeveloper,
+      deleteDeveloper,
+      updateTransaction,
+      getDeveloperForUser,
+      addUser,
     ],
   );
 
@@ -183,4 +303,13 @@ export function useMockStore() {
     throw new Error("useMockStore must be used within MockStoreProvider");
   }
   return context;
+}
+
+export function sumCommission(
+  items: Transaction[],
+  statuses?: CommissionStatus[],
+): number {
+  return items
+    .filter((tx) => !statuses || statuses.includes(tx.commissionStatus))
+    .reduce((sum, tx) => sum + tx.commissionAmount, 0);
 }

@@ -1,70 +1,62 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Building2, ClipboardCheck, Handshake, MessageSquare, UsersRound } from "lucide-react";
-import { toast } from "sonner";
+import { Building2, ClipboardCheck, Handshake, MessageSquare, Percent, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
-import { developers } from "@/lib/mock-data/developers";
-import { useMockStore } from "@/lib/mock-store";
+import { formatPriceFull } from "@/lib/format";
+import { sumCommission, useMockStore } from "@/lib/mock-store";
 import { useTeamStore } from "@/lib/team-store";
 
 export default function AdminDashboardPage() {
-  const { properties, inquiries, usingFirestoreInquiries } = useMockStore();
-  const { members, usingFirestore: teamOnFirestore, seedFirestore } = useTeamStore();
-  const [seeding, setSeeding] = useState(false);
+  const { properties, inquiries, developers, transactions, usingFirestoreInquiries } = useMockStore();
+  const { members, usingFirestore: teamOnFirestore } = useTeamStore();
   const firebaseReady = isFirebaseConfigured();
 
   const activeInquiries = inquiries.filter(
     (inquiry) => !["CLOSED_WON", "CLOSED_LOST"].includes(inquiry.status),
   ).length;
   const pendingSubmissions = properties.filter((property) => property.status === "PENDING_APPROVAL").length;
+  const outstandingCommission = sumCommission(transactions, ["PENDING", "INVOICED"]);
 
   const stats = [
     {
       label: "Pending Submissions",
-      value: pendingSubmissions,
       href: "/admin/submissions",
       icon: ClipboardCheck,
+      display: String(pendingSubmissions),
     },
     {
       label: "Total Properties",
-      value: properties.length,
       href: "/admin/properties",
       icon: Building2,
+      display: String(properties.length),
     },
     {
       label: "Active Inquiries",
-      value: activeInquiries,
       href: "/admin/inquiries",
       icon: MessageSquare,
+      display: String(activeInquiries),
+    },
+    {
+      label: "Commission Outstanding",
+      href: "/admin/commissions",
+      icon: Percent,
+      display: formatPriceFull(outstandingCommission),
     },
     {
       label: "Team Members",
-      value: members.length,
       href: "/admin/team",
       icon: UsersRound,
+      display: String(members.length),
     },
     {
       label: "Dealers",
-      value: developers.length,
       href: "/admin/developers",
       icon: Handshake,
+      display: String(developers.length),
     },
   ];
-
-  async function handleSeedTeam() {
-    setSeeding(true);
-    try {
-      await seedFirestore();
-    } catch (error) {
-      console.error(error);
-      toast.error(error instanceof Error ? error.message : "Seed failed");
-    } finally {
-      setSeeding(false);
-    }
-  }
 
   return (
     <div>
@@ -78,7 +70,7 @@ export default function AdminDashboardPage() {
           : "Firebase env not set — inquiries fall back to local mock until keys are added."}
       </p>
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {stats.map((stat) => (
           <Link
             key={stat.label}
@@ -86,7 +78,7 @@ export default function AdminDashboardPage() {
             className="border border-forest/10 bg-card p-5 transition-colors hover:border-gold/40"
           >
             <stat.icon className="h-5 w-5 text-gold" />
-            <p className="mt-4 font-serif text-3xl text-forest">{stat.value}</p>
+            <p className="mt-4 font-serif text-2xl text-forest sm:text-3xl">{stat.display}</p>
             <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               {stat.label}
             </p>
@@ -98,16 +90,19 @@ export default function AdminDashboardPage() {
         <h2 className="font-serif text-xl">Quick actions</h2>
         <div className="mt-4 flex flex-wrap gap-3">
           <Button asChild>
+            <Link href="/admin/properties/add">Add property</Link>
+          </Button>
+          <Button variant="outline" asChild>
             <Link href="/admin/team">Manage team</Link>
           </Button>
           <Button variant="outline" asChild>
             <Link href="/admin/submissions">Verification queue</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/admin/inquiries">Inquiries</Link>
+            <Link href="/admin/commissions">Commission report</Link>
           </Button>
-          <Button variant="secondary" disabled={!firebaseReady || seeding} onClick={() => void handleSeedTeam()}>
-            {seeding ? "Seeding…" : "Seed team to Firestore"}
+          <Button variant="outline" asChild>
+            <Link href="/admin/inquiries">Inquiries</Link>
           </Button>
         </div>
       </div>

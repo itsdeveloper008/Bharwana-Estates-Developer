@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { toast } from "sonner";
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -19,11 +21,18 @@ export default function AdminPropertiesPage() {
 
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Inventory</p>
-      <h1 className="font-serif text-3xl">Properties</h1>
-      <p className="mb-8 mt-2 text-sm text-muted-foreground">
-        Mock inventory for this phase. Delete removes a listing from the session store.
-      </p>
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Inventory</p>
+          <h1 className="font-serif text-3xl">Properties</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Shared mock inventory. Delete removes a listing from the session store.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/admin/properties/add">Add Property</Link>
+        </Button>
+      </div>
       <div className="overflow-x-auto border border-forest/10">
         <Table>
           <TableHeader>

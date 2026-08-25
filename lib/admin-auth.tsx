@@ -9,6 +9,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import {
   authenticateAdmin,
   type AdminSession,
@@ -26,6 +28,22 @@ interface AdminAuthContextValue {
 }
 
 const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefined);
+
+function authErrorMessage(code: string): string {
+  switch (code) {
+    case "auth/invalid-credential":
+    case "auth/user-not-found":
+    case "auth/wrong-password":
+    case "auth/invalid-email":
+      return "Invalid email or password";
+    case "auth/too-many-requests":
+      return "Too many attempts. Try again later.";
+    case "auth/user-disabled":
+      return "This account has been disabled.";
+    default:
+      return "Could not sign in. Try again.";
+  }
+}
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState<AdminSession | null>(null);
@@ -47,23 +65,65 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    // TODO: replace with real backend call
-    await delay(700);
-    const session = authenticateAdmin(email, password);
-    if (!session) {
-      return { ok: false as const, error: "Invalid email or password" };
-    }
+  const persist = useCallback((session: AdminSession | null) => {
     setAdmin(session);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    return { ok: true as const };
+    if (session) localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    else localStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const normalized = email.trim().toLowerCase();
+
+      // Prefer Firebase email/password when configured
+      if (isFirebaseConfigured()) {
+        const auth = getFirebaseAuth();
+        if (auth) {
+          try {
+            const credential = await signInWithEmailAndPassword(auth, normalized, password);
+            const firebaseUser = credential.user;
+            const session: AdminSession = {
+              email: (firebaseUser.email ?? normalized).toLowerCase(),
+              fullName: firebaseUser.displayName?.trim() || firebaseUser.email?.split("@")[0] || "Admin",
+              role: "ADMIN",
+              avatarUrl: firebaseUser.photoURL ?? undefined,
+            };
+            persist(session);
+            return { ok: true as const };
+          } catch (error) {
+            const code =
+              error && typeof error === "object" && "code" in error
+                ? String((error as { code?: string }).code)
+                : "";
+            // Fall through to local mock credentials for demo accounts
+            if (
+              code &&
+              code !== "auth/invalid-credential" &&
+              code !== "auth/user-not-found" &&
+              code !== "auth/wrong-password"
+            ) {
+              return { ok: false as const, error: authErrorMessage(code) };
+            }
+          }
+        }
+      }
+
+      await delay(400);
+      const session = authenticateAdmin(normalized, password);
+      if (!session) {
+        return { ok: false as const, error: "Invalid email or password" };
+      }
+      persist(session);
+      return { ok: true as const };
+    },
+    [persist],
+  );
+
   const logout = useCallback(() => {
-    // TODO: replace with real backend call
-    setAdmin(null);
-    localStorage.removeItem(STORAGE_KEY);
-  }, []);
+    persist(null);
+    const auth = getFirebaseAuth();
+    if (auth) void signOut(auth).catch(() => undefined);
+  }, [persist]);
 
   const value = useMemo(
     () => ({

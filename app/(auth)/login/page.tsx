@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Suspense } from "react";
+import { AuthCrossLink } from "@/components/auth/auth-shell";
 import { LoginForm } from "@/components/auth/auth-forms";
 
 export const metadata = { title: "Sign in" };
@@ -16,10 +16,7 @@ export default function LoginPage() {
         <LoginForm />
       </Suspense>
       <p className="mt-8 text-center text-sm text-muted-foreground">
-        New to Bharwana?{" "}
-        <Link href="/register" className="text-forest underline-offset-4 hover:underline">
-          Create an account
-        </Link>
+        New to Bharwana? <AuthCrossLink href="/register">Create an account</AuthCrossLink>
       </p>
     </>
   );

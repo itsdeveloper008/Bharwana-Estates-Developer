@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { DealerGate } from "@/components/dealer/dealer-gate";
 import { Navbar } from "@/components/layout/navbar";
 import { OwnerGate } from "@/components/owner/owner-gate";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,10 @@ const roleCopy: Record<UserRole, { title: string; description: string }> = {
   HOUSE_OWNER: {
     title: "Owner atelier",
     description: "Manage listings and the conversations they attract.",
+  },
+  DEALER: {
+    title: "Dealer desk",
+    description: "Inventory, lead visibility, and commission under Bharwana.",
   },
   SALES_REP: {
     title: "Sales floor",
@@ -41,16 +46,21 @@ export function DashboardShell({
   const copy = roleCopy[role];
   const demoUser = users.find((item) => item.role === role);
 
-  if (role === "HOUSE_OWNER") {
+  if (role === "HOUSE_OWNER" || role === "DEALER") {
+    const Gate = role === "DEALER" ? DealerGate : OwnerGate;
     return (
       <div className="min-h-screen bg-ivory">
         <Navbar />
-        <OwnerGate>
+        <Gate>
           <div className="border-b border-forest/10 bg-cream/50">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">{copy.title}</p>
-                <h1 className="font-serif text-2xl sm:text-3xl">{user?.fullName}</h1>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">
+                  {user ? copy.title : "New listing"}
+                </p>
+                <h1 className="font-serif text-2xl sm:text-3xl">
+                  {user?.fullName ?? "Place a residence"}
+                </h1>
               </div>
               {pathname !== "/" && (
                 <Button variant="ghost" asChild>
@@ -63,7 +73,7 @@ export function DashboardShell({
             </div>
           </div>
           <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">{children}</div>
-        </OwnerGate>
+        </Gate>
       </div>
     );
   }

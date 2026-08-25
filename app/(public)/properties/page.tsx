@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { PropertiesExplorer } from "@/components/properties/properties-explorer";
 
 export const metadata = {
-  title: "Residences",
+  title: "Properties",
 };
 
 export default function PropertiesPage() {

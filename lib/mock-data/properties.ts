@@ -1,9 +1,9 @@
-import type { Property } from "@/lib/types";
+import type { Property, PropertyCategory } from "@/lib/types";
 
 const img = (id: string) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1600&q=80`;
 
-export const properties: Property[] = [
+const seedProperties: Property[] = [
   {
     id: "p-01",
     title: "Citrus Court Villa, DHA Phase 5",
@@ -464,4 +464,96 @@ export const properties: Property[] = [
     ownerUserId: "u-owner-1",
     createdAt: "2026-07-28T14:15:00.000Z",
   },
+  {
+    id: "p-21",
+    title: "Ali Realty — Canal View Duplex",
+    description:
+      "A dealer-listed duplex near Canal Road with dual living rooms, a covered terrace, and documented NOC. Submitted through Ali Realty under Bharwana’s commission structure.",
+    listingType: "BUSINESS",
+    status: "PUBLISHED",
+    price: 72000000,
+    areaSqft: 2400,
+    bedrooms: 4,
+    bathrooms: 4,
+    address: "Canal Bank Road",
+    city: "Lahore",
+    latitude: 31.4821,
+    longitude: 74.3214,
+    images: [
+      img("photo-1600585154526-990dced4db0d"),
+      img("photo-1600566753190-17f0baa2a6c3"),
+    ],
+    ownerUserId: "u-dealer-1",
+    developerId: "d-ali-realty",
+    createdAt: "2026-07-15T10:00:00.000Z",
+  },
+  {
+    id: "p-22",
+    title: "Ali Realty — Johar Town Flat",
+    description:
+      "A bright three-bed flat in Johar Town awaiting verification. Dealer inventory under Ali Realty.",
+    listingType: "BUSINESS",
+    status: "PENDING_APPROVAL",
+    price: 28500000,
+    areaSqft: 1450,
+    bedrooms: 3,
+    bathrooms: 2,
+    address: "Block G, Johar Town",
+    city: "Lahore",
+    latitude: 31.4698,
+    longitude: 74.2912,
+    images: [img("photo-1502672260266-1c1ef2d93688")],
+    ownerUserId: "u-dealer-1",
+    developerId: "d-ali-realty",
+    createdAt: "2026-08-10T09:30:00.000Z",
+  },
 ];
+
+const HOME_SUBTYPES = ["HOUSE", "FLAT", "PENTHOUSE", "UPPER_PORTION", "FARM_HOUSE", "ROOM"] as const;
+const PLOT_SUBTYPES = ["RESIDENTIAL_PLOT", "COMMERCIAL_PLOT", "AGRICULTURAL_LAND", "INDUSTRIAL_LAND"] as const;
+const COMMERCIAL_SUBTYPES = ["OFFICE", "SHOP", "WAREHOUSE", "BUILDING", "FACTORY"] as const;
+
+function taxonomyForIndex(index: number): {
+  purpose: Property["purpose"];
+  category: PropertyCategory;
+  subtype: string;
+} {
+  if (index % 7 === 0) {
+    return {
+      purpose: "RENT",
+      category: "HOME",
+      subtype: HOME_SUBTYPES[index % HOME_SUBTYPES.length]!,
+    };
+  }
+  if (index % 5 === 0) {
+    return {
+      purpose: "SALE",
+      category: "PLOTS",
+      subtype: PLOT_SUBTYPES[index % PLOT_SUBTYPES.length]!,
+    };
+  }
+  if (index % 5 === 1) {
+    return {
+      purpose: "SALE",
+      category: "COMMERCIAL",
+      subtype: COMMERCIAL_SUBTYPES[index % COMMERCIAL_SUBTYPES.length]!,
+    };
+  }
+  return {
+    purpose: "SALE",
+    category: "HOME",
+    subtype: HOME_SUBTYPES[index % HOME_SUBTYPES.length]!,
+  };
+}
+
+export const properties: Property[] = seedProperties.map((property, index) => {
+  const taxonomy = taxonomyForIndex(index);
+  return {
+    ...property,
+    purpose: property.purpose ?? taxonomy.purpose,
+    category: property.category ?? taxonomy.category,
+    subtype: property.subtype ?? taxonomy.subtype,
+    bedrooms: (property.category ?? taxonomy.category) === "PLOTS" ? 0 : property.bedrooms,
+    bathrooms: (property.category ?? taxonomy.category) === "PLOTS" ? 0 : property.bathrooms,
+  };
+});

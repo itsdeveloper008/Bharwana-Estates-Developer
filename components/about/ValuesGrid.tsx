@@ -32,11 +32,18 @@ const values = [
 
 export function ValuesGrid() {
   return (
-    <section className="bg-cream/60 py-20">
+    <section className="border-t border-forest/5 bg-cream/60 py-20 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Why Bharwana</p>
-        <h2 className="mt-3 max-w-xl font-serif text-4xl">Values that hold the floor steady.</h2>
-        <div className="mt-4 h-px w-14 bg-gold/60" />
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+        >
+          <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Why Bharwana</p>
+          <h2 className="mt-3 max-w-xl font-serif text-4xl">Values that hold the floor steady.</h2>
+          <div className="mt-4 h-px w-14 bg-gold/60" />
+        </motion.div>
 
         <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {values.map((value, index) => (

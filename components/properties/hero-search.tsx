@@ -3,29 +3,26 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ArrowRight, CheckCircle2, Home, MapPin, Search, ShieldCheck, Sparkles } from "lucide-react";
 import {
-  ArrowRight,
-  CheckCircle2,
-  Home,
-  MapPin,
-  Search,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+  AREA_UNITS,
+  CURRENCIES,
+  PillToggleGroup,
+  PropertyTypePicker,
+  PURPOSE_OPTIONS,
+  RangeFilterPopover,
+  SOURCE_OPTIONS,
+  rangeTriggerLabel,
+  toScaledAmount,
+  type AreaUnitId,
+  type CurrencyId,
+  type PurposeId,
+  type SourceId,
+} from "@/components/properties/property-filter-controls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CITIES } from "@/lib/types";
-import { cn } from "@/lib/utils";
-
-const TABS = [
-  { id: "buy", label: "Buy" },
-  { id: "owner", label: "Owner" },
-  { id: "dealer", label: "Dealer" },
-  { id: "map", label: "Map", badge: "NEW" },
-] as const;
-
-type TabId = (typeof TABS)[number]["id"];
+import { CITIES, type PropertyCategory } from "@/lib/types";
 
 const CITY_CARDS = [
   { city: "Lahore", hint: "Canal & Model Town" },
@@ -43,66 +40,60 @@ const TRUST = [
 
 export function HeroSearch() {
   const router = useRouter();
-  const [tab, setTab] = useState<TabId>("buy");
+  const [purpose, setPurpose] = useState<PurposeId>("buy");
+  const [source, setSource] = useState<SourceId>("ALL");
   const [city, setCity] = useState("ALL");
   const [listingType, setListingType] = useState("ALL");
-  const [minArea, setMinArea] = useState("ALL");
+  const [category, setCategory] = useState<PropertyCategory>("HOME");
+  const [subtype, setSubtype] = useState<string | "ALL">("ALL");
+  const [areaUnit, setAreaUnit] = useState<AreaUnitId>("sqft");
+  const [areaMin, setAreaMin] = useState("0");
+  const [areaMax, setAreaMax] = useState("");
+  const [currency, setCurrency] = useState<CurrencyId>("PKR");
+  const [priceMin, setPriceMin] = useState("0");
+  const [priceMax, setPriceMax] = useState("");
   const [beds, setBeds] = useState("ALL");
-  const [maxPrice, setMaxPrice] = useState("ALL");
   const [query, setQuery] = useState("");
 
-  function listingFromTab(next: TabId) {
-    if (next === "owner") return "DIRECT_OWNER";
-    if (next === "dealer") return "BUSINESS";
-    return "ALL";
-  }
+  const areaUnitMeta = AREA_UNITS.find((item) => item.id === areaUnit) ?? AREA_UNITS[0];
+  const currencyMeta = CURRENCIES.find((item) => item.id === currency) ?? CURRENCIES[0];
 
-  function onTab(next: TabId) {
-    setTab(next);
-    if (next !== "map") setListingType(listingFromTab(next));
+  function onSource(next: string) {
+    const id = next as SourceId;
+    setSource(id);
+    const match = SOURCE_OPTIONS.find((item) => item.id === id);
+    setListingType(match?.listingType ?? "ALL");
   }
 
   function search() {
-    if (tab === "map") {
-      const params = new URLSearchParams();
-      if (query) params.set("q", query);
-      if (city !== "ALL") params.set("city", city);
-      router.push(`/map?${params.toString()}`);
-      return;
-    }
-
     const params = new URLSearchParams();
     if (query) params.set("q", query);
     if (city !== "ALL") params.set("city", city);
-    const type = listingType !== "ALL" ? listingType : listingFromTab(tab);
-    if (type !== "ALL") params.set("listingType", type);
-    if (minArea !== "ALL") params.set("minArea", minArea);
-    if (beds !== "ALL") params.set("beds", beds);
-    if (maxPrice !== "ALL") params.set("maxPrice", maxPrice);
+    if (listingType !== "ALL") params.set("listingType", listingType);
+    params.set("category", category);
+    if (subtype !== "ALL") params.set("subtype", subtype);
+    const minAreaSqft = toScaledAmount(areaMin, areaUnitMeta.toSqft);
+    const maxAreaSqft = toScaledAmount(areaMax, areaUnitMeta.toSqft);
+    if (minAreaSqft) params.set("minArea", String(minAreaSqft));
+    if (maxAreaSqft) params.set("maxArea", String(maxAreaSqft));
+    if (beds !== "ALL" && category !== "PLOTS") params.set("beds", beds);
+    const minPricePkr = toScaledAmount(priceMin, currencyMeta.toPkr);
+    const maxPricePkr = toScaledAmount(priceMax, currencyMeta.toPkr);
+    if (minPricePkr) params.set("minPrice", String(minPricePkr));
+    if (maxPricePkr) params.set("maxPrice", String(maxPricePkr));
+    params.set("intent", purpose === "rent" ? "rental" : "buy");
     router.push(`/properties?${params.toString()}`);
   }
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <div className="mx-auto mb-5 flex w-fit items-center gap-1 rounded-full bg-ivory/95 p-1 shadow-lift">
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onTab(item.id)}
-            className={cn(
-              "relative rounded-full px-4 py-2 text-sm font-medium transition-colors",
-              tab === item.id ? "bg-forest/10 text-forest" : "text-forest/60 hover:text-forest",
-            )}
-          >
-            {item.label}
-            {"badge" in item && item.badge ? (
-              <span className="ml-1.5 rounded-sm bg-gold px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-forest">
-                {item.badge}
-              </span>
-            ) : null}
-          </button>
-        ))}
+      <div className="mx-auto mb-5 flex w-full max-w-md flex-wrap items-center justify-between gap-3 sm:max-w-lg">
+        <PillToggleGroup
+          options={PURPOSE_OPTIONS}
+          value={purpose}
+          onChange={(id) => setPurpose(id as PurposeId)}
+        />
+        <PillToggleGroup options={SOURCE_OPTIONS} value={source} onChange={onSource} allowDeselect />
       </div>
 
       <div className="overflow-hidden rounded-3xl bg-ivory shadow-lift">
@@ -133,35 +124,42 @@ export function HeroSearch() {
               onKeyDown={(event) => event.key === "Enter" && search()}
             />
           </div>
-          <div className="px-4 py-3">
-            <Select value={listingType} onValueChange={setListingType}>
-              <SelectTrigger className="h-11 border-0 bg-transparent shadow-none focus:ring-0">
-                <SelectValue placeholder="Homes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Homes</SelectItem>
-                <SelectItem value="DIRECT_OWNER">Direct owner</SelectItem>
-                <SelectItem value="BUSINESS">Dealer</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="px-4 py-2.5">
+            <PropertyTypePicker
+              category={category}
+              subtype={subtype}
+              onChange={(next) => {
+                setCategory(next.category);
+                setSubtype(next.subtype);
+                if (next.category === "PLOTS") setBeds("ALL");
+              }}
+            />
           </div>
         </div>
 
         <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]">
-          <Select value={minArea} onValueChange={setMinArea}>
-            <SelectTrigger className="h-11 bg-white">
-              <SelectValue placeholder="Area (Marla)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Area (Marla)</SelectItem>
-              <SelectItem value="1125">5+ Marla</SelectItem>
-              <SelectItem value="2250">10+ Marla</SelectItem>
-              <SelectItem value="4500">20+ Marla</SelectItem>
-              <SelectItem value="9000">2+ Kanal</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={beds} onValueChange={setBeds}>
-            <SelectTrigger className="h-11 bg-white">
+          <RangeFilterPopover
+            title={`Area (${areaUnitMeta.label})`}
+            changeLabel="Change Area Unit"
+            onChangeMeta={() => {
+              const index = AREA_UNITS.findIndex((item) => item.id === areaUnit);
+              setAreaUnit(AREA_UNITS[(index + 1) % AREA_UNITS.length]!.id);
+            }}
+            triggerLabel={rangeTriggerLabel("Area", areaUnitMeta.label, areaMin, areaMax)}
+            min={areaMin}
+            max={areaMax}
+            accentBorder
+            onApply={(min, max) => {
+              setAreaMin(min.trim() === "" ? "0" : min);
+              setAreaMax(max.trim());
+            }}
+            onReset={() => {
+              setAreaMin("0");
+              setAreaMax("");
+            }}
+          />
+          <Select value={beds} onValueChange={setBeds} disabled={category === "PLOTS"}>
+            <SelectTrigger className="h-11 bg-white disabled:opacity-50">
               <SelectValue placeholder="Beds" />
             </SelectTrigger>
             <SelectContent>
@@ -173,18 +171,25 @@ export function HeroSearch() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={maxPrice} onValueChange={setMaxPrice}>
-            <SelectTrigger className="h-11 bg-white">
-              <SelectValue placeholder="Price (PKR)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Price (PKR)</SelectItem>
-              <SelectItem value="50000000">Up to 5 Cr</SelectItem>
-              <SelectItem value="100000000">Up to 10 Cr</SelectItem>
-              <SelectItem value="200000000">Up to 20 Cr</SelectItem>
-              <SelectItem value="300000000">Up to 30 Cr</SelectItem>
-            </SelectContent>
-          </Select>
+          <RangeFilterPopover
+            title={`Price (${currencyMeta.label})`}
+            changeLabel="Change Currency"
+            onChangeMeta={() => {
+              const index = CURRENCIES.findIndex((item) => item.id === currency);
+              setCurrency(CURRENCIES[(index + 1) % CURRENCIES.length]!.id);
+            }}
+            triggerLabel={rangeTriggerLabel("Price", currencyMeta.label, priceMin, priceMax)}
+            min={priceMin}
+            max={priceMax}
+            onApply={(min, max) => {
+              setPriceMin(min.trim() === "" ? "0" : min);
+              setPriceMax(max.trim());
+            }}
+            onReset={() => {
+              setPriceMin("0");
+              setPriceMax("");
+            }}
+          />
           <Button className="h-11 bg-forest px-8 text-ivory hover:bg-forest-800" onClick={search}>
             Search
           </Button>

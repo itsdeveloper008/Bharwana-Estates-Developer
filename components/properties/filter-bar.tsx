@@ -1,121 +1,236 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LayoutGrid, List, Map as MapIcon, SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { LayoutGrid, List, Map as MapIcon, MapPin, Search, SlidersHorizontal } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  AREA_UNITS,
+  CURRENCIES,
+  fromScaledAmount,
+  PillToggleGroup,
+  PropertyTypePicker,
+  PURPOSE_OPTIONS,
+  RangeFilterPopover,
+  SOURCE_OPTIONS,
+  rangeTriggerLabel,
+  toScaledAmount,
+  type AreaUnitId,
+  type CurrencyId,
+  type PurposeId,
+  type SourceId,
+} from "@/components/properties/property-filter-controls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { CITIES } from "@/lib/types";
-import type { ListingType } from "@/lib/types";
+import { CITIES, type PropertyCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function parseFilters(searchParams: URLSearchParams) {
-  const listingType = searchParams.get("listingType");
-  return {
-    query: searchParams.get("q") ?? "",
-    city: searchParams.get("city") ?? "",
-    listingType: (listingType as ListingType | "ALL" | "") || "",
-    minPrice: searchParams.get("minPrice") ?? "",
-    maxPrice: searchParams.get("maxPrice") ?? "",
-    bedrooms: searchParams.get("beds") ?? "",
-    bathrooms: searchParams.get("baths") ?? "",
-    view: searchParams.get("view") ?? "grid",
-  };
+function readCategory(raw: string | null): PropertyCategory {
+  if (raw === "PLOTS" || raw === "COMMERCIAL" || raw === "HOME") return raw;
+  return "HOME";
 }
 
-function FiltersForm({
-  compact,
-}: {
-  compact?: boolean;
-}) {
+function FiltersForm({ compact }: { compact?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const current = parseFilters(searchParams);
 
-  function update(key: string, value: string) {
+  const intent = searchParams.get("intent");
+  const purpose: PurposeId = intent === "rental" || intent === "rent" ? "rent" : "buy";
+  const listingType = searchParams.get("listingType");
+  const source: SourceId =
+    listingType === "DIRECT_OWNER" ? "owner" : listingType === "BUSINESS" ? "dealer" : "ALL";
+  const category = readCategory(searchParams.get("category"));
+  const subtype = (searchParams.get("subtype") as string | "ALL") || "ALL";
+  const beds = searchParams.get("beds") ?? "ALL";
+  const city = searchParams.get("city") ?? "ALL";
+  const query = searchParams.get("q") ?? "";
+
+  const [areaUnit, setAreaUnit] = useState<AreaUnitId>("sqft");
+  const [currency, setCurrency] = useState<CurrencyId>("PKR");
+
+  const areaUnitMeta = AREA_UNITS.find((item) => item.id === areaUnit) ?? AREA_UNITS[0];
+  const currencyMeta = CURRENCIES.find((item) => item.id === currency) ?? CURRENCIES[0];
+
+  const areaMin = useMemo(() => {
+    const raw = searchParams.get("minArea");
+    if (!raw) return "0";
+    return fromScaledAmount(Number(raw), areaUnitMeta.toSqft) || "0";
+  }, [searchParams, areaUnitMeta.toSqft]);
+
+  const areaMax = useMemo(() => {
+    const raw = searchParams.get("maxArea");
+    if (!raw) return "";
+    return fromScaledAmount(Number(raw), areaUnitMeta.toSqft);
+  }, [searchParams, areaUnitMeta.toSqft]);
+
+  const priceMin = useMemo(() => {
+    const raw = searchParams.get("minPrice");
+    if (!raw) return "0";
+    return fromScaledAmount(Number(raw), currencyMeta.toPkr) || "0";
+  }, [searchParams, currencyMeta.toPkr]);
+
+  const priceMax = useMemo(() => {
+    const raw = searchParams.get("maxPrice");
+    if (!raw) return "";
+    return fromScaledAmount(Number(raw), currencyMeta.toPkr);
+  }, [searchParams, currencyMeta.toPkr]);
+
+  function patch(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
-    if (!value || value === "ALL") params.delete(key);
-    else params.set(key, value);
+    Object.entries(updates).forEach(([key, value]) => {
+      if (!value || value === "ALL") params.delete(key);
+      else params.set(key, value);
+    });
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   return (
-    <div className={cn("grid gap-4", compact ? "grid-cols-2 lg:grid-cols-6" : "grid-cols-1")}>
-      <div className={cn(compact && "col-span-2")}>
-        <Label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Search</Label>
-        <Input
-          defaultValue={current.query}
-          placeholder="Title, street, neighbourhood"
-          className="mt-1.5 bg-white"
-          onBlur={(event) => update("q", event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") update("q", event.currentTarget.value);
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PillToggleGroup
+          options={PURPOSE_OPTIONS}
+          value={purpose}
+          onChange={(id) => patch({ intent: id === "rent" ? "rental" : "buy" })}
+        />
+        <PillToggleGroup
+          options={SOURCE_OPTIONS}
+          value={source}
+          allowDeselect
+          onChange={(id) => {
+            if (id === "ALL") patch({ listingType: null });
+            else {
+              const match = SOURCE_OPTIONS.find((item) => item.id === id);
+              patch({ listingType: match?.listingType ?? null });
+            }
           }}
         />
       </div>
-      <div>
-        <Label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">City</Label>
-        <Select value={current.city || "ALL"} onValueChange={(value) => update("city", value)}>
-          <SelectTrigger className="mt-1.5 bg-white">
-            <SelectValue placeholder="Any city" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Any city</SelectItem>
-            {CITIES.map((city) => (
-              <SelectItem key={city} value={city}>
-                {city}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div>
-        <Label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Origin</Label>
-        <Select value={current.listingType || "ALL"} onValueChange={(value) => update("listingType", value)}>
-          <SelectTrigger className="mt-1.5 bg-white">
-            <SelectValue placeholder="Any origin" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Any origin</SelectItem>
-            <SelectItem value="DIRECT_OWNER">Direct from owner</SelectItem>
-            <SelectItem value="BUSINESS">Dealer verified</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div>
-        <Label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Beds</Label>
-        <Select value={current.bedrooms || "ALL"} onValueChange={(value) => update("beds", value)}>
-          <SelectTrigger className="mt-1.5 bg-white">
-            <SelectValue placeholder="Any" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Any</SelectItem>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <SelectItem key={n} value={String(n)}>
-                {n}+
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div>
-        <Label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Max price (Cr)</Label>
-        <Select value={current.maxPrice || "ALL"} onValueChange={(value) => update("maxPrice", value)}>
-          <SelectTrigger className="mt-1.5 bg-white">
-            <SelectValue placeholder="Any" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Any</SelectItem>
-            <SelectItem value="50000000">5 Cr</SelectItem>
-            <SelectItem value="100000000">10 Cr</SelectItem>
-            <SelectItem value="200000000">20 Cr</SelectItem>
-            <SelectItem value="300000000">30 Cr</SelectItem>
-          </SelectContent>
-        </Select>
+
+      <div
+        className={cn(
+          "overflow-hidden rounded-2xl border border-forest/10 bg-white",
+          compact ? "shadow-sm" : "",
+        )}
+      >
+        <div className="grid gap-0 border-b border-forest/10 lg:grid-cols-[0.9fr_1.4fr_0.9fr]">
+          <div className="flex items-center gap-2 border-b border-forest/10 px-3 py-2 lg:border-b-0 lg:border-r">
+            <MapPin className="h-4 w-4 shrink-0 text-forest" />
+            <Select value={city} onValueChange={(value) => patch({ city: value })}>
+              <SelectTrigger className="h-10 border-0 bg-transparent shadow-none focus:ring-0">
+                <SelectValue placeholder="Pakistan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Pakistan</SelectItem>
+                {CITIES.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2 border-b border-forest/10 px-3 py-2 lg:border-b-0 lg:border-r">
+            <Search className="h-4 w-4 shrink-0 text-forest/50" />
+            <Input
+              defaultValue={query}
+              key={query}
+              placeholder="Search by location"
+              className="h-10 border-0 bg-transparent shadow-none focus-visible:ring-0"
+              onBlur={(event) => patch({ q: event.target.value.trim() || null })}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") patch({ q: event.currentTarget.value.trim() || null });
+              }}
+            />
+          </div>
+          <div className="px-3 py-1.5">
+            <PropertyTypePicker
+              category={category}
+              subtype={subtype}
+              align="end"
+              triggerClassName="px-1"
+              onChange={(next) => {
+                patch({
+                  category: next.category,
+                  subtype: next.subtype === "ALL" ? null : next.subtype,
+                  beds: next.category === "PLOTS" ? null : beds === "ALL" ? null : beds,
+                });
+              }}
+            />
+          </div>
+        </div>
+
+        <div className={cn("grid gap-3 p-3", compact ? "sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1")}>
+          <RangeFilterPopover
+            title={`Area (${areaUnitMeta.label})`}
+            changeLabel="Change Area Unit"
+            onChangeMeta={() => {
+              const index = AREA_UNITS.findIndex((item) => item.id === areaUnit);
+              setAreaUnit(AREA_UNITS[(index + 1) % AREA_UNITS.length]!.id);
+            }}
+            triggerLabel={rangeTriggerLabel("Area", areaUnitMeta.label, areaMin, areaMax)}
+            min={areaMin}
+            max={areaMax}
+            accentBorder
+            onApply={(min, max) => {
+              const minSqft = toScaledAmount(min, areaUnitMeta.toSqft);
+              const maxSqft = toScaledAmount(max, areaUnitMeta.toSqft);
+              patch({
+                minArea: minSqft ? String(minSqft) : null,
+                maxArea: maxSqft ? String(maxSqft) : null,
+              });
+            }}
+            onReset={() => patch({ minArea: null, maxArea: null })}
+          />
+          <Select
+            value={beds}
+            disabled={category === "PLOTS"}
+            onValueChange={(value) => patch({ beds: value })}
+          >
+            <SelectTrigger className="h-11 bg-white disabled:opacity-50">
+              <SelectValue placeholder="Beds" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Beds</SelectItem>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n}+ beds
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <RangeFilterPopover
+            title={`Price (${currencyMeta.label})`}
+            changeLabel="Change Currency"
+            onChangeMeta={() => {
+              const index = CURRENCIES.findIndex((item) => item.id === currency);
+              setCurrency(CURRENCIES[(index + 1) % CURRENCIES.length]!.id);
+            }}
+            triggerLabel={rangeTriggerLabel("Price", currencyMeta.label, priceMin, priceMax)}
+            min={priceMin}
+            max={priceMax}
+            onApply={(min, max) => {
+              const minPkr = toScaledAmount(min, currencyMeta.toPkr);
+              const maxPkr = toScaledAmount(max, currencyMeta.toPkr);
+              patch({
+                minPrice: minPkr ? String(minPkr) : null,
+                maxPrice: maxPkr ? String(maxPkr) : null,
+              });
+            }}
+            onReset={() => patch({ minPrice: null, maxPrice: null })}
+          />
+          {compact ? null : (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11"
+              onClick={() => router.replace(pathname)}
+            >
+              Clear all
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -153,7 +268,7 @@ export function FilterBar({
       </div>
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          {typeof resultCount === "number" ? `${resultCount} residences` : "Filter the collection"}
+          {typeof resultCount === "number" ? `${resultCount} properties` : "Filter the collection"}
         </p>
         <div className="flex items-center gap-2">
           <Sheet open={open} onOpenChange={setOpen}>
@@ -163,7 +278,7 @@ export function FilterBar({
                 Filters
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="bg-ivory">
+            <SheetContent side="left" className="w-full overflow-y-auto bg-ivory sm:max-w-md">
               <SheetHeader>
                 <SheetTitle className="font-serif">Refine</SheetTitle>
               </SheetHeader>

@@ -15,8 +15,50 @@ export function warnMissingMapboxToken() {
   );
 }
 
-/** Light basemap that fits ivory/charcoal (no API key). */
-export const MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+/** Satellite imagery so residences and lots read clearly (Esri World Imagery via MapLibre). */
+export const MAP_STYLE = {
+  version: 8 as const,
+  name: "Bharwana Satellite",
+  sources: {
+    esriSatellite: {
+      type: "raster" as const,
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
+      maxzoom: 19,
+    },
+    cartoLabels: {
+      type: "raster" as const,
+      tiles: [
+        "https://basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}@2x.png",
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap © CARTO",
+      maxzoom: 20,
+    },
+  },
+  layers: [
+    {
+      id: "esri-satellite",
+      type: "raster" as const,
+      source: "esriSatellite",
+      minzoom: 0,
+      maxzoom: 22,
+    },
+    {
+      id: "carto-labels",
+      type: "raster" as const,
+      source: "cartoLabels",
+      minzoom: 0,
+      maxzoom: 22,
+      paint: {
+        "raster-opacity": 0.9,
+      },
+    },
+  ],
+};
 
 export const DEFAULT_MAP_VIEW = {
   latitude: 31.52,

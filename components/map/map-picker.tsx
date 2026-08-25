@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Map, { Marker } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { MapPin, Search } from "lucide-react";
 import { PropertyPin } from "@/components/map/property-pin";
 import { Input } from "@/components/ui/input";
 import { CITY_COORDS, DEFAULT_MAP_VIEW, MAP_STYLE, MAPBOX_TOKEN, hasMapboxToken } from "@/lib/map";
@@ -45,41 +46,49 @@ export function MapPicker({
 
   return (
     <div className="space-y-3">
-      <Input
-        value={query}
-        placeholder="Search a city (e.g. Lahore), then drag the pin"
-        onChange={(event) => setQuery(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            void searchAddress();
-          }
-        }}
-        className="bg-white"
-      />
-      <div className="h-72 overflow-hidden">
-        <Map
-          mapStyle={MAP_STYLE}
-          {...view}
-          onMove={(event) => setView(event.viewState)}
-          onClick={(event) => {
-            onChange({ latitude: event.lngLat.lat, longitude: event.lngLat.lng });
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-forest/40" strokeWidth={1.5} />
+        <Input
+          value={query}
+          placeholder="Search a city (e.g. Lahore), then drag the pin"
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              void searchAddress();
+            }
           }}
-          attributionControl={false}
-        >
-          <Marker
-            latitude={latitude}
-            longitude={longitude}
-            anchor="bottom"
-            draggable
-            onDragEnd={(event) => onChange({ latitude: event.lngLat.lat, longitude: event.lngLat.lng })}
-          >
-            <PropertyPin />
-          </Marker>
-        </Map>
+          className="bg-white pl-9 transition-shadow duration-200 focus-visible:border-gold focus-visible:ring-gold/35"
+        />
       </div>
-      <p className="text-xs text-muted-foreground">
-        {latitude.toFixed(5)}, {longitude.toFixed(5)}, click the map or drag the pin.
+      <div className="overflow-hidden rounded-md border border-forest/10 bg-white shadow-[0_12px_32px_-18px_rgba(15,46,29,0.35)]">
+        <div className="h-72">
+          <Map
+            mapStyle={MAP_STYLE}
+            {...view}
+            onMove={(event) => setView(event.viewState)}
+            onClick={(event) => {
+              onChange({ latitude: event.lngLat.lat, longitude: event.lngLat.lng });
+            }}
+            attributionControl={false}
+          >
+            <Marker
+              latitude={latitude}
+              longitude={longitude}
+              anchor="bottom"
+              draggable
+              onDragEnd={(event) => onChange({ latitude: event.lngLat.lat, longitude: event.lngLat.lng })}
+            >
+              <PropertyPin />
+            </Marker>
+          </Map>
+        </div>
+      </div>
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <MapPin className="h-3.5 w-3.5 shrink-0 text-gold-700" strokeWidth={1.5} />
+        <span>
+          {latitude.toFixed(5)}, {longitude.toFixed(5)} — click the map or drag the pin.
+        </span>
       </p>
     </div>
   );

@@ -36,11 +36,11 @@ function mapDoc(id: string, data: Record<string, unknown>): TeamMemberDoc {
     photoUrl: (() => {
       const fromData = data.photoUrl != null ? String(data.photoUrl) : "";
       const fromSeed = seed?.photoUrl ?? "";
-      // Prefer updated seed cutouts over older local /team paths still stored in Firestore
+      // Prefer seed originals when Firestore still points at removed cutouts
       if (
-        fromSeed.includes("-cutout") &&
-        fromData.startsWith("/team/") &&
-        !fromData.includes("-cutout")
+        fromData.includes("-cutout") &&
+        fromSeed.startsWith("/team/") &&
+        !fromSeed.includes("-cutout")
       ) {
         return fromSeed;
       }
