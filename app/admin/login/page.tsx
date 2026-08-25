@@ -25,7 +25,7 @@ export default function AdminLoginPage() {
         </div>
         <AdminLoginForm />
         <p className="mt-6 text-center text-[11px] text-muted-foreground">
-          Demo: admin@bharwana.example / admin123
+          Use the email and password from Firebase Authentication.
         </p>
       </div>
     </div>

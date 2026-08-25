@@ -18,6 +18,11 @@ import {
   updateInquiryStatusRemote,
   type InquiryInput,
 } from "@/lib/firestore/inquiries";
+import {
+  deleteProperty as deletePropertyRemote,
+  subscribeProperties,
+  upsertProperty,
+} from "@/lib/firestore/properties";
 import { developers as seedDevelopers } from "@/lib/mock-data/developers";
 import { inquiries as seedInquiries } from "@/lib/mock-data/inquiries";
 import { properties as seedPropertiesList } from "@/lib/mock-data/properties";
@@ -47,6 +52,7 @@ interface MockStoreContextValue {
   inquiriesLoading: boolean;
   inquiriesError: string | null;
   usingFirestoreInquiries: boolean;
+  usingFirestoreProperties: boolean;
   addProperty: (property: Property) => Promise<void>;
   updateProperty: (id: string, patch: Partial<Property>) => Promise<void>;
   deleteProperty: (id: string) => Promise<void>;
@@ -93,6 +99,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const [inquiriesLoading, setInquiriesLoading] = useState(false);
   const [inquiriesError, setInquiriesError] = useState<string | null>(null);
   const [usingFirestoreInquiries, setUsingFirestoreInquiries] = useState(false);
+  const [usingFirestoreProperties, setUsingFirestoreProperties] = useState(false);
 
   useEffect(() => {
     setProperties(mergeById(seedPropertiesList, readJsonArray<Property>(PROPERTIES_KEY)));
@@ -104,15 +111,18 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
+    // When Firestore owns properties, skip writing them to localStorage (avoids stale overrides).
     try {
-      localStorage.setItem(PROPERTIES_KEY, JSON.stringify(properties));
+      if (!usingFirestoreProperties) {
+        localStorage.setItem(PROPERTIES_KEY, JSON.stringify(properties));
+      }
       localStorage.setItem(DEVELOPERS_KEY, JSON.stringify(developers));
       localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
     } catch (error) {
       console.error("Could not persist mock store", error);
     }
-  }, [properties, developers, transactions, users, hydrated]);
+  }, [properties, developers, transactions, users, hydrated, usingFirestoreProperties]);
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
@@ -140,21 +150,75 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     return () => unsub?.();
   }, []);
 
+  useEffect(() => {
+    if (!isFirebaseConfigured()) {
+      setUsingFirestoreProperties(false);
+      return;
+    }
+
+    const unsub = subscribeProperties(
+      (next) => {
+        setUsingFirestoreProperties(true);
+        // Prefer live Firestore docs; keep seed listings that are not yet in Firestore.
+        setProperties(mergeById(seedPropertiesList, next));
+      },
+      (error) => {
+        console.error("Firestore properties subscription failed", error);
+        setUsingFirestoreProperties(false);
+        toast.error("Could not load properties from Firestore.");
+      },
+    );
+
+    return () => unsub?.();
+  }, []);
+
   const addProperty = useCallback(async (property: Property) => {
     setProperties((current) => {
       const without = current.filter((item) => item.id !== property.id);
       return [property, ...without];
     });
+    if (isFirebaseConfigured()) {
+      try {
+        await upsertProperty(property);
+      } catch (error) {
+        console.error(error);
+        toast.error("Could not save property to Firestore.");
+        throw error;
+      }
+    }
   }, []);
 
   const updateProperty = useCallback(async (id: string, patch: Partial<Property>) => {
+    let nextProperty: Property | undefined;
     setProperties((current) =>
-      current.map((property) => (property.id === id ? { ...property, ...patch, id } : property)),
+      current.map((property) => {
+        if (property.id !== id) return property;
+        nextProperty = { ...property, ...patch, id };
+        return nextProperty;
+      }),
     );
+    if (isFirebaseConfigured() && nextProperty) {
+      try {
+        await upsertProperty(nextProperty);
+      } catch (error) {
+        console.error(error);
+        toast.error("Could not update property in Firestore.");
+        throw error;
+      }
+    }
   }, []);
 
   const deleteProperty = useCallback(async (id: string) => {
     setProperties((current) => current.filter((property) => property.id !== id));
+    if (isFirebaseConfigured()) {
+      try {
+        await deletePropertyRemote(id);
+      } catch (error) {
+        console.error(error);
+        toast.error("Could not delete property from Firestore.");
+        throw error;
+      }
+    }
   }, []);
 
   const addInquiry = useCallback(async (input: InquiryInput) => {
@@ -257,6 +321,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       inquiriesLoading,
       inquiriesError,
       usingFirestoreInquiries,
+      usingFirestoreProperties,
       addProperty,
       updateProperty,
       deleteProperty,
@@ -279,6 +344,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       inquiriesLoading,
       inquiriesError,
       usingFirestoreInquiries,
+      usingFirestoreProperties,
       addProperty,
       updateProperty,
       deleteProperty,

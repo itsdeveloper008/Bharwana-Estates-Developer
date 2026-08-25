@@ -31,7 +31,7 @@ export default function AdminInquiriesPage() {
       <p className="mb-8 mt-2 text-sm text-muted-foreground">
         {usingFirestoreInquiries
           ? "Live from Firestore — new leads appear without refresh."
-          : "Local mock fallback until Firebase env is configured."}
+          : "Local-only until Firebase is configured on this deploy. Leads will not sync across devices."}
       </p>
 
       {inquiriesError && (

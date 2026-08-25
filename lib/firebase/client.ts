@@ -15,6 +15,7 @@ const firebaseConfig = {
 export function isFirebaseConfigured() {
   return Boolean(
     firebaseConfig.apiKey &&
+      firebaseConfig.authDomain &&
       firebaseConfig.projectId &&
       firebaseConfig.appId &&
       firebaseConfig.storageBucket,

@@ -60,7 +60,7 @@ export function AdminLoginForm() {
                 <Input
                   type="email"
                   autoComplete="email"
-                  placeholder="admin@bharwana.example"
+                  placeholder="you@company.com"
                   className={cn(
                     "bg-white",
                     fieldState.error && "border-destructive focus-visible:ring-destructive",

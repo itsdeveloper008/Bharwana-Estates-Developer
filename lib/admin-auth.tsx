@@ -31,6 +31,8 @@ const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefi
 
 function authErrorMessage(code: string): string {
   switch (code) {
+    case "auth/operation-not-allowed":
+      return "Email/password sign-in is not enabled in Firebase.";
     case "auth/invalid-credential":
     case "auth/user-not-found":
     case "auth/wrong-password":
@@ -75,39 +77,36 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       const normalized = email.trim().toLowerCase();
 
-      // Prefer Firebase email/password when configured
+      // Firebase email/password when the project is configured
       if (isFirebaseConfigured()) {
         const auth = getFirebaseAuth();
-        if (auth) {
-          try {
-            const credential = await signInWithEmailAndPassword(auth, normalized, password);
-            const firebaseUser = credential.user;
-            const session: AdminSession = {
-              email: (firebaseUser.email ?? normalized).toLowerCase(),
-              fullName: firebaseUser.displayName?.trim() || firebaseUser.email?.split("@")[0] || "Admin",
-              role: "ADMIN",
-              avatarUrl: firebaseUser.photoURL ?? undefined,
-            };
-            persist(session);
-            return { ok: true as const };
-          } catch (error) {
-            const code =
-              error && typeof error === "object" && "code" in error
-                ? String((error as { code?: string }).code)
-                : "";
-            // Fall through to local mock credentials for demo accounts
-            if (
-              code &&
-              code !== "auth/invalid-credential" &&
-              code !== "auth/user-not-found" &&
-              code !== "auth/wrong-password"
-            ) {
-              return { ok: false as const, error: authErrorMessage(code) };
-            }
-          }
+        if (!auth) {
+          return { ok: false as const, error: "Firebase Auth is not available." };
+        }
+        try {
+          const credential = await signInWithEmailAndPassword(auth, normalized, password);
+          const firebaseUser = credential.user;
+          const session: AdminSession = {
+            email: (firebaseUser.email ?? normalized).toLowerCase(),
+            fullName:
+              firebaseUser.displayName?.trim() ||
+              firebaseUser.email?.split("@")[0] ||
+              "Admin",
+            role: "ADMIN",
+            avatarUrl: firebaseUser.photoURL ?? undefined,
+          };
+          persist(session);
+          return { ok: true as const };
+        } catch (error) {
+          const code =
+            error && typeof error === "object" && "code" in error
+              ? String((error as { code?: string }).code)
+              : "";
+          return { ok: false as const, error: authErrorMessage(code) };
         }
       }
 
+      // Local mock admins only when Firebase env is missing
       await delay(400);
       const session = authenticateAdmin(normalized, password);
       if (!session) {

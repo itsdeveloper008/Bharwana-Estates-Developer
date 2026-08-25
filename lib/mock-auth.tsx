@@ -198,7 +198,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     if (!isFirebaseConfigured()) {
       return {
         ok: false as const,
-        error: "Google sign-in is not configured. Add Firebase env vars.",
+        error: "Google sign-in is not ready on this deploy. Firebase env vars are missing.",
       };
     }
     const auth = getFirebaseAuth();

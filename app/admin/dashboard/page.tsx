@@ -9,7 +9,8 @@ import { sumCommission, useMockStore } from "@/lib/mock-store";
 import { useTeamStore } from "@/lib/team-store";
 
 export default function AdminDashboardPage() {
-  const { properties, inquiries, developers, transactions, usingFirestoreInquiries } = useMockStore();
+  const { properties, inquiries, developers, transactions, usingFirestoreInquiries, usingFirestoreProperties } =
+    useMockStore();
   const { members, usingFirestore: teamOnFirestore } = useTeamStore();
   const firebaseReady = isFirebaseConfigured();
 
@@ -64,10 +65,10 @@ export default function AdminDashboardPage() {
       <h1 className="font-serif text-3xl">Dashboard</h1>
       <p className="mt-2 max-w-xl text-sm text-muted-foreground">
         {firebaseReady
-          ? `Firebase connected. Inquiries ${usingFirestoreInquiries ? "live on" : "local (fallback)"} Firestore · Team ${
-              teamOnFirestore ? "on" : "off"
-            } Firestore · Properties remain mock.`
-          : "Firebase env not set — inquiries fall back to local mock until keys are added."}
+          ? `Firebase connected. Inquiries ${usingFirestoreInquiries ? "live on" : "local (fallback)"} · Properties ${
+              usingFirestoreProperties ? "live on" : "local (fallback)"
+            } · Team ${teamOnFirestore ? "on" : "off"} Firestore.`
+          : "Firebase env not set — inquiries and listings stay local to each browser until keys are added on the host."}
       </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
