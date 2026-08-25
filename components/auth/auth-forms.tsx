@@ -84,14 +84,20 @@ function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) 
   async function handleClick() {
     setError(null);
     setPending(true);
-    const result = await loginWithGoogle();
-    setPending(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
+    try {
+      const result = await loginWithGoogle();
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      toast.success("Signed in with Google");
+      onSuccess(result.user);
+    } catch (err) {
+      console.error("Google continue failed", err);
+      setError("Could not sign in with Google. Try again.");
+    } finally {
+      setPending(false);
     }
-    toast.success("Signed in with Google");
-    onSuccess(result.user);
   }
 
   return (

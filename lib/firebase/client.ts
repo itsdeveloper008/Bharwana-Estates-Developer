@@ -29,38 +29,58 @@ let auth: Auth | null = null;
 
 export function getFirebaseApp() {
   if (!isFirebaseConfigured()) return null;
-  if (!app) {
-    app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+  try {
+    if (!app) {
+      app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+    }
+    return app;
+  } catch (error) {
+    console.error("Firebase app init failed", error);
+    return null;
   }
-  return app;
 }
 
 export function getDb() {
   if (!isFirebaseConfigured()) return null;
-  if (!db) {
-    const firebaseApp = getFirebaseApp();
-    if (!firebaseApp) return null;
-    db = getFirestore(firebaseApp);
+  try {
+    if (!db) {
+      const firebaseApp = getFirebaseApp();
+      if (!firebaseApp) return null;
+      db = getFirestore(firebaseApp);
+    }
+    return db;
+  } catch (error) {
+    console.error("Firestore init failed", error);
+    return null;
   }
-  return db;
 }
 
 export function getFirebaseStorage() {
   if (!isFirebaseConfigured()) return null;
-  if (!storage) {
-    const firebaseApp = getFirebaseApp();
-    if (!firebaseApp) return null;
-    storage = getStorage(firebaseApp);
+  try {
+    if (!storage) {
+      const firebaseApp = getFirebaseApp();
+      if (!firebaseApp) return null;
+      storage = getStorage(firebaseApp);
+    }
+    return storage;
+  } catch (error) {
+    console.error("Firebase Storage init failed", error);
+    return null;
   }
-  return storage;
 }
 
 export function getFirebaseAuth() {
   if (!isFirebaseConfigured()) return null;
-  if (!auth) {
-    const firebaseApp = getFirebaseApp();
-    if (!firebaseApp) return null;
-    auth = getAuth(firebaseApp);
+  try {
+    if (!auth) {
+      const firebaseApp = getFirebaseApp();
+      if (!firebaseApp) return null;
+      auth = getAuth(firebaseApp);
+    }
+    return auth;
+  } catch (error) {
+    console.error("Firebase Auth init failed", error);
+    return null;
   }
-  return auth;
 }
