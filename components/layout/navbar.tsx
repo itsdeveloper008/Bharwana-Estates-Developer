@@ -42,10 +42,24 @@ export function Navbar() {
   const overHero = isHome && !scrolled;
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    let frame = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const y = window.scrollY;
+        // Hysteresis stops flicker when scroll sits near the threshold
+        setScrolled((prev) => {
+          if (prev) return y > 8;
+          return y > 40;
+        });
+      });
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -97,11 +111,12 @@ export function Navbar() {
     <>
       <header
         className={cn(
-          "sticky top-0 z-50 w-full transition-[height,background-color,box-shadow,border-color] duration-[350ms] ease-out",
+          "sticky top-0 z-50 w-full",
+          // Fixed height on every page — never animate height (that causes navbar shiver)
+          "h-[72px] md:h-[80px]",
           overHero
-            ? "border-b border-white/10 bg-gradient-to-b from-[#082B1D]/70 to-transparent"
-            : "border-b border-[#082B1D]/10 bg-[#FBFAF6] shadow-[0_8px_30px_-18px_rgba(8,43,29,0.35)]",
-          scrolled && !overHero ? "h-[72px]" : "h-[88px] md:h-[96px]",
+            ? "border-b border-white/10 bg-gradient-to-b from-[#082B1D]/70 to-transparent transition-[background-color,border-color,box-shadow] duration-300 ease-out"
+            : "border-b border-[#082B1D]/10 bg-[#FBFAF6] shadow-[0_8px_30px_-18px_rgba(8,43,29,0.35)] transition-[background-color,border-color,box-shadow] duration-300 ease-out",
         )}
       >
         <div className="mx-auto flex h-full max-w-[1360px] items-center justify-between gap-5 px-5 sm:px-8 lg:px-10">

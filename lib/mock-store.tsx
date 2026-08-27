@@ -173,39 +173,45 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addProperty = useCallback(async (property: Property) => {
-    setProperties((current) => {
-      const without = current.filter((item) => item.id !== property.id);
-      return [property, ...without];
-    });
+    let saved = property;
     if (isFirebaseConfigured()) {
       try {
-        await upsertProperty(property);
+        saved = await upsertProperty(property);
       } catch (error) {
         console.error(error);
         toast.error("Could not save property to Firestore.");
         throw error;
       }
     }
+    setProperties((current) => {
+      const without = current.filter((item) => item.id !== saved.id);
+      return [saved, ...without];
+    });
   }, []);
 
   const updateProperty = useCallback(async (id: string, patch: Partial<Property>) => {
-    let nextProperty: Property | undefined;
-    setProperties((current) =>
-      current.map((property) => {
-        if (property.id !== id) return property;
-        nextProperty = { ...property, ...patch, id };
-        return nextProperty;
-      }),
-    );
-    if (isFirebaseConfigured() && nextProperty) {
+    let base: Property | undefined;
+    setProperties((current) => {
+      const existing = current.find((property) => property.id === id);
+      if (!existing) return current;
+      base = { ...existing, ...patch, id };
+      return current;
+    });
+    if (!base) return;
+
+    let saved = base;
+    if (isFirebaseConfigured()) {
       try {
-        await upsertProperty(nextProperty);
+        saved = await upsertProperty(base);
       } catch (error) {
         console.error(error);
         toast.error("Could not update property in Firestore.");
         throw error;
       }
     }
+    setProperties((current) =>
+      current.map((property) => (property.id === id ? saved : property)),
+    );
   }, []);
 
   const deleteProperty = useCallback(async (id: string) => {

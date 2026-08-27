@@ -3,19 +3,32 @@ import type { Property } from "@/lib/types";
 /** Optional. Used only for Mapbox Geocoding in the listing pin picker. */
 export const MAPBOX_TOKEN = (process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "").trim();
 
+/** Google Maps JavaScript API — /map view + map type modes (roadmap / satellite / hybrid / terrain). */
+export const GOOGLE_MAPS_API_KEY = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "").trim();
+
 export function hasMapboxToken() {
   return MAPBOX_TOKEN.length > 0;
 }
 
-export function warnMissingMapboxToken() {
-  if (process.env.NODE_ENV !== "development") return;
-  if (hasMapboxToken()) return;
-  console.info(
-    "[Bharwana] Map uses free MapLibre tiles (no token required). Optional NEXT_PUBLIC_MAPBOX_TOKEN enables address geocoding in the property form.",
-  );
+export function hasGoogleMapsKey() {
+  return GOOGLE_MAPS_API_KEY.length > 0;
 }
 
-/** Satellite imagery so residences and lots read clearly (Esri World Imagery via MapLibre). */
+export function warnMissingMapKeys() {
+  if (process.env.NODE_ENV !== "development") return;
+  if (!hasGoogleMapsKey()) {
+    console.warn(
+      "[Bharwana] Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY — enable Maps JavaScript API and add the key to .env.local.",
+    );
+  }
+  if (!hasMapboxToken()) {
+    console.info(
+      "[Bharwana] Optional NEXT_PUBLIC_MAPBOX_TOKEN enables address geocoding in the property form.",
+    );
+  }
+}
+
+/** @deprecated Kept for any MapLibre fallbacks; primary map uses Google Maps. */
 export const MAP_STYLE = {
   version: 8 as const,
   name: "Bharwana Satellite",
@@ -29,15 +42,6 @@ export const MAP_STYLE = {
       attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
       maxzoom: 19,
     },
-    cartoLabels: {
-      type: "raster" as const,
-      tiles: [
-        "https://basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}@2x.png",
-      ],
-      tileSize: 256,
-      attribution: "© OpenStreetMap © CARTO",
-      maxzoom: 20,
-    },
   },
   layers: [
     {
@@ -46,16 +50,6 @@ export const MAP_STYLE = {
       source: "esriSatellite",
       minzoom: 0,
       maxzoom: 22,
-    },
-    {
-      id: "carto-labels",
-      type: "raster" as const,
-      source: "cartoLabels",
-      minzoom: 0,
-      maxzoom: 22,
-      paint: {
-        "raster-opacity": 0.9,
-      },
     },
   ],
 };
@@ -76,7 +70,9 @@ export const CITY_COORDS: Record<string, { latitude: number; longitude: number; 
 };
 
 /** [west, south, east, north] */
-export function boundsFromProperties(properties: Pick<Property, "latitude" | "longitude">[]): [number, number, number, number] | null {
+export function boundsFromProperties(
+  properties: Pick<Property, "latitude" | "longitude">[],
+): [number, number, number, number] | null {
   if (properties.length === 0) return null;
   let west = Infinity;
   let south = Infinity;
@@ -92,4 +88,12 @@ export function boundsFromProperties(properties: Pick<Property, "latitude" | "lo
   const padLng = Math.max((east - west) * 0.12, 0.08);
   const padLat = Math.max((north - south) * 0.12, 0.08);
   return [west - padLng, south - padLat, east + padLng, north + padLat];
+}
+
+export function googleBoundsTuple(map: google.maps.Map | null): [number, number, number, number] | null {
+  const b = map?.getBounds();
+  if (!b) return null;
+  const sw = b.getSouthWest();
+  const ne = b.getNorthEast();
+  return [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
 }

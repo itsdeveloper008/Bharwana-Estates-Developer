@@ -2,9 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useFavorites } from "@/lib/favorites-context";
 import { formatPrice, listingBadge } from "@/lib/format";
 import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -12,16 +10,16 @@ import { cn } from "@/lib/utils";
 export function PropertyCard({
   property,
   layout = "grid",
+  highlighted = false,
   onHover,
   onSelect,
 }: {
   property: Property;
   layout?: "grid" | "list";
+  highlighted?: boolean;
   onHover?: (id: string | null) => void;
   onSelect?: (id: string) => void;
 }) {
-  const { isSaved, toggle } = useFavorites();
-  const saved = isSaved(property.id);
   const href = `/property/${property.id}`;
   const isList = layout === "list";
 
@@ -52,31 +50,33 @@ export function PropertyCard({
       >
         {listingBadge(property.listingType)}
       </Badge>
-      <button
-        type="button"
-        aria-label={saved ? "Remove from saved" : "Save property"}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          toggle(property.id);
-        }}
-        className={cn(
-          "absolute flex items-center justify-center rounded-full bg-white/90 text-forest/50 transition-colors hover:text-gold",
-          isList ? "right-1.5 top-1.5 h-6 w-6" : "right-2.5 top-2.5 h-8 w-8",
-          saved && "text-gold",
-        )}
-      >
-        <Heart className={cn(isList ? "h-3 w-3" : "h-3.5 w-3.5", saved && "fill-gold")} />
-      </button>
     </>
   );
 
   const body = isList ? (
     <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 p-2.5">
-      <h3 className="line-clamp-2 font-serif text-[13px] leading-snug text-forest">{property.title}</h3>
-      <p className="text-[11px] text-muted-foreground">{property.city}</p>
-      <p className="text-[12px] font-medium text-gold-700">{formatPrice(property.price)}</p>
-      <span className="mt-1 inline-flex w-fit items-center rounded-full bg-forest px-2.5 py-1 text-[10px] font-medium text-ivory transition group-hover:bg-[#1a4a30]">
+      <h3
+        className={cn(
+          "line-clamp-2 font-serif text-[13px] leading-snug",
+          highlighted ? "text-ivory" : "text-forest",
+        )}
+      >
+        {property.title}
+      </h3>
+      <p className={cn("text-[11px]", highlighted ? "text-ivory/70" : "text-muted-foreground")}>
+        {property.city}
+      </p>
+      <p className={cn("text-[12px] font-medium", highlighted ? "text-gold" : "text-gold-700")}>
+        {formatPrice(property.price)}
+      </p>
+      <span
+        className={cn(
+          "mt-1 inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-medium transition",
+          highlighted
+            ? "bg-gold text-forest group-hover:bg-gold-600"
+            : "bg-forest text-ivory group-hover:bg-[#1a4a30]",
+        )}
+      >
         See more
       </span>
     </div>
@@ -96,8 +96,11 @@ export function PropertyCard({
   return (
     <article
       className={cn(
-        "group overflow-hidden border border-forest/5 bg-white shadow-[0_8px_24px_rgba(15,46,29,0.06)] transition-shadow duration-300 hover:shadow-[0_10px_28px_rgba(15,46,29,0.1)]",
+        "group overflow-hidden border shadow-[0_8px_24px_rgba(15,46,29,0.06)] transition-all duration-300 hover:shadow-[0_10px_28px_rgba(15,46,29,0.1)]",
         isList ? "grid grid-cols-[88px_1fr] rounded-xl" : "rounded-2xl",
+        highlighted
+          ? "border-forest bg-forest shadow-[0_10px_28px_rgba(15,46,29,0.22)] ring-1 ring-forest"
+          : "border-forest/5 bg-white",
       )}
       onMouseEnter={() => onHover?.(property.id)}
       onMouseLeave={() => onHover?.(null)}

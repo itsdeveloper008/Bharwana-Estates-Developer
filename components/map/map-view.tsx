@@ -2,20 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Map, { Marker, NavigationControl } from "react-map-gl/maplibre";
-import type { MapRef } from "react-map-gl/maplibre";
+import { GoogleMap, OverlayViewF, OverlayView, useJsApiLoader } from "@react-google-maps/api";
 import Supercluster from "supercluster";
 import { AnimatePresence, motion } from "framer-motion";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { PropertyPin } from "@/components/map/property-pin";
 import { MapPreviewCard } from "@/components/map/map-fallback";
 import { Button } from "@/components/ui/button";
 import {
   CITY_COORDS,
   DEFAULT_MAP_VIEW,
-  MAP_STYLE,
+  GOOGLE_MAPS_API_KEY,
   boundsFromProperties,
-  warnMissingMapboxToken,
+  googleBoundsTuple,
+  hasGoogleMapsKey,
+  warnMissingMapKeys,
 } from "@/lib/map";
 import type { MapBounds, Property } from "@/lib/types";
 
@@ -23,27 +23,42 @@ interface FeatureProps {
   id: string;
 }
 
-function boundsFromMap(
-  map: {
-    getBounds: () => {
-      getWest: () => number;
-      getSouth: () => number;
-      getEast: () => number;
-      getNorth: () => number;
-    } | null;
-  } | null,
-) {
-  const b = map?.getBounds();
-  if (!b) return null;
-  return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] as [number, number, number, number];
-}
+const mapContainerStyle = { width: "100%", height: "100%" };
 
-function MapLoadingSkeleton() {
+const mapOptions: google.maps.MapOptions = {
+  disableDefaultUI: false,
+  zoomControl: true,
+  mapTypeControl: true,
+  streetViewControl: false,
+  fullscreenControl: false,
+  mapTypeControlOptions: {
+    style: 1, // HORIZONTAL_BAR — resolved after load; set in onLoad too
+    position: 3, // TOP_RIGHT
+    mapTypeIds: ["roadmap", "satellite", "hybrid", "terrain"],
+  },
+  mapTypeId: "satellite",
+  gestureHandling: "greedy",
+};
+
+function MapLoadingSkeleton({ message = "Loading map" }: { message?: string }) {
   return (
-    <div className="flex h-full min-h-[420px] w-full items-center justify-center bg-cream/60">
+    <div className="flex h-full min-h-[420px] w-full items-center justify-center">
       <div className="flex flex-col items-center gap-3">
         <div className="h-8 w-8 animate-pulse rounded-full border-2 border-forest/20 border-t-gold" />
-        <p className="text-xs uppercase tracking-[0.16em] text-forest/50">Loading map</p>
+        <p className="text-xs uppercase tracking-[0.16em] text-forest/50">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+function MapKeyMissing() {
+  return (
+    <div className="flex h-full min-h-[420px] items-center justify-center bg-cream/60 px-6 text-center">
+      <div>
+        <p className="font-serif text-2xl text-forest">Google Maps key needed</p>
+        <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+          Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to .env.local and enable the Maps JavaScript API.
+        </p>
       </div>
     </div>
   );
@@ -54,6 +69,8 @@ export function MapView({
   hoveredId,
   focusId,
   focusKey,
+  selectedId: controlledSelectedId,
+  onSelectedChange,
   boundsActive,
   onBoundsSearch,
   onResetBounds,
@@ -62,11 +79,13 @@ export function MapView({
   hoveredId?: string | null;
   focusId?: string | null;
   focusKey?: number;
+  selectedId?: string | null;
+  onSelectedChange?: (id: string | null) => void;
   boundsActive?: boolean;
   onBoundsSearch?: (bounds: MapBounds) => void;
   onResetBounds?: () => void;
 }) {
-  const mapRef = useRef<MapRef>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
   const searchParams = useSearchParams();
   const city = searchParams.get("city");
   const dirtyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,13 +94,28 @@ export function MapView({
 
   const [zoom, setZoom] = useState(DEFAULT_MAP_VIEW.zoom);
   const [bounds, setBounds] = useState<[number, number, number, number] | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
   const [hoverPinId, setHoverPinId] = useState<string | null>(null);
   const [showSearchArea, setShowSearchArea] = useState(false);
   const [styleLoaded, setStyleLoaded] = useState(false);
 
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: "bharwana-google-maps",
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  });
+
+  const isControlled = controlledSelectedId !== undefined;
+  const selectedId = isControlled ? controlledSelectedId : internalSelectedId;
+  const setSelectedId = useCallback(
+    (id: string | null) => {
+      if (!isControlled) setInternalSelectedId(id);
+      onSelectedChange?.(id);
+    },
+    [isControlled, onSelectedChange],
+  );
+
   useEffect(() => {
-    warnMissingMapboxToken();
+    warnMissingMapKeys();
   }, []);
 
   const byId = useMemo(() => {
@@ -90,7 +124,7 @@ export function MapView({
     return lookup;
   }, [properties]);
 
-  const index = useMemo(() => {
+  const clusterIndex = useMemo(() => {
     const cluster = new Supercluster<FeatureProps>({ radius: 64, maxZoom: 16 });
     cluster.load(
       properties.map((property) => ({
@@ -107,55 +141,68 @@ export function MapView({
 
   const points = useMemo(() => {
     if (!bounds) return [];
-    return index.getClusters(bounds, Math.round(zoom));
-  }, [index, bounds, zoom]);
+    return clusterIndex.getClusters(bounds, Math.round(zoom));
+  }, [clusterIndex, bounds, zoom]);
 
   const selected = selectedId ? byId[selectedId] : undefined;
 
-  const fitToProperties = useCallback(
-    (list: Property[], duration = 0) => {
-      const map = mapRef.current;
-      if (!map || list.length === 0) return;
-      const box = boundsFromProperties(list);
-      if (!box) return;
-      map.fitBounds(
-        [
-          [box[0], box[1]],
-          [box[2], box[3]],
-        ],
-        { padding: 56, duration, maxZoom: 12.5 },
-      );
-    },
-    [],
-  );
+  const initialCenter = useMemo(() => {
+    if (city && CITY_COORDS[city]) {
+      return { lat: CITY_COORDS[city].latitude, lng: CITY_COORDS[city].longitude };
+    }
+    return { lat: DEFAULT_MAP_VIEW.latitude, lng: DEFAULT_MAP_VIEW.longitude };
+  }, [city]);
+
+  const initialZoom = city && CITY_COORDS[city] ? CITY_COORDS[city].zoom : DEFAULT_MAP_VIEW.zoom;
+
+  const fitToProperties = useCallback((list: Property[]) => {
+    const map = mapRef.current;
+    if (!map || list.length === 0 || !window.google) return;
+    const box = boundsFromProperties(list);
+    if (!box) return;
+    const latLngBounds = new google.maps.LatLngBounds(
+      { lat: box[1], lng: box[0] },
+      { lat: box[3], lng: box[2] },
+    );
+    map.fitBounds(latLngBounds, 56);
+    const listener = google.maps.event.addListenerOnce(map, "idle", () => {
+      const z = map.getZoom();
+      if (typeof z === "number" && z > 12.5) map.setZoom(12.5);
+    });
+    return () => google.maps.event.removeListener(listener);
+  }, []);
+
+  const syncViewport = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const next = googleBoundsTuple(map);
+    if (next) setBounds(next);
+    const z = map.getZoom();
+    if (typeof z === "number") setZoom(z);
+  }, []);
 
   useEffect(() => {
-    if (city && CITY_COORDS[city] && mapRef.current) {
-      mapRef.current.flyTo({
-        center: [CITY_COORDS[city].longitude, CITY_COORDS[city].latitude],
-        zoom: CITY_COORDS[city].zoom,
-        duration: 800,
-      });
+    if (!styleLoaded || !mapRef.current) return;
+    if (city && CITY_COORDS[city]) {
+      mapRef.current.panTo({ lat: CITY_COORDS[city].latitude, lng: CITY_COORDS[city].longitude });
+      mapRef.current.setZoom(CITY_COORDS[city].zoom);
       return;
     }
     const key = properties.map((p) => p.id).join(",");
-    if (!styleLoaded || key === fittedKey.current) return;
+    if (key === fittedKey.current) return;
     fittedKey.current = key;
-    fitToProperties(properties, 600);
+    fitToProperties(properties);
   }, [city, properties, styleLoaded, fitToProperties]);
 
   useEffect(() => {
-    if (!focusId) return;
+    if (!focusId || !mapRef.current) return;
     const property = byId[focusId];
-    if (!property || !mapRef.current) return;
-    // Fly to the listing from the sidebar without opening the map preview card
-    setSelectedId(null);
-    mapRef.current.flyTo({
-      center: [property.longitude, property.latitude],
-      zoom: Math.max(mapRef.current.getZoom(), 13),
-      duration: 700,
-    });
-  }, [focusId, focusKey, byId]);
+    if (!property) return;
+    setSelectedId(focusId);
+    mapRef.current.panTo({ lat: property.latitude, lng: property.longitude });
+    const z = mapRef.current.getZoom() ?? 13;
+    mapRef.current.setZoom(Math.max(z, 13));
+  }, [focusId, focusKey, byId, setSelectedId]);
 
   useEffect(() => {
     return () => {
@@ -163,50 +210,64 @@ export function MapView({
     };
   }, []);
 
+  if (!hasGoogleMapsKey()) return <MapKeyMissing />;
+  if (loadError) {
+    return (
+      <div className="flex h-full min-h-[420px] items-center justify-center bg-cream/60 px-6 text-center">
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Google Maps failed to load. Check that Maps JavaScript API is enabled for this key.
+        </p>
+      </div>
+    );
+  }
+  if (!isLoaded) return <MapLoadingSkeleton />;
+
   return (
     <div className="relative h-full min-h-[420px] w-full">
       {!styleLoaded && (
-        <div className="absolute inset-0 z-10">
+        <div className="pointer-events-none absolute inset-0 z-10 bg-cream/40">
           <MapLoadingSkeleton />
         </div>
       )}
 
-      <Map
-        ref={mapRef}
-        mapStyle={MAP_STYLE}
-        initialViewState={
-          city && CITY_COORDS[city]
-            ? CITY_COORDS[city]
-            : DEFAULT_MAP_VIEW
-        }
-        onMove={(event) => {
-          setZoom(event.viewState.zoom);
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        center={initialCenter}
+        zoom={initialZoom}
+        options={mapOptions}
+        onLoad={(map) => {
+          mapRef.current = map;
+          map.setOptions({
+            mapTypeControlOptions: {
+              style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+              position: google.maps.ControlPosition.TOP_RIGHT,
+              mapTypeIds: [
+                google.maps.MapTypeId.ROADMAP,
+                google.maps.MapTypeId.SATELLITE,
+                google.maps.MapTypeId.HYBRID,
+                google.maps.MapTypeId.TERRAIN,
+              ],
+            },
+          });
+          syncViewport();
+          if (!city) fitToProperties(properties);
+          setStyleLoaded(true);
         }}
-        onMoveEnd={(event) => {
-          const next = boundsFromMap(event.target);
-          if (next) setBounds(next);
-          if (!userMoved.current) {
-            userMoved.current = true;
-            return;
-          }
+        onIdle={() => {
+          syncViewport();
+          setStyleLoaded(true);
+          if (!userMoved.current) return;
           if (dirtyTimer.current) clearTimeout(dirtyTimer.current);
           dirtyTimer.current = setTimeout(() => setShowSearchArea(true), 300);
-        }}
-        onLoad={(event) => {
-          const next = boundsFromMap(event.target);
-          if (next) setBounds(next);
-          setStyleLoaded(true);
-          if (!city) fitToProperties(properties, 0);
         }}
         onDragStart={() => {
           userMoved.current = true;
         }}
-        onZoomStart={() => {
+        onZoomChanged={() => {
           userMoved.current = true;
         }}
-        attributionControl={false}
+        onClick={() => setSelectedId(null)}
       >
-        <NavigationControl position="bottom-right" showCompass={false} />
         {points.map((point) => {
           const [longitude, latitude] = point.geometry.coordinates;
           const clusterId = point.id;
@@ -215,11 +276,14 @@ export function MapView({
           const propertyId = props.id;
           const property = propertyId ? byId[propertyId] : undefined;
           return (
-            <Marker
+            <OverlayViewF
               key={`${clusterId ?? propertyId}-${longitude}-${latitude}`}
-              longitude={longitude}
-              latitude={latitude}
-              anchor="bottom"
+              position={{ lat: latitude, lng: longitude }}
+              mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+              getPixelPositionOffset={(width, height) => ({
+                x: -(width / 2),
+                y: -height,
+              })}
             >
               <PropertyPin
                 count={count}
@@ -229,50 +293,56 @@ export function MapView({
                 active={propertyId === hoveredId || propertyId === selectedId}
                 onHoverChange={(hovered) => setHoverPinId(hovered && propertyId ? propertyId : null)}
                 onClick={() => {
-                  if (count && clusterId != null) {
-                    const expansion = index.getClusterExpansionZoom(Number(clusterId));
-                    mapRef.current?.flyTo({ center: [longitude, latitude], zoom: expansion, duration: 500 });
+                  if (count && clusterId != null && mapRef.current) {
+                    const expansion = clusterIndex.getClusterExpansionZoom(Number(clusterId));
+                    mapRef.current.panTo({ lat: latitude, lng: longitude });
+                    mapRef.current.setZoom(expansion);
                     return;
                   }
-                  if (!propertyId) return;
+                  if (!propertyId || !mapRef.current) return;
                   setSelectedId(propertyId);
-                  mapRef.current?.flyTo({
-                    center: [longitude, latitude],
-                    zoom: Math.max(mapRef.current.getZoom(), 13),
-                    duration: 600,
-                  });
+                  mapRef.current.panTo({ lat: latitude, lng: longitude });
+                  const z = mapRef.current.getZoom() ?? 13;
+                  mapRef.current.setZoom(Math.max(z, 13));
                 }}
               />
-            </Marker>
+            </OverlayViewF>
           );
         })}
-      </Map>
+      </GoogleMap>
 
       <AnimatePresence>
         {selected && (
           <motion.div
             key={selected.id}
-            initial={{ opacity: 0, x: -24 }}
+            initial={{ opacity: 0, x: -16 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -24 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            exit={{ opacity: 0, x: -12 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="pointer-events-none absolute inset-y-0 left-0 z-30 flex items-center p-3 sm:p-4"
           >
-            <div className="pointer-events-auto">
+            <div className="pointer-events-auto" onClick={(event) => event.stopPropagation()}>
               <MapPreviewCard property={selected} onClose={() => setSelectedId(null)} />
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {selected && (
+        <button
+          type="button"
+          aria-label="Close property preview"
+          className="absolute inset-0 z-20 cursor-default bg-transparent"
+          onClick={() => setSelectedId(null)}
+        />
+      )}
+
       {showSearchArea && onBoundsSearch && (
         <div className="pointer-events-none absolute inset-x-0 top-4 z-20 flex justify-center">
           <Button
             className="pointer-events-auto shadow-lift"
             onClick={() => {
-              const map = mapRef.current;
-              if (!map) return;
-              const next = boundsFromMap(map);
+              const next = googleBoundsTuple(mapRef.current);
               if (!next) return;
               onBoundsSearch({
                 west: next[0],
@@ -338,26 +408,37 @@ export const MapCanvas = MapView;
 
 export function MiniMap({ property }: { property: Property }) {
   const router = useRouter();
+  const { isLoaded } = useJsApiLoader({
+    id: "bharwana-google-maps",
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  });
 
-  useEffect(() => {
-    warnMissingMapboxToken();
-  }, []);
+  if (!hasGoogleMapsKey() || !isLoaded) {
+    return <div className="flex h-64 items-center justify-center bg-cream/50 text-xs text-muted-foreground">Map</div>;
+  }
 
   return (
-    <div className="relative h-64 overflow-hidden">
-      <Map
-        mapStyle={MAP_STYLE}
-        initialViewState={{
-          latitude: property.latitude,
-          longitude: property.longitude,
-          zoom: 13.5,
+    <div className="relative h-64 overflow-hidden rounded-2xl">
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        center={{ lat: property.latitude, lng: property.longitude }}
+        zoom={13.5}
+        options={{
+          disableDefaultUI: true,
+          zoomControl: true,
+          mapTypeId: "satellite",
+          mapTypeControl: true,
+          gestureHandling: "cooperative",
         }}
-        attributionControl={false}
       >
-        <Marker longitude={property.longitude} latitude={property.latitude} anchor="bottom">
+        <OverlayViewF
+          position={{ lat: property.latitude, lng: property.longitude }}
+          mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+          getPixelPositionOffset={(width, height) => ({ x: -(width / 2), y: -height })}
+        >
           <PropertyPin listingType={property.listingType} />
-        </Marker>
-      </Map>
+        </OverlayViewF>
+      </GoogleMap>
       <Button
         variant="secondary"
         className="absolute bottom-3 right-3"

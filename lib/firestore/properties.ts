@@ -8,10 +8,51 @@ import {
   writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
-import { getDb } from "@/lib/firebase/client";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { getDb, getFirebaseStorage, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { Property } from "@/lib/types";
 
 const COLLECTION = "properties";
+
+/** Firestore rejects `undefined` field values — omit them from writes. */
+function toFirestorePayload(property: Property): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(property).filter(([, value]) => value !== undefined),
+  );
+}
+
+function isRemoteImageUrl(url: string) {
+  return url.startsWith("https://") || url.startsWith("http://") || url.startsWith("/");
+}
+
+/** Upload data:/blob: images to Storage so Firestore only stores URLs (1MB doc limit). */
+async function resolvePropertyImages(propertyId: string, images: string[]): Promise<string[]> {
+  const needsUpload = images.some((image) => !isRemoteImageUrl(image));
+  if (!needsUpload) return images;
+
+  const storage = getFirebaseStorage();
+  if (!storage || !isFirebaseConfigured()) {
+    throw new Error("Firebase Storage is not configured for photo uploads");
+  }
+
+  return Promise.all(
+    images.map(async (image, index) => {
+      if (isRemoteImageUrl(image)) return image;
+      const response = await fetch(image);
+      if (!response.ok) throw new Error("Could not read a listing photo for upload");
+      const blob = await response.blob();
+      const extension = blob.type.includes("png")
+        ? "png"
+        : blob.type.includes("webp")
+          ? "webp"
+          : "jpg";
+      // Under team/ — currently the only Storage path allowed by deployed rules
+      const storageRef = ref(storage, `team/listings/${propertyId}/${index}.${extension}`);
+      await uploadBytes(storageRef, blob, { contentType: blob.type || "image/jpeg" });
+      return getDownloadURL(storageRef);
+    }),
+  );
+}
 
 function mapProperty(id: string, data: Record<string, unknown>): Property {
   return {
@@ -79,17 +120,20 @@ export async function seedProperties(properties: Property[], force = false): Pro
     const chunk = properties.slice(i, i + chunkSize);
     const batch = writeBatch(db);
     chunk.forEach((property) => {
-      batch.set(doc(db, COLLECTION, property.id), { ...property });
+      batch.set(doc(db, COLLECTION, property.id), toFirestorePayload(property));
     });
     await batch.commit();
   }
   return properties.length;
 }
 
-export async function upsertProperty(property: Property): Promise<void> {
+export async function upsertProperty(property: Property): Promise<Property> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");
-  await setDoc(doc(db, COLLECTION, property.id), { ...property }, { merge: true });
+  const images = await resolvePropertyImages(property.id, property.images);
+  const next = { ...property, images };
+  await setDoc(doc(db, COLLECTION, property.id), toFirestorePayload(next), { merge: true });
+  return next;
 }
 
 export async function deleteProperty(id: string): Promise<void> {

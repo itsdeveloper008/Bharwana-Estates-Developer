@@ -28,6 +28,7 @@ export function MapExplorer() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [focusKey, setFocusKey] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const barFilters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
   const filters = useMemo(() => ({ ...barFilters, bounds }), [barFilters, bounds]);
@@ -39,16 +40,17 @@ export function MapExplorer() {
 
   function resetAll() {
     setBounds(undefined);
+    setSelectedId(null);
     router.push("/map");
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4.25rem)] flex-col">
+    <div className="flex min-h-[calc(100vh-5rem)] flex-col md:min-h-[calc(100vh-5rem)]">
       <div className="border-b border-forest/10 bg-ivory px-4 py-4 sm:px-6">
         <FilterBar resultCount={results.length} />
       </div>
       <div className="grid flex-1 grid-cols-1 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr]">
-        <ScrollArea className="h-[50vh] border-b border-forest/10 lg:h-[calc(100vh-9.5rem)] lg:border-b-0 lg:border-r">
+        <ScrollArea className="h-[50vh] border-b border-forest/10 lg:h-[calc(100vh-9rem)] lg:border-b-0 lg:border-r">
           <div className="space-y-2 bg-cream/40 p-2">
             {bounds && (
               <div className="mb-1 flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
@@ -63,9 +65,11 @@ export function MapExplorer() {
                 key={property.id}
                 property={property}
                 layout="list"
+                highlighted={property.id === selectedId}
                 onHover={setHoveredId}
                 onSelect={(id) => {
                   setFocusId(id);
+                  setSelectedId(id);
                   setFocusKey((key) => key + 1);
                 }}
               />
@@ -80,12 +84,17 @@ export function MapExplorer() {
             )}
           </div>
         </ScrollArea>
-        <div className="h-[50vh] lg:h-[calc(100vh-9.5rem)]">
+        <div className="h-[50vh] lg:h-[calc(100vh-9rem)]">
           <MapView
             properties={results}
             hoveredId={hoveredId}
             focusId={focusId}
             focusKey={focusKey}
+            selectedId={selectedId}
+            onSelectedChange={(id) => {
+              setSelectedId(id);
+              if (id === null) setFocusId(null);
+            }}
             boundsActive={Boolean(bounds)}
             onBoundsSearch={setBounds}
             onResetBounds={resetAll}

@@ -26,7 +26,7 @@ export function MapFallback({ message }: { message?: string }) {
   );
 }
 
-/** Half-size preview — only shown on the map when a pin is clicked */
+/** Large left-side preview — map stays visible beside it */
 export function MapPreviewCard({
   property,
   onClose,
@@ -38,41 +38,48 @@ export function MapPreviewCard({
   const image = property.images[0] ?? "";
 
   return (
-    <div className="w-[168px] overflow-hidden rounded-xl bg-white shadow-[0_12px_28px_rgba(15,46,29,0.2)]">
-      <div className="relative h-[88px] w-full">
+    <div className="flex w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_20px_50px_rgba(15,46,29,0.28)] sm:w-[440px]">
+      <div className="relative aspect-[16/11] w-full bg-cream">
         {image.startsWith("data:") || image.startsWith("blob:") ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={image} alt="" className="h-full w-full object-cover" />
         ) : image ? (
-          <Image src={image} alt="" fill className="object-cover" sizes="168px" />
+          <Image src={image} alt="" fill className="object-cover" sizes="440px" />
         ) : (
           <div className="h-full w-full bg-cream" />
         )}
         <Badge
           variant={property.listingType === "DIRECT_OWNER" ? "owner" : "verified"}
-          className="absolute left-1.5 top-1.5 scale-90 text-[8px] uppercase"
+          className="absolute left-3 top-3 text-[10px] uppercase"
         >
           {listingBadge(property.listingType)}
         </Badge>
         {onClose ? (
           <button
             type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-forest/60 transition hover:text-forest"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onClose();
+            }}
+            aria-label="Close preview"
+            className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-forest shadow-sm transition hover:bg-white"
           >
-            <X className="h-3 w-3" />
+            <X className="h-4 w-4" />
           </button>
         ) : null}
       </div>
-      <div className="p-2.5">
-        <p className="truncate font-serif text-sm leading-snug text-forest">{property.title}</p>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">{property.city}</p>
-        <div className="mt-2 flex items-center justify-between gap-1.5">
-          <p className="truncate text-[11px] font-medium text-gold-700">{formatPrice(property.price)}</p>
+      <div className="px-5 py-4 sm:px-6 sm:py-5">
+        <p className="font-serif text-xl leading-snug text-forest sm:text-2xl">{property.title}</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {property.city}
+          {property.address ? ` · ${property.address}` : ""}
+        </p>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-base font-medium text-gold-700 sm:text-lg">{formatPrice(property.price)}</p>
           <Link
             href={href}
-            className="inline-flex shrink-0 items-center rounded-full bg-forest px-2.5 py-1 text-[10px] font-medium text-ivory transition hover:bg-[#1a4a30]"
+            className="inline-flex items-center rounded-full bg-forest px-4 py-2 text-xs font-medium text-ivory transition hover:bg-[#1a4a30]"
           >
             See more
           </Link>

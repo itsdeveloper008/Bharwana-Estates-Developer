@@ -50,14 +50,15 @@ export function OurStory() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="relative aspect-[4/5] overflow-hidden bg-cream sm:aspect-[5/4] lg:aspect-[4/5]"
+          className="relative aspect-[4/3] overflow-hidden bg-cream shadow-[0_20px_50px_-28px_rgba(15,46,29,0.28)] sm:aspect-[5/4] lg:aspect-[4/3]"
         >
           <Image
-            src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=80"
-            alt="A composed residence reflecting Bharwana’s presentation standards"
+            src="/about.jpg"
+            alt="Bharwana Estates — about us"
             fill
             className="object-cover"
             sizes="(max-width: 1024px) 100vw, 50vw"
+            priority
           />
         </motion.div>
       </div>
