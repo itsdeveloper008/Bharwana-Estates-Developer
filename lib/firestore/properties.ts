@@ -25,6 +25,37 @@ function isRemoteImageUrl(url: string) {
   return url.startsWith("https://") || url.startsWith("http://") || url.startsWith("/");
 }
 
+/** Shrink listing photos before Storage upload so submit is not stuck on multi‑MB files. */
+async function compressImageBlob(blob: Blob, maxEdge = 1600, quality = 0.72): Promise<Blob> {
+  if (typeof createImageBitmap === "undefined" || typeof document === "undefined") return blob;
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+    if (scale >= 1 && blob.size < 400_000 && blob.type === "image/jpeg") {
+      bitmap.close();
+      return blob;
+    }
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return blob;
+    }
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+    const compressed = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((next) => resolve(next), "image/jpeg", quality);
+    });
+    return compressed && compressed.size > 0 ? compressed : blob;
+  } catch {
+    return blob;
+  }
+}
+
 /** Upload data:/blob: images to Storage so Firestore only stores URLs (1MB doc limit). */
 async function resolvePropertyImages(propertyId: string, images: string[]): Promise<string[]> {
   const needsUpload = images.some((image) => !isRemoteImageUrl(image));
@@ -40,15 +71,10 @@ async function resolvePropertyImages(propertyId: string, images: string[]): Prom
       if (isRemoteImageUrl(image)) return image;
       const response = await fetch(image);
       if (!response.ok) throw new Error("Could not read a listing photo for upload");
-      const blob = await response.blob();
-      const extension = blob.type.includes("png")
-        ? "png"
-        : blob.type.includes("webp")
-          ? "webp"
-          : "jpg";
-      // Under team/ — currently the only Storage path allowed by deployed rules
-      const storageRef = ref(storage, `team/listings/${propertyId}/${index}.${extension}`);
-      await uploadBytes(storageRef, blob, { contentType: blob.type || "image/jpeg" });
+      const raw = await response.blob();
+      const blob = await compressImageBlob(raw);
+      const storageRef = ref(storage, `team/listings/${propertyId}/${index}.jpg`);
+      await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
       return getDownloadURL(storageRef);
     }),
   );

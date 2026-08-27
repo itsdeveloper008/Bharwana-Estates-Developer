@@ -551,6 +551,7 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
     const status: PropertyStatus = isAdmin ? adminPublishStatus : "PENDING_APPROVAL";
 
     try {
+      toast.message("Uploading photos to storage…");
       await addProperty({
         id,
         ...values,
@@ -1414,7 +1415,7 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
                 {isSubmitting
                   ? isAdmin && adminPublishStatus === "PUBLISHED"
                     ? "Publishing…"
-                    : "Submitting…"
+                    : "Uploading photos…"
                   : isAdmin
                     ? adminPublishStatus === "PUBLISHED"
                       ? "Publish Immediately"
