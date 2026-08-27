@@ -1,23 +1,20 @@
-import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
+import { Rajdhani, Yantramanav } from "next/font/google";
 import type { Metadata } from "next";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const inter = Inter({
+/** Body / UI — matches Imarat (Yantramanav) */
+const yantramanav = Yantramanav({
   subsets: ["latin"],
+  weight: ["400", "500", "700"],
   variable: "--font-sans",
 });
 
-const cormorant = Cormorant_Garamond({
+/** Headings / display — matches Imarat (Rajdhani) */
+const rajdhani = Rajdhani({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-serif",
-});
-
-const cinzel = Cinzel({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-display",
 });
 
 export const metadata: Metadata = {
@@ -45,7 +42,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${cormorant.variable} ${cinzel.variable} font-sans`}>
+      <body
+        className={`${yantramanav.variable} ${rajdhani.variable} font-sans`}
+        style={{ ["--font-display" as string]: "var(--font-serif)" }}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>

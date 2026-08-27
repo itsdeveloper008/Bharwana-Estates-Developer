@@ -9,7 +9,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signOut, updateProfile } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  getRedirectResult,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+  updateProfile,
+  type User as FirebaseUser,
+} from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { users as seedUsers } from "@/lib/mock-data/users";
 import type { User, UserRole } from "@/lib/types";
@@ -17,6 +27,7 @@ import { delay } from "@/lib/utils";
 
 const SESSION_KEY = "bharwana_user_session";
 const USERS_KEY = "bharwana_registered_users";
+const GOOGLE_REDIRECT_FLAG = "bharwana_google_redirect";
 
 /** Demo passwords for seed users (frontend-only). */
 const SEED_PASSWORDS: Record<string, string> = {
@@ -71,29 +82,121 @@ function toPublicUser(account: StoredAccount | User): User {
   return { id, fullName, email, phone, role, avatarUrl };
 }
 
+function userFromFirebase(firebaseUser: FirebaseUser): User | { error: string } {
+  const email = (firebaseUser.email ?? "").trim().toLowerCase();
+  if (!email) return { error: "Google account did not return an email." };
+
+  const registered = readRegistered();
+  const existing =
+    registered.find((item) => item.email.toLowerCase() === email) ??
+    seedUsers.find((item) => item.email.toLowerCase() === email);
+
+  const nextUser: User = existing
+    ? {
+        ...toPublicUser(existing),
+        fullName: firebaseUser.displayName?.trim() || toPublicUser(existing).fullName,
+        avatarUrl: firebaseUser.photoURL ?? toPublicUser(existing).avatarUrl,
+      }
+    : {
+        id: firebaseUser.uid,
+        fullName: firebaseUser.displayName?.trim() || email.split("@")[0] || "Guest",
+        email,
+        phone: firebaseUser.phoneNumber ?? "",
+        role: "HOUSE_OWNER",
+        avatarUrl: firebaseUser.photoURL ?? undefined,
+      };
+
+  if (!existing) {
+    writeRegistered([...registered, { ...nextUser, password: "" }]);
+  }
+
+  return nextUser;
+}
+
+function googleAuthErrorMessage(code: string) {
+  switch (code) {
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return "Google sign-in was cancelled.";
+    case "auth/popup-blocked":
+      return "Your browser blocked the Google window. Allow popups for this site, then try again.";
+    case "auth/unauthorized-domain":
+      return "This domain is not authorized for Google sign-in. In Firebase → Authentication → Settings, add bharwanaestates.com and www.bharwanaestates.com.";
+    case "auth/operation-not-allowed":
+      return "Google sign-in is disabled in Firebase. Enable Google under Authentication → Sign-in method.";
+    case "auth/account-exists-with-different-credential":
+      return "An account already exists with this email using a different sign-in method.";
+    case "auth/network-request-failed":
+      return "Network error during Google sign-in. Check your connection and try again.";
+    default:
+      return code
+        ? `Could not sign in with Google (${code}).`
+        : "Could not sign in with Google. Try again.";
+  }
+}
+
+function shouldFallbackToRedirect(code: string) {
+  return (
+    code === "auth/popup-blocked" ||
+    code === "auth/internal-error" ||
+    code === "auth/network-request-failed" ||
+    code === "auth/argument-error"
+  );
+}
+
 export function MockAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as User;
-        if (parsed?.id && parsed?.email) setUser(parsed);
-      }
-    } catch {
-      localStorage.removeItem(SESSION_KEY);
-    } finally {
-      setIsReady(true);
-    }
-  }, []);
 
   const persist = useCallback((next: User | null) => {
     setUser(next);
     if (next) localStorage.setItem(SESSION_KEY, JSON.stringify(next));
     else localStorage.removeItem(SESSION_KEY);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function boot() {
+      try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as User;
+          if (parsed?.id && parsed?.email) setUser(parsed);
+        }
+      } catch {
+        localStorage.removeItem(SESSION_KEY);
+      }
+
+      if (isFirebaseConfigured()) {
+        const auth = getFirebaseAuth();
+        if (auth) {
+          try {
+            const redirected = await getRedirectResult(auth);
+            if (!cancelled && redirected?.user) {
+              const mapped = userFromFirebase(redirected.user);
+              if (!("error" in mapped)) persist(mapped);
+            }
+          } catch (error) {
+            console.error("Google redirect result failed", error);
+          } finally {
+            try {
+              sessionStorage.removeItem(GOOGLE_REDIRECT_FLAG);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+      }
+
+      if (!cancelled) setIsReady(true);
+    }
+
+    void boot();
+    return () => {
+      cancelled = true;
+    };
+  }, [persist]);
 
   const loginAs = useCallback(
     (next: User) => {
@@ -206,59 +309,57 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: false as const, error: "Google sign-in is unavailable right now." };
     }
 
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    const finishWithFirebaseUser = (firebaseUser: FirebaseUser) => {
+      const mapped = userFromFirebase(firebaseUser);
+      if ("error" in mapped) return { ok: false as const, error: mapped.error };
+      persist(mapped);
+      return { ok: true as const, user: mapped };
+    };
+
+    const startRedirect = async () => {
+      try {
+        sessionStorage.setItem(GOOGLE_REDIRECT_FLAG, "1");
+      } catch {
+        /* ignore */
+      }
+      await signInWithRedirect(auth, provider);
+      return {
+        ok: false as const,
+        error: "Redirecting to Google…",
+      };
+    };
+
+    // Popup often fails on production (blocked / COOP). Prefer redirect there.
+    const preferRedirect =
+      typeof window !== "undefined" &&
+      !["localhost", "127.0.0.1"].includes(window.location.hostname);
+
     try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
+      if (preferRedirect) {
+        return await startRedirect();
+      }
+
       const credential = await signInWithPopup(auth, provider);
-      const firebaseUser = credential.user;
-      const email = (firebaseUser.email ?? "").trim().toLowerCase();
-      if (!email) {
-        return { ok: false as const, error: "Google account did not return an email." };
-      }
-
-      const registered = readRegistered();
-      const existing =
-        registered.find((item) => item.email.toLowerCase() === email) ??
-        seedUsers.find((item) => item.email.toLowerCase() === email);
-
-      const nextUser: User = existing
-        ? {
-            ...toPublicUser(existing),
-            fullName: firebaseUser.displayName?.trim() || toPublicUser(existing).fullName,
-            avatarUrl: firebaseUser.photoURL ?? toPublicUser(existing).avatarUrl,
-          }
-        : {
-            id: firebaseUser.uid,
-            fullName: firebaseUser.displayName?.trim() || email.split("@")[0] || "Guest",
-            email,
-            phone: firebaseUser.phoneNumber ?? "",
-            role: "HOUSE_OWNER",
-            avatarUrl: firebaseUser.photoURL ?? undefined,
-          };
-
-      if (!existing) {
-        const account: StoredAccount = { ...nextUser, password: "" };
-        writeRegistered([...registered, account]);
-      }
-
-      persist(nextUser);
-      return { ok: true as const, user: nextUser };
+      return finishWithFirebaseUser(credential.user);
     } catch (error) {
       const code =
         error && typeof error === "object" && "code" in error
           ? String((error as { code?: string }).code)
           : "";
-      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-        return { ok: false as const, error: "Google sign-in was cancelled." };
+
+      if (!preferRedirect && shouldFallbackToRedirect(code)) {
+        try {
+          return await startRedirect();
+        } catch (redirectError) {
+          console.error("Google redirect fallback failed", redirectError);
+        }
       }
-      if (code === "auth/unauthorized-domain") {
-        return {
-          ok: false as const,
-          error: "This domain is not authorized for Google sign-in in Firebase.",
-        };
-      }
+
       console.error("Google sign-in failed", error);
-      return { ok: false as const, error: "Could not sign in with Google. Try again." };
+      return { ok: false as const, error: googleAuthErrorMessage(code) };
     }
   }, [persist]);
 

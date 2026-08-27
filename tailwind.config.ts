@@ -62,9 +62,9 @@ const config: Config = {
         ring: "hsl(var(--ring))",
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-        serif: ["var(--font-serif)", "Georgia", "serif"],
-        display: ["var(--font-display)", "Georgia", "serif"],
+        sans: ["var(--font-sans)", "Yantramanav", "system-ui", "sans-serif"],
+        serif: ["var(--font-serif)", "Rajdhani", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-serif)", "Rajdhani", "system-ui", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",

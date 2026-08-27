@@ -25,19 +25,24 @@ interface FeatureProps {
 
 const mapContainerStyle = { width: "100%", height: "100%" };
 
+const MAP_MODES = [
+  { id: "roadmap", label: "Map" },
+  { id: "satellite", label: "Satellite" },
+  { id: "hybrid", label: "Hybrid" },
+  { id: "terrain", label: "Terrain" },
+] as const;
+
+type MapModeId = (typeof MAP_MODES)[number]["id"];
+
 const mapOptions: google.maps.MapOptions = {
   disableDefaultUI: false,
   zoomControl: true,
-  mapTypeControl: true,
+  mapTypeControl: false,
   streetViewControl: false,
   fullscreenControl: false,
-  mapTypeControlOptions: {
-    style: 1, // HORIZONTAL_BAR — resolved after load; set in onLoad too
-    position: 3, // TOP_RIGHT
-    mapTypeIds: ["roadmap", "satellite", "hybrid", "terrain"],
-  },
   mapTypeId: "satellite",
   gestureHandling: "greedy",
+  clickableIcons: false,
 };
 
 function MapLoadingSkeleton({ message = "Loading map" }: { message?: string }) {
@@ -98,11 +103,26 @@ export function MapView({
   const [hoverPinId, setHoverPinId] = useState<string | null>(null);
   const [showSearchArea, setShowSearchArea] = useState(false);
   const [styleLoaded, setStyleLoaded] = useState(false);
+  const [mapTypeId, setMapTypeId] = useState<MapModeId>("satellite");
+  const [authFailed, setAuthFailed] = useState(false);
+  const suppressMapClick = useRef(false);
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: "bharwana-google-maps",
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   });
+
+  useEffect(() => {
+    const win = window as Window & { gm_authFailure?: () => void };
+    const previous = win.gm_authFailure;
+    win.gm_authFailure = () => {
+      setAuthFailed(true);
+      previous?.();
+    };
+    return () => {
+      win.gm_authFailure = previous;
+    };
+  }, []);
 
   const isControlled = controlledSelectedId !== undefined;
   const selectedId = isControlled ? controlledSelectedId : internalSelectedId;
@@ -113,6 +133,27 @@ export function MapView({
     },
     [isControlled, onSelectedChange],
   );
+
+  const armSuppressMapClick = useCallback(() => {
+    // Overlay clicks also fire GoogleMap onClick — ignore that follow-up click.
+    suppressMapClick.current = true;
+    window.setTimeout(() => {
+      suppressMapClick.current = false;
+    }, 120);
+  }, []);
+
+  const selectPin = useCallback(
+    (id: string) => {
+      armSuppressMapClick();
+      setSelectedId(id);
+    },
+    [armSuppressMapClick, setSelectedId],
+  );
+
+  const applyMapType = useCallback((next: MapModeId) => {
+    setMapTypeId(next);
+    mapRef.current?.setMapTypeId(next);
+  }, []);
 
   useEffect(() => {
     warnMissingMapKeys();
@@ -211,12 +252,33 @@ export function MapView({
   }, []);
 
   if (!hasGoogleMapsKey()) return <MapKeyMissing />;
-  if (loadError) {
+  if (loadError || authFailed) {
     return (
       <div className="flex h-full min-h-[420px] items-center justify-center bg-cream/60 px-6 text-center">
-        <p className="max-w-sm text-sm text-muted-foreground">
-          Google Maps failed to load. Check that Maps JavaScript API is enabled for this key.
-        </p>
+        <div className="max-w-md">
+          <p className="font-serif text-2xl text-forest">Google Maps blocked this key</p>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            In Google Cloud → APIs &amp; Services → Credentials, edit this key and under{" "}
+            <span className="text-forest">Application restrictions → HTTP referrers</span> add:
+          </p>
+          <ul className="mt-3 space-y-1 text-left text-xs text-forest/80">
+            <li>
+              <code className="rounded bg-ivory px-1.5 py-0.5">http://localhost:3000/*</code>
+            </li>
+            <li>
+              <code className="rounded bg-ivory px-1.5 py-0.5">http://localhost:3001/*</code>
+            </li>
+            <li>
+              <code className="rounded bg-ivory px-1.5 py-0.5">https://bharwanaestates.com/*</code>
+            </li>
+            <li>
+              <code className="rounded bg-ivory px-1.5 py-0.5">https://*.vercel.app/*</code>
+            </li>
+          </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Also enable <span className="text-forest">Maps JavaScript API</span> and billing. Changes can take a few minutes.
+          </p>
+        </div>
       </div>
     );
   }
@@ -237,18 +299,7 @@ export function MapView({
         options={mapOptions}
         onLoad={(map) => {
           mapRef.current = map;
-          map.setOptions({
-            mapTypeControlOptions: {
-              style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
-              position: google.maps.ControlPosition.TOP_RIGHT,
-              mapTypeIds: [
-                google.maps.MapTypeId.ROADMAP,
-                google.maps.MapTypeId.SATELLITE,
-                google.maps.MapTypeId.HYBRID,
-                google.maps.MapTypeId.TERRAIN,
-              ],
-            },
-          });
+          map.setMapTypeId(mapTypeId);
           syncViewport();
           if (!city) fitToProperties(properties);
           setStyleLoaded(true);
@@ -266,7 +317,10 @@ export function MapView({
         onZoomChanged={() => {
           userMoved.current = true;
         }}
-        onClick={() => setSelectedId(null)}
+        onClick={() => {
+          if (suppressMapClick.current) return;
+          setSelectedId(null);
+        }}
       >
         {points.map((point) => {
           const [longitude, latitude] = point.geometry.coordinates;
@@ -289,18 +343,24 @@ export function MapView({
                 count={count}
                 listingType={property?.listingType}
                 price={property?.price}
-                showPrice={Boolean(propertyId && (hoverPinId === propertyId || hoveredId === propertyId) && !count)}
+                showPrice={Boolean(
+                  propertyId &&
+                    !count &&
+                    (hoverPinId === propertyId || hoveredId === propertyId || selectedId === propertyId),
+                )}
                 active={propertyId === hoveredId || propertyId === selectedId}
                 onHoverChange={(hovered) => setHoverPinId(hovered && propertyId ? propertyId : null)}
-                onClick={() => {
+                onClick={(event) => {
+                  event?.stopPropagation?.();
                   if (count && clusterId != null && mapRef.current) {
+                    armSuppressMapClick();
                     const expansion = clusterIndex.getClusterExpansionZoom(Number(clusterId));
                     mapRef.current.panTo({ lat: latitude, lng: longitude });
                     mapRef.current.setZoom(expansion);
                     return;
                   }
                   if (!propertyId || !mapRef.current) return;
-                  setSelectedId(propertyId);
+                  selectPin(propertyId);
                   mapRef.current.panTo({ lat: latitude, lng: longitude });
                   const z = mapRef.current.getZoom() ?? 13;
                   mapRef.current.setZoom(Math.max(z, 13));
@@ -310,6 +370,25 @@ export function MapView({
           );
         })}
       </GoogleMap>
+
+      <div className="pointer-events-none absolute right-3 top-3 z-30 flex flex-wrap justify-end gap-1 sm:right-4 sm:top-4">
+        <div className="pointer-events-auto flex overflow-hidden rounded-md border border-forest/15 bg-ivory/95 shadow-lift">
+          {MAP_MODES.map((mode) => (
+            <button
+              key={mode.id}
+              type="button"
+              onClick={() => applyMapType(mode.id)}
+              className={`px-2.5 py-1.5 text-[10px] uppercase tracking-[0.12em] transition sm:px-3 ${
+                mapTypeId === mode.id
+                  ? "bg-forest text-ivory"
+                  : "text-forest/70 hover:bg-cream hover:text-forest"
+              }`}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <AnimatePresence>
         {selected && (

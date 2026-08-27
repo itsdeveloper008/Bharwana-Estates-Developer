@@ -1,5 +1,6 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import { formatPrice } from "@/lib/format";
 import type { ListingType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -24,14 +25,17 @@ export function PropertyPin({
   listingType?: ListingType;
   price?: number;
   showPrice?: boolean;
-  onClick?: () => void;
+  onClick?: (event?: MouseEvent<HTMLButtonElement>) => void;
   onHoverChange?: (hovered: boolean) => void;
 }) {
   if (count && count > 1) {
     return (
       <button
         type="button"
-        onClick={onClick}
+        onClick={(event) => {
+          event.stopPropagation();
+          onClick?.(event);
+        }}
         className={cn(
           "flex items-center justify-center rounded-full border-2 border-forest bg-gold px-2 font-display text-forest shadow-lift transition-transform hover:scale-110",
           clusterSize(count),
@@ -48,7 +52,10 @@ export function PropertyPin({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.(event);
+      }}
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
       className="relative block"

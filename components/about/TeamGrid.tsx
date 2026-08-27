@@ -40,11 +40,12 @@ export function TeamGrid() {
             className="group relative block aspect-[21/9] min-h-[220px] overflow-hidden bg-forest sm:min-h-[280px]"
           >
             <Image
-              src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1800&q=80"
+              src="/team-floor.png"
               alt="The Bharwana team floor"
               fill
               className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
               sizes="(max-width: 1280px) 100vw, 1280px"
+              priority
             />
             <div className="absolute inset-0 bg-gradient-to-t from-forest/85 via-forest/35 to-forest/10" />
             <div className="absolute inset-x-0 bottom-0 p-6 sm:p-10">

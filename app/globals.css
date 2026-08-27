@@ -51,7 +51,7 @@
   h2,
   h3,
   h4 {
-    @apply font-serif tracking-tight text-forest;
+    @apply font-serif font-semibold tracking-tight text-forest;
   }
 }
 

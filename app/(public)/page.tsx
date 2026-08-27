@@ -16,8 +16,7 @@ const principles = [
     title: "Direct ownership",
     copy: "Homes presented by the people who know them best.",
     annotation: "Speak directly with the household behind the home.",
-    image:
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80",
+    image: "/why-01.png",
     alt: "A composed modern residence at dusk",
   },
   {
@@ -26,8 +25,7 @@ const principles = [
     title: "Verified properties",
     copy: "Important property details are reviewed before presentation.",
     annotation: "Every listing earns its place through careful review.",
-    image:
-      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1600&q=80",
+    image: "/why-02.png",
     alt: "Architectural villa with garden light",
   },
   {
@@ -36,8 +34,7 @@ const principles = [
     title: "A quieter process",
     copy: "Clear communication and thoughtful viewings without pressure.",
     annotation: "Viewings that move at the pace of a decision.",
-    image:
-      "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1600&q=80",
+    image: "/why-03.png",
     alt: "Calm interior light in a premium residence",
   },
 ] as const;
@@ -122,15 +119,6 @@ function WhyBharwanaSection() {
                 </motion.div>
               </AnimatePresence>
             </div>
-
-            {/* Photo caption — no border */}
-            <aside className="relative z-10 mx-3 -mt-12 max-w-[13.5rem] bg-[#FAF8F2] px-5 py-4 shadow-[0_14px_40px_rgba(8,43,29,0.1)] sm:absolute sm:bottom-8 sm:left-6 sm:mx-0 sm:mt-0 sm:max-w-[14rem]">
-              <p className="font-serif text-xl leading-none text-[#B89545]">{current.n}</p>
-              <p className="mt-2.5 text-[10px] uppercase tracking-[0.18em] text-[#082B1D]/55">
-                {current.label}
-              </p>
-              <p className="mt-2 text-[13px] leading-relaxed text-[#526057]">{current.annotation}</p>
-            </aside>
           </motion.div>
         </div>
 
