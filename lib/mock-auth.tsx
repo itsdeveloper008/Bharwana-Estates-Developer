@@ -13,9 +13,9 @@ import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   getRedirectResult,
+  onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
-  signInWithRedirect,
   signOut,
   updateProfile,
   type User as FirebaseUser,
@@ -27,7 +27,6 @@ import { delay } from "@/lib/utils";
 
 const SESSION_KEY = "bharwana_user_session";
 const USERS_KEY = "bharwana_registered_users";
-const GOOGLE_REDIRECT_FLAG = "bharwana_google_redirect";
 
 /** Demo passwords for seed users (frontend-only). */
 const SEED_PASSWORDS: Record<string, string> = {
@@ -117,9 +116,9 @@ function googleAuthErrorMessage(code: string) {
   switch (code) {
     case "auth/popup-closed-by-user":
     case "auth/cancelled-popup-request":
-      return "Google sign-in was cancelled.";
+      return "Google sign-in was cancelled. Keep the popup open and choose an account.";
     case "auth/popup-blocked":
-      return "Your browser blocked the Google window. Allow popups for this site, then try again.";
+      return "Your browser blocked the Google popup. Allow popups for bharwanaestates.com, then try again.";
     case "auth/unauthorized-domain":
       return "This domain is not authorized for Google sign-in. In Firebase → Authentication → Settings, add bharwanaestates.com and www.bharwanaestates.com.";
     case "auth/operation-not-allowed":
@@ -135,15 +134,6 @@ function googleAuthErrorMessage(code: string) {
   }
 }
 
-function shouldFallbackToRedirect(code: string) {
-  return (
-    code === "auth/popup-blocked" ||
-    code === "auth/internal-error" ||
-    code === "auth/network-request-failed" ||
-    code === "auth/argument-error"
-  );
-}
-
 export function MockAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -156,6 +146,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
     async function boot() {
       try {
@@ -168,33 +159,42 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(SESSION_KEY);
       }
 
-      if (isFirebaseConfigured()) {
-        const auth = getFirebaseAuth();
-        if (auth) {
-          try {
-            const redirected = await getRedirectResult(auth);
-            if (!cancelled && redirected?.user) {
-              const mapped = userFromFirebase(redirected.user);
-              if (!("error" in mapped)) persist(mapped);
-            }
-          } catch (error) {
-            console.error("Google redirect result failed", error);
-          } finally {
-            try {
-              sessionStorage.removeItem(GOOGLE_REDIRECT_FLAG);
-            } catch {
-              /* ignore */
-            }
-          }
-        }
+      if (!isFirebaseConfigured()) {
+        if (!cancelled) setIsReady(true);
+        return;
       }
 
-      if (!cancelled) setIsReady(true);
+      const auth = getFirebaseAuth();
+      if (!auth) {
+        if (!cancelled) setIsReady(true);
+        return;
+      }
+
+      // Consume any leftover redirect result (legacy), then keep session in sync.
+      try {
+        const redirected = await getRedirectResult(auth);
+        if (!cancelled && redirected?.user) {
+          const mapped = userFromFirebase(redirected.user);
+          if (!("error" in mapped)) persist(mapped);
+        }
+      } catch (error) {
+        console.error("Google redirect result failed", error);
+      }
+
+      unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        if (cancelled) return;
+        if (firebaseUser) {
+          const mapped = userFromFirebase(firebaseUser);
+          if (!("error" in mapped)) persist(mapped);
+        }
+        setIsReady(true);
+      });
     }
 
     void boot();
     return () => {
       cancelled = true;
+      unsubscribe?.();
     };
   }, [persist]);
 
@@ -310,54 +310,22 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     }
 
     const provider = new GoogleAuthProvider();
+    provider.addScope("email");
+    provider.addScope("profile");
     provider.setCustomParameters({ prompt: "select_account" });
 
-    const finishWithFirebaseUser = (firebaseUser: FirebaseUser) => {
-      const mapped = userFromFirebase(firebaseUser);
+    try {
+      // Popup only — redirect breaks on bharwanaestates.com (Firebase continue URI / Hosting conflict).
+      const credential = await signInWithPopup(auth, provider);
+      const mapped = userFromFirebase(credential.user);
       if ("error" in mapped) return { ok: false as const, error: mapped.error };
       persist(mapped);
       return { ok: true as const, user: mapped };
-    };
-
-    const startRedirect = async () => {
-      try {
-        sessionStorage.setItem(GOOGLE_REDIRECT_FLAG, "1");
-      } catch {
-        /* ignore */
-      }
-      await signInWithRedirect(auth, provider);
-      return {
-        ok: false as const,
-        error: "Redirecting to Google…",
-      };
-    };
-
-    // Popup often fails on production (blocked / COOP). Prefer redirect there.
-    const preferRedirect =
-      typeof window !== "undefined" &&
-      !["localhost", "127.0.0.1"].includes(window.location.hostname);
-
-    try {
-      if (preferRedirect) {
-        return await startRedirect();
-      }
-
-      const credential = await signInWithPopup(auth, provider);
-      return finishWithFirebaseUser(credential.user);
     } catch (error) {
       const code =
         error && typeof error === "object" && "code" in error
           ? String((error as { code?: string }).code)
           : "";
-
-      if (!preferRedirect && shouldFallbackToRedirect(code)) {
-        try {
-          return await startRedirect();
-        } catch (redirectError) {
-          console.error("Google redirect fallback failed", redirectError);
-        }
-      }
-
       console.error("Google sign-in failed", error);
       return { ok: false as const, error: googleAuthErrorMessage(code) };
     }

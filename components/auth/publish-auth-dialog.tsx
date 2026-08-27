@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -33,9 +33,15 @@ export function PublishAuthDialog({
   onOpenChange: (open: boolean) => void;
   onAuthenticated: (user: User) => void;
 }) {
-  const { login, register } = useMockAuth();
+  const { login, register, user, isReady } = useMockAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [error, setError] = useState<string | null>(null);
+
+  // If Google already signed the user in, continue publish immediately.
+  useEffect(() => {
+    if (!open || !isReady || !user) return;
+    onAuthenticated(user);
+  }, [open, isReady, user, onAuthenticated]);
 
   const loginForm = useForm<UserLoginValues>({
     resolver: zodResolver(userLoginSchema),
