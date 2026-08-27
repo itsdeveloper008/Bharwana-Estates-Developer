@@ -14,24 +14,36 @@ import { getStorage, type FirebaseStorage } from "firebase/storage";
  * On live, authDomain must match the page origin and /__/auth must be proxied
  * (see next.config.mjs). Cross-origin *.firebaseapp.com handlers break Google
  * sign-in in Chrome ("missing initial state").
+ *
+ * Apex bharwanaestates.com is linked to a different Firebase Hosting project and
+ * is rejected by Identity Toolkit — always use www for this brand.
  */
 function resolveAuthDomain() {
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "";
   const configured = (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "").trim();
-  const fallback = configured || (projectId ? `${projectId}.firebaseapp.com` : "");
+  const projectAuth = projectId ? `${projectId}.firebaseapp.com` : "";
+  const fallback = configured.includes("firebaseapp.com")
+    ? configured
+    : projectAuth || configured;
 
-  if (typeof window === "undefined") return fallback;
+  if (typeof window === "undefined") {
+    // Prefer www for production builds / SSR hints.
+    if (configured === "bharwanaestates.com" || configured === "www.bharwanaestates.com") {
+      return "www.bharwanaestates.com";
+    }
+    return fallback || "www.bharwanaestates.com";
+  }
 
   const host = window.location.hostname;
   if (host === "localhost" || host === "127.0.0.1") {
-    // Local: use project auth domain (rewrites still proxy /__/auth in next dev).
-    return fallback.includes("firebaseapp.com")
-      ? fallback
-      : projectId
-        ? `${projectId}.firebaseapp.com`
-        : fallback;
+    return fallback || projectAuth;
   }
 
+  if (host === "bharwanaestates.com" || host === "www.bharwanaestates.com") {
+    return "www.bharwanaestates.com";
+  }
+
+  // Preview deployments (*.vercel.app): same-origin + rewrite proxy.
   return host;
 }
 
