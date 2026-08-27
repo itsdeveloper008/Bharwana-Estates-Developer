@@ -10,22 +10,46 @@ import {
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+/**
+ * On live, authDomain must match the page origin and /__/auth must be proxied
+ * (see next.config.mjs). Cross-origin *.firebaseapp.com handlers break Google
+ * sign-in in Chrome ("missing initial state").
+ */
+function resolveAuthDomain() {
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "";
+  const configured = (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "").trim();
+  const fallback = configured || (projectId ? `${projectId}.firebaseapp.com` : "");
+
+  if (typeof window === "undefined") return fallback;
+
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1") {
+    // Local: use project auth domain (rewrites still proxy /__/auth in next dev).
+    return fallback.includes("firebaseapp.com")
+      ? fallback
+      : projectId
+        ? `${projectId}.firebaseapp.com`
+        : fallback;
+  }
+
+  return host;
+}
+
+function getFirebaseConfig() {
+  return {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: resolveAuthDomain(),
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  };
+}
 
 export function isFirebaseConfigured() {
+  const config = getFirebaseConfig();
   return Boolean(
-    firebaseConfig.apiKey &&
-      firebaseConfig.authDomain &&
-      firebaseConfig.projectId &&
-      firebaseConfig.appId &&
-      firebaseConfig.storageBucket,
+    config.apiKey && config.authDomain && config.projectId && config.appId && config.storageBucket,
   );
 }
 
@@ -38,7 +62,7 @@ export function getFirebaseApp() {
   if (!isFirebaseConfigured()) return null;
   try {
     if (!app) {
-      app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+      app = getApps().length ? getApps()[0]! : initializeApp(getFirebaseConfig());
     }
     return app;
   } catch (error) {
