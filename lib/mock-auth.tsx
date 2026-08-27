@@ -14,12 +14,13 @@ import {
   createUserWithEmailAndPassword,
   getRedirectResult,
   onAuthStateChanged,
+  signInWithCredential,
   signInWithEmailAndPassword,
-  signInWithPopup,
   signOut,
   updateProfile,
   type User as FirebaseUser,
 } from "firebase/auth";
+import { requestGoogleAccessToken } from "@/lib/auth/google-gis";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { users as seedUsers } from "@/lib/mock-data/users";
 import type { User, UserRole } from "@/lib/types";
@@ -309,15 +310,13 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: false as const, error: "Google sign-in is unavailable right now." };
     }
 
-    const provider = new GoogleAuthProvider();
-    provider.addScope("email");
-    provider.addScope("profile");
-    provider.setCustomParameters({ prompt: "select_account" });
-
     try {
-      // Popup only — redirect breaks on bharwanaestates.com (Firebase continue URI / Hosting conflict).
-      const credential = await signInWithPopup(auth, provider);
-      const mapped = userFromFirebase(credential.user);
+      // GIS token + Firebase credential — avoids firebaseapp.com/__/auth/handler
+      // (that path fails on this domain with "missing initial state").
+      const accessToken = await requestGoogleAccessToken();
+      const credential = GoogleAuthProvider.credential(null, accessToken);
+      const result = await signInWithCredential(auth, credential);
+      const mapped = userFromFirebase(result.user);
       if ("error" in mapped) return { ok: false as const, error: mapped.error };
       persist(mapped);
       return { ok: true as const, user: mapped };
@@ -326,7 +325,14 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         error && typeof error === "object" && "code" in error
           ? String((error as { code?: string }).code)
           : "";
+      const message = error instanceof Error ? error.message : "";
       console.error("Google sign-in failed", error);
+      if (!code && message) {
+        if (/cancel|closed|popup|access_denied/i.test(message)) {
+          return { ok: false as const, error: "Google sign-in was cancelled." };
+        }
+        return { ok: false as const, error: message };
+      }
       return { ok: false as const, error: googleAuthErrorMessage(code) };
     }
   }, [persist]);

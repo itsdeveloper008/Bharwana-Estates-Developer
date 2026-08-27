@@ -10,58 +10,28 @@ import {
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
-/**
- * On live, authDomain must match the page origin and /__/auth must be proxied
- * (see next.config.mjs). Cross-origin *.firebaseapp.com handlers break Google
- * sign-in in Chrome ("missing initial state").
- *
- * Apex bharwanaestates.com is linked to a different Firebase Hosting project and
- * is rejected by Identity Toolkit — always use www for this brand.
- */
-function resolveAuthDomain() {
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "";
-  const configured = (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "").trim();
-  const projectAuth = projectId ? `${projectId}.firebaseapp.com` : "";
-  const fallback = configured.includes("firebaseapp.com")
-    ? configured
-    : projectAuth || configured;
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
 
-  if (typeof window === "undefined") {
-    // Prefer www for production builds / SSR hints.
-    if (configured === "bharwanaestates.com" || configured === "www.bharwanaestates.com") {
-      return "www.bharwanaestates.com";
-    }
-    return fallback || "www.bharwanaestates.com";
-  }
-
-  const host = window.location.hostname;
-  if (host === "localhost" || host === "127.0.0.1") {
-    return fallback || projectAuth;
-  }
-
-  if (host === "bharwanaestates.com" || host === "www.bharwanaestates.com") {
-    return "www.bharwanaestates.com";
-  }
-
-  // Preview deployments (*.vercel.app): same-origin + rewrite proxy.
-  return host;
-}
-
-function getFirebaseConfig() {
-  return {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: resolveAuthDomain(),
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  };
-}
+/** Firebase Google provider web client (used by GIS token sign-in). */
+export const GOOGLE_OAUTH_CLIENT_ID = (
+  process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID ??
+  "911353892662-5k29liiureg8ta163fjt6e3gf1vlhk4s.apps.googleusercontent.com"
+).trim();
 
 export function isFirebaseConfigured() {
-  const config = getFirebaseConfig();
   return Boolean(
-    config.apiKey && config.authDomain && config.projectId && config.appId && config.storageBucket,
+    firebaseConfig.apiKey &&
+      firebaseConfig.authDomain &&
+      firebaseConfig.projectId &&
+      firebaseConfig.appId &&
+      firebaseConfig.storageBucket,
   );
 }
 
@@ -74,7 +44,7 @@ export function getFirebaseApp() {
   if (!isFirebaseConfigured()) return null;
   try {
     if (!app) {
-      app = getApps().length ? getApps()[0]! : initializeApp(getFirebaseConfig());
+      app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
     }
     return app;
   } catch (error) {
@@ -125,7 +95,6 @@ export function getFirebaseAuth() {
           popupRedirectResolver: browserPopupRedirectResolver,
         });
       } catch {
-        // App already initialized auth in this runtime
         auth = getAuth(firebaseApp);
       }
     }

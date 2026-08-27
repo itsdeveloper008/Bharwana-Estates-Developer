@@ -20,20 +20,8 @@ const nextConfig = {
     ],
   },
   transpilePackages: ["mapbox-gl", "react-map-gl", "maplibre-gl"],
-  async redirects() {
-    // Apex is claimed by a different Firebase Hosting project and breaks Google Auth.
-    // Keep the live site on www so authDomain + /__/auth share one working origin.
-    return [
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: "bharwanaestates.com" }],
-        destination: "https://www.bharwanaestates.com/:path*",
-        permanent: false,
-      },
-    ];
-  },
   async rewrites() {
-    // Same-origin Firebase Auth helper (fixes "missing initial state" on live).
+    // Keep auth helper proxy for any leftover Firebase auth iframe usage.
     return [
       {
         source: "/__/auth/:path*",
