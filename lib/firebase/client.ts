@@ -10,25 +10,37 @@ import {
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
+const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "";
+const configuredAuthDomain = (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "").trim();
+const projectAuthDomain = projectId ? `${projectId}.firebaseapp.com` : "";
+
+/** Same-origin authDomain on live + /__/auth proxy (next.config) avoids missing-initial-state. */
+function resolveAuthDomain() {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return configuredAuthDomain || projectAuthDomain;
+    }
+    return host;
+  }
+  return configuredAuthDomain || projectAuthDomain;
+}
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  get authDomain() {
+    return resolveAuthDomain();
+  },
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-/** Firebase Google provider web client (used by GIS token sign-in). */
-export const GOOGLE_OAUTH_CLIENT_ID = (
-  process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID ??
-  "911353892662-5k29liiureg8ta163fjt6e3gf1vlhk4s.apps.googleusercontent.com"
-).trim();
-
 export function isFirebaseConfigured() {
   return Boolean(
     firebaseConfig.apiKey &&
-      firebaseConfig.authDomain &&
+      (configuredAuthDomain || projectAuthDomain) &&
       firebaseConfig.projectId &&
       firebaseConfig.appId &&
       firebaseConfig.storageBucket,
