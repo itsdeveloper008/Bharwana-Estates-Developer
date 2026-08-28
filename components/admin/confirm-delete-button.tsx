@@ -21,14 +21,25 @@ export function ConfirmDeleteButton({
   onConfirm,
   disabled,
   disabledHint,
+  variant = "icon",
+  linkText = "Delete listing entirely",
 }: {
   label: string;
   description?: string;
   onConfirm: () => void | Promise<void>;
   disabled?: boolean;
   disabledHint?: string;
+  variant?: "icon" | "link";
+  linkText?: string;
 }) {
   if (disabled) {
+    if (variant === "link") {
+      return (
+        <span className="text-xs text-muted-foreground" title={disabledHint}>
+          Delete unavailable
+        </span>
+      );
+    }
     return (
       <Button
         type="button"
@@ -47,17 +58,26 @@ export function ConfirmDeleteButton({
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive",
-          )}
-          aria-label={`Delete ${label}`}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        {variant === "link" ? (
+          <button
+            type="button"
+            className="text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-destructive hover:underline"
+          >
+            {linkText}
+          </button>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive",
+            )}
+            aria-label={`Delete ${label}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent className="bg-ivory">
         <AlertDialogHeader>

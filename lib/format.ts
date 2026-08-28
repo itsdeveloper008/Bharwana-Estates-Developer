@@ -76,3 +76,14 @@ export function formatDate(iso: string) {
     year: "numeric",
   }).format(new Date(iso));
 }
+
+export function formatDateTime(iso: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(iso));
+}

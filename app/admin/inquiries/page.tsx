@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { toast } from "sonner";
-import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
+import { InquiryDetailModal } from "@/components/admin/inquiry-detail-modal";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -11,18 +12,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate, inquiryChannelLabel } from "@/lib/format";
+import { formatDate, inquiryChannelLabel, inquiryStatusLabel } from "@/lib/format";
 import { useMockStore } from "@/lib/mock-store";
 
 export default function AdminInquiriesPage() {
   const {
     inquiries,
     properties,
+    users,
     inquiriesLoading,
     inquiriesError,
     usingFirestoreInquiries,
     removeInquiry,
+    updateInquiryStatus,
   } = useMockStore();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const selected = inquiries.find((inquiry) => inquiry.id === selectedId) ?? null;
+  const selectedProperty = selected
+    ? properties.find((property) => property.id === selected.propertyId)
+    : undefined;
+  const assignedRep = selected?.assignedSalesId
+    ? users.find((user) => user.id === selected.assignedSalesId)
+    : undefined;
 
   return (
     <div>
@@ -30,7 +42,7 @@ export default function AdminInquiriesPage() {
       <h1 className="font-serif text-3xl">Inquiries</h1>
       <p className="mb-8 mt-2 text-sm text-muted-foreground">
         {usingFirestoreInquiries
-          ? "Live from Firestore — new leads appear without refresh."
+          ? "Live from Firestore — new leads appear without refresh. Click a row to view full details."
           : "Local-only until Firebase is configured on this deploy. Leads will not sync across devices."}
       </p>
 
@@ -57,15 +69,17 @@ export default function AdminInquiriesPage() {
                 <TableHead>Status</TableHead>
                 <TableHead>Notes</TableHead>
                 <TableHead>Created</TableHead>
-                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {inquiries.map((inquiry) => {
                 const property = properties.find((item) => item.id === inquiry.propertyId);
-                const label = property?.title ?? inquiry.id;
                 return (
-                  <TableRow key={inquiry.id}>
+                  <TableRow
+                    key={inquiry.id}
+                    className="cursor-pointer"
+                    onClick={() => setSelectedId(inquiry.id)}
+                  >
                     <TableCell className="font-medium">{inquiry.id.slice(0, 12)}</TableCell>
                     <TableCell>{property?.title ?? inquiry.propertyId}</TableCell>
                     <TableCell>
@@ -74,28 +88,18 @@ export default function AdminInquiriesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{inquiry.status.replaceAll("_", " ")}</Badge>
+                      <Badge variant="outline">{inquiryStatusLabel(inquiry.status)}</Badge>
                     </TableCell>
                     <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
                       {inquiry.notes}
                     </TableCell>
                     <TableCell>{formatDate(inquiry.createdAt)}</TableCell>
-                    <TableCell onClick={(event) => event.stopPropagation()}>
-                      <ConfirmDeleteButton
-                        label={label}
-                        description="This lead will be removed from Firestore permanently."
-                        onConfirm={async () => {
-                          await removeInquiry(inquiry.id);
-                          toast.success(`Deleted inquiry for “${label}”.`);
-                        }}
-                      />
-                    </TableCell>
                   </TableRow>
                 );
               })}
               {inquiries.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
                     No inquiries yet.
                   </TableCell>
                 </TableRow>
@@ -104,6 +108,25 @@ export default function AdminInquiriesPage() {
           </Table>
         </div>
       )}
+
+      <InquiryDetailModal
+        inquiry={selected}
+        property={selectedProperty}
+        open={Boolean(selected)}
+        onOpenChange={(open) => !open && setSelectedId(null)}
+        assignedRepName={assignedRep?.fullName}
+        onStatusChange={async (status) => {
+          if (!selected) return;
+          await updateInquiryStatus(selected.id, status);
+        }}
+        onDelete={async () => {
+          if (!selected) return;
+          const label = selectedProperty?.title ?? selected.id;
+          await removeInquiry(selected.id);
+          setSelectedId(null);
+          toast.success(`Deleted inquiry for “${label}”.`);
+        }}
+      />
     </div>
   );
 }
