@@ -13,24 +13,11 @@ import { getStorage, type FirebaseStorage } from "firebase/storage";
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "";
 const configuredAuthDomain = (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "").trim();
 const projectAuthDomain = projectId ? `${projectId}.firebaseapp.com` : "";
-
-/** Same-origin authDomain on live + /__/auth proxy (next.config) avoids missing-initial-state. */
-function resolveAuthDomain() {
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    if (host === "localhost" || host === "127.0.0.1") {
-      return configuredAuthDomain || projectAuthDomain;
-    }
-    return host;
-  }
-  return configuredAuthDomain || projectAuthDomain;
-}
+const authDomain = configuredAuthDomain || projectAuthDomain;
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  get authDomain() {
-    return resolveAuthDomain();
-  },
+  authDomain,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
