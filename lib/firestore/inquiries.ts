@@ -4,8 +4,6 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
-  orderBy,
-  query,
   serverTimestamp,
   updateDoc,
   type Unsubscribe,
@@ -52,6 +50,7 @@ export async function createInquiry(input: InquiryInput): Promise<string> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured. Add NEXT_PUBLIC_FIREBASE_* env vars.");
 
+  const createdAt = new Date().toISOString();
   const ref = await addDoc(collection(db, COLLECTION), {
     propertyId: input.propertyId,
     buyerId: input.buyerId,
@@ -59,7 +58,7 @@ export async function createInquiry(input: InquiryInput): Promise<string> {
     notes: input.notes,
     status: input.status ?? "NEW",
     assignedSalesId: input.assignedSalesId ?? null,
-    createdAt: serverTimestamp(),
+    createdAt,
   });
   return ref.id;
 }
@@ -71,11 +70,14 @@ export function subscribeInquiries(
   const db = getDb();
   if (!db) return null;
 
-  const q = query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
+  const q = collection(db, COLLECTION);
   return onSnapshot(
     q,
     (snap) => {
-      onData(snap.docs.map((item) => mapInquiry(item.id, item.data())));
+      const list = snap.docs
+        .map((item) => mapInquiry(item.id, item.data()))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      onData(list);
     },
     (error) => onError?.(error),
   );

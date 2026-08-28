@@ -1,4 +1,5 @@
 import { AboutCTA } from "@/components/about/AboutCTA";
+import { AboutFloorImage } from "@/components/about/AboutFloorImage";
 import { AboutHero } from "@/components/about/AboutHero";
 import { HowItWorks } from "@/components/about/HowItWorks";
 import { OurStory } from "@/components/about/OurStory";
@@ -16,6 +17,7 @@ export default function AboutPage() {
   return (
     <>
       <AboutHero />
+      <AboutFloorImage />
       <OurStory />
       <HowItWorks />
       <ValuesGrid />

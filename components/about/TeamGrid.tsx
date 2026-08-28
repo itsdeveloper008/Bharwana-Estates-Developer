@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -29,35 +28,51 @@ export function TeamGrid() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.55, delay: 0.08 }}
-          className="mt-12"
+          viewport={{ once: true, amount: 0.35 }}
+          transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-12 overflow-hidden bg-forest"
         >
-          <Link
-            href="/team"
-            className="group relative block aspect-[21/9] min-h-[220px] overflow-hidden bg-forest sm:min-h-[280px]"
-          >
-            <Image
-              src="/team-floor.png"
-              alt="The Bharwana team floor"
-              fill
-              className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-              sizes="(max-width: 1280px) 100vw, 1280px"
-              priority
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-forest/85 via-forest/35 to-forest/10" />
-            <div className="absolute inset-x-0 bottom-0 p-6 sm:p-10">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-gold">The floor</p>
-              <p className="mt-2 max-w-md font-serif text-2xl text-ivory sm:text-3xl">
-                Meet the people who introduce every address.
-              </p>
-              <span className="mt-4 inline-block text-[11px] uppercase tracking-[0.18em] text-gold transition-colors group-hover:text-ivory">
-                Enter the team →
-              </span>
-            </div>
-          </Link>
+          <div className="mx-auto max-w-3xl px-6 py-12 text-center sm:px-10 sm:py-14">
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+              className="text-[11px] uppercase tracking-[0.22em] text-gold"
+            >
+              The floor
+            </motion.p>
+            <motion.h3
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.55, delay: 0.22 }}
+              className="mt-3 font-serif text-2xl text-ivory sm:text-3xl"
+            >
+              Meet the people who introduce every address.
+            </motion.h3>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.55, delay: 0.3 }}
+              className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
+            >
+              <Button asChild size="lg">
+                <Link href="/team">Enter the team</Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="border-ivory/30 bg-transparent text-ivory hover:bg-ivory hover:text-forest"
+              >
+                <Link href="/owner/add-property">List a property</Link>
+              </Button>
+            </motion.div>
+          </div>
         </motion.div>
       </div>
     </section>

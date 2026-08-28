@@ -40,9 +40,11 @@ const mapOptions: google.maps.MapOptions = {
   mapTypeControl: false,
   streetViewControl: false,
   fullscreenControl: false,
-  mapTypeId: "satellite",
+  mapTypeId: "roadmap",
   gestureHandling: "greedy",
   clickableIcons: false,
+  isFractionalZoomEnabled: false,
+  keyboardShortcuts: false,
 };
 
 function MapLoadingSkeleton({ message = "Loading map" }: { message?: string }) {
@@ -103,7 +105,7 @@ export function MapView({
   const [hoverPinId, setHoverPinId] = useState<string | null>(null);
   const [showSearchArea, setShowSearchArea] = useState(false);
   const [styleLoaded, setStyleLoaded] = useState(false);
-  const [mapTypeId, setMapTypeId] = useState<MapModeId>("satellite");
+  const [mapTypeId, setMapTypeId] = useState<MapModeId>("roadmap");
   const [authFailed, setAuthFailed] = useState(false);
   const suppressMapClick = useRef(false);
 
@@ -166,7 +168,7 @@ export function MapView({
   }, [properties]);
 
   const clusterIndex = useMemo(() => {
-    const cluster = new Supercluster<FeatureProps>({ radius: 64, maxZoom: 16 });
+    const cluster = new Supercluster<FeatureProps>({ radius: 48, maxZoom: 14 });
     cluster.load(
       properties.map((property) => ({
         type: "Feature" as const,
@@ -217,9 +219,19 @@ export function MapView({
     const map = mapRef.current;
     if (!map) return;
     const next = googleBoundsTuple(map);
-    if (next) setBounds(next);
+    if (next) {
+      setBounds((prev) => {
+        if (!prev) return next;
+        const delta =
+          Math.abs(prev[0] - next[0]) +
+          Math.abs(prev[1] - next[1]) +
+          Math.abs(prev[2] - next[2]) +
+          Math.abs(prev[3] - next[3]);
+        return delta < 0.00015 ? prev : next;
+      });
+    }
     const z = map.getZoom();
-    if (typeof z === "number") setZoom(z);
+    if (typeof z === "number") setZoom((prev) => (Math.abs(prev - z) < 0.01 ? prev : z));
   }, []);
 
   useEffect(() => {

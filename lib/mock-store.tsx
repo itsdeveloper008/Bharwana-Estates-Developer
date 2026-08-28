@@ -159,8 +159,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     const unsub = subscribeProperties(
       (next) => {
         setUsingFirestoreProperties(true);
-        // Prefer live Firestore docs; keep seed listings that are not yet in Firestore.
-        setProperties(mergeById(seedPropertiesList, next));
+        setProperties(next.length > 0 ? next : seedPropertiesList);
       },
       (error) => {
         console.error("Firestore properties subscription failed", error);
@@ -230,7 +229,19 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const addInquiry = useCallback(async (input: InquiryInput) => {
     if (isFirebaseConfigured()) {
       try {
-        return await createInquiry(input);
+        const id = await createInquiry(input);
+        const saved: Inquiry = {
+          id,
+          propertyId: input.propertyId,
+          buyerId: input.buyerId,
+          channel: input.channel,
+          notes: input.notes,
+          status: input.status ?? "NEW",
+          assignedSalesId: input.assignedSalesId,
+          createdAt: new Date().toISOString(),
+        };
+        setInquiryState((current) => [saved, ...current.filter((item) => item.id !== id)]);
+        return id;
       } catch (error) {
         console.error(error);
         toast.error("Could not save inquiry to Firestore.");

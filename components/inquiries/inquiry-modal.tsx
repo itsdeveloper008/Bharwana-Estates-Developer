@@ -128,7 +128,7 @@ export function InquiryModal({
       setStep("success");
       toast.success("Inquiry received.");
     } catch {
-      /* toast handled in store */
+      toast.error("Could not send inquiry. Check your connection and try again.");
     }
   }
 

@@ -510,7 +510,9 @@ const seedProperties: Property[] = [
 ];
 
 /** Explicit inventory so Filters → Homes / Plots / Commercial each have real matches. */
-const taxonomyInventory: Property[] = [
+/** Reserved seed inventory — live catalog uses seedProperties.slice(0, 2) only. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _taxonomyInventory: Property[] = [
   // —— Plots (every subtype) ——
   {
     id: "p-plot-01",
@@ -970,7 +972,7 @@ function homeSubtypeFromTitle(title: string, index: number): string {
   return fallback[index % fallback.length]!;
 }
 
-export const properties: Property[] = [...seedProperties, ...taxonomyInventory].map((property, index) => {
+export const properties: Property[] = seedProperties.slice(0, 2).map((property, index) => {
   if (property.category && property.subtype && property.purpose) {
     return {
       ...property,
