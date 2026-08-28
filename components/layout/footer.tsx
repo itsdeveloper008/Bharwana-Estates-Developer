@@ -17,6 +17,13 @@ const footerLinks = [
   { href: "/login", label: "Sign in" },
 ];
 
+const legalLinks = [
+  { href: "/privacy", label: "Privacy Policy" },
+  { href: "/terms", label: "Terms & Conditions" },
+  { href: "/cookies", label: "Cookie Policy" },
+  { href: "/disclaimer", label: "Disclaimer" },
+];
+
 const socials = [
   {
     href: "https://www.linkedin.com/company/bharwana-estates-developer/",
@@ -196,12 +203,23 @@ export function Footer() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.25 }}
           transition={{ duration: 0.65, delay: 0.08, ease }}
-          className="mt-20 grid gap-12 border-t border-[rgba(194,163,90,0.2)] pt-14 sm:grid-cols-2 lg:mt-24 lg:grid-cols-[1fr_1.2fr_0.9fr] lg:gap-16 lg:pt-16"
+          className="mt-20 grid gap-12 border-t border-[rgba(194,163,90,0.2)] pt-14 sm:grid-cols-2 lg:mt-24 lg:grid-cols-4 lg:gap-12 lg:pt-16"
         >
           <div>
             <p className="text-[11px] uppercase tracking-[0.22em] text-[#C2A35A]">Explore</p>
             <ul className="mt-5 space-y-3">
               {footerLinks.map((link) => (
+                <li key={link.href}>
+                  <FooterLink href={link.href} label={link.label} />
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#C2A35A]">Legal</p>
+            <ul className="mt-5 space-y-3">
+              {legalLinks.map((link) => (
                 <li key={link.href}>
                   <FooterLink href={link.href} label={link.label} />
                 </li>
@@ -268,13 +286,16 @@ export function Footer() {
           <p className="text-[10px] uppercase tracking-[0.16em] text-[#F4F0E6]/45">
             © {new Date().getFullYear()} Bharwana Estates Dealer
           </p>
-          <div className="flex flex-wrap items-center gap-6">
-            <span className="cursor-default text-[10px] uppercase tracking-[0.16em] text-[#F4F0E6]/45 transition-colors hover:text-[#C2A35A]">
-              Privacy
-            </span>
-            <span className="cursor-default text-[10px] uppercase tracking-[0.16em] text-[#F4F0E6]/45 transition-colors hover:text-[#C2A35A]">
-              Terms
-            </span>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {legalLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-[10px] uppercase tracking-[0.16em] text-[#F4F0E6]/45 transition-colors duration-300 hover:text-[#C2A35A]"
+              >
+                {link.label}
+              </Link>
+            ))}
             <button
               type="button"
               onClick={scrollTop}

@@ -143,15 +143,15 @@ export function Navbar() {
             </span>
             <span
               className={cn(
-                "hidden font-display text-[11px] uppercase leading-none tracking-[0.3em] transition-colors duration-300 sm:block",
-                overHero ? "text-[#F5F1E8]" : "text-[#082B1D]",
+                "hidden font-display text-[11px] font-semibold uppercase leading-none tracking-[0.3em] transition-colors duration-300 sm:block",
+                overHero ? "text-[#F5F1E8]" : "text-[#06291C]",
               )}
             >
               Bharwana
               <span
                 className={cn(
-                  "mt-1.5 block tracking-[0.34em] transition-colors duration-300",
-                  overHero ? "text-[#F5F1E8]/80" : "text-[#082B1D]/70",
+                  "mt-1.5 block font-medium tracking-[0.34em] transition-colors duration-300",
+                  overHero ? "text-[#F5F1E8]/90" : "text-[#06291C]/90",
                 )}
               >
                 Estates
@@ -171,14 +171,14 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "group relative mx-1 px-3 py-2.5 text-[11px] font-medium uppercase tracking-[0.2em] transition-colors duration-300 xl:mx-1.5 xl:tracking-[0.22em]",
+                    "group relative mx-1 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-300 xl:mx-1.5 xl:tracking-[0.22em]",
                     overHero
                       ? active
                         ? "text-[#F5F1E8]"
-                        : "text-[#F5F1E8]/85 hover:text-[#F5F1E8]"
+                        : "text-[#F5F1E8]/95 hover:text-[#F5F1E8]"
                       : active
-                        ? "text-[#082B1D]"
-                        : "text-[#082B1D]/80 hover:text-[#082B1D]",
+                        ? "text-[#06291C]"
+                        : "text-[#06291C] hover:text-[#082B1D]",
                   )}
                 >
                   {link.label}
@@ -201,10 +201,10 @@ export function Navbar() {
               <Link
                 href="/login"
                 className={cn(
-                  "group relative py-2 text-[11px] font-medium uppercase tracking-[0.18em] transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
+                  "group relative py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
                   overHero
-                    ? "text-[#F5F1E8]/90 hover:text-[#F5F1E8]"
-                    : "text-[#082B1D]/85 hover:text-[#082B1D]",
+                    ? "text-[#F5F1E8]/95 hover:text-[#F5F1E8]"
+                    : "text-[#06291C] hover:text-[#082B1D]",
                 )}
               >
                 Sign in
@@ -255,13 +255,13 @@ export function Navbar() {
               <span className="flex flex-col leading-tight">
                 <span
                   className={cn(
-                    "text-[9px] uppercase tracking-[0.22em]",
-                    overHero ? "text-[#F5F1E8]/75" : "text-[#082B1D]/65",
+                    "text-[9px] font-medium uppercase tracking-[0.22em]",
+                    overHero ? "text-[#F5F1E8]/85" : "text-[#06291C]/80",
                   )}
                 >
                   Call us
                 </span>
-                <span className="text-[12px] font-medium tracking-[0.03em]">{phoneDisplay}</span>
+                <span className="text-[12px] font-semibold tracking-[0.03em]">{phoneDisplay}</span>
               </span>
             </a>
 
