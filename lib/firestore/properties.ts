@@ -10,7 +10,9 @@ import {
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { getDb, getFirebaseStorage, isFirebaseConfigured } from "@/lib/firebase/client";
+import { FIRESTORE_WRITE_TIMEOUT_MS } from "@/lib/firestore/errors";
 import type { Property } from "@/lib/types";
+import { withTimeout } from "@/lib/utils";
 
 const COLLECTION = "properties";
 
@@ -74,8 +76,16 @@ async function resolvePropertyImages(propertyId: string, images: string[]): Prom
       const raw = await response.blob();
       const blob = await compressImageBlob(raw);
       const storageRef = ref(storage, `team/listings/${propertyId}/${index}.jpg`);
-      await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-      return getDownloadURL(storageRef);
+      await withTimeout(
+        uploadBytes(storageRef, blob, { contentType: "image/jpeg" }),
+        FIRESTORE_WRITE_TIMEOUT_MS,
+        "Photo upload",
+      );
+      return withTimeout(
+        getDownloadURL(storageRef),
+        FIRESTORE_WRITE_TIMEOUT_MS,
+        "Photo URL",
+      );
     }),
   );
 }
@@ -156,9 +166,17 @@ export async function seedProperties(properties: Property[], force = false): Pro
 export async function upsertProperty(property: Property): Promise<Property> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");
-  const images = await resolvePropertyImages(property.id, property.images);
+  const images = await withTimeout(
+    resolvePropertyImages(property.id, property.images),
+    FIRESTORE_WRITE_TIMEOUT_MS,
+    "Photo upload",
+  );
   const next = { ...property, images };
-  await setDoc(doc(db, COLLECTION, property.id), toFirestorePayload(next), { merge: true });
+  await withTimeout(
+    setDoc(doc(db, COLLECTION, property.id), toFirestorePayload(next), { merge: true }),
+    FIRESTORE_WRITE_TIMEOUT_MS,
+    "Property save",
+  );
   return next;
 }
 

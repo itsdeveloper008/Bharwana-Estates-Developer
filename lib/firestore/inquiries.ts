@@ -9,7 +9,9 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { getDb, isFirebaseConfigured } from "@/lib/firebase/client";
+import { FIRESTORE_WRITE_TIMEOUT_MS } from "@/lib/firestore/errors";
 import type { Inquiry, InquiryChannel, InquiryStatus } from "@/lib/types";
+import { withTimeout } from "@/lib/utils";
 
 const COLLECTION = "inquiries";
 
@@ -51,15 +53,19 @@ export async function createInquiry(input: InquiryInput): Promise<string> {
   if (!db) throw new Error("Firebase is not configured. Add NEXT_PUBLIC_FIREBASE_* env vars.");
 
   const createdAt = new Date().toISOString();
-  const ref = await addDoc(collection(db, COLLECTION), {
-    propertyId: input.propertyId,
-    buyerId: input.buyerId,
-    channel: input.channel,
-    notes: input.notes,
-    status: input.status ?? "NEW",
-    assignedSalesId: input.assignedSalesId ?? null,
-    createdAt,
-  });
+  const ref = await withTimeout(
+    addDoc(collection(db, COLLECTION), {
+      propertyId: input.propertyId,
+      buyerId: input.buyerId,
+      channel: input.channel,
+      notes: input.notes,
+      status: input.status ?? "NEW",
+      assignedSalesId: input.assignedSalesId ?? null,
+      createdAt,
+    }),
+    FIRESTORE_WRITE_TIMEOUT_MS,
+    "Inquiry save",
+  );
   return ref.id;
 }
 

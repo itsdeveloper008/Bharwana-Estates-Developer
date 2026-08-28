@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Handshake, Mail, Phone, Scale, ShieldCheck, UserRound } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -44,6 +44,8 @@ export function InquiryModal({
   const [step, setStep] = useState<Step>("auth");
   const [channel, setChannel] = useState<InquiryChannel>("PLATFORM_ASSISTED");
   const [acceptedRisk, setAcceptedRisk] = useState(false);
+  const [directPending, setDirectPending] = useState(false);
+  const flowKeyRef = useRef<string | null>(null);
 
   const seller = useMemo(
     () => users.find((item) => item.id === property.ownerUserId) ?? users.find((item) => item.role === "HOUSE_OWNER"),
@@ -68,14 +70,27 @@ export function InquiryModal({
   });
 
   useEffect(() => {
-    if (!open || !isReady) return;
-    if (!user) {
-      setStep("auth");
+    if (!open) {
+      flowKeyRef.current = null;
+      setDirectPending(false);
       return;
     }
-    setStep(isOwnerListing ? "choice" : "form");
-    setChannel("PLATFORM_ASSISTED");
-    setAcceptedRisk(false);
+    if (!isReady) return;
+
+    const flowKey = `${property.id}:${user?.id ?? "guest"}`;
+    const isNewFlow = flowKeyRef.current !== flowKey;
+    if (isNewFlow) {
+      flowKeyRef.current = flowKey;
+      if (!user) {
+        setStep("auth");
+      } else {
+        setStep(isOwnerListing ? "choice" : "form");
+        setChannel("PLATFORM_ASSISTED");
+        setAcceptedRisk(false);
+      }
+    }
+
+    if (!user) return;
     form.reset({
       fullName: user.fullName,
       email: user.email,
@@ -85,7 +100,7 @@ export function InquiryModal({
         : `Please arrange a site visit for ${property.title}.`,
       visitDate: "",
     });
-  }, [open, isReady, user, isOwnerListing, property.title, form]);
+  }, [open, isReady, user, isOwnerListing, property.id, property.title, form]);
 
   // After login return with ?intent=contact, parent opens this modal; clear intent from URL quietly.
   useEffect(() => {
@@ -107,8 +122,20 @@ export function InquiryModal({
         channel: "DIRECT_TO_SELLER",
         notes: `Direct contact revealed to ${user.fullName} · ${user.phone}. Outside Bharwana mediation.`,
       });
-    } catch {
-      /* toast handled in store */
+    } catch (error) {
+      console.error("Direct contact log failed", error);
+      toast.error("Could not log this contact, but you can still reach the seller.");
+    }
+  }
+
+  async function proceedDirect() {
+    setChannel("DIRECT_TO_SELLER");
+    setDirectPending(true);
+    try {
+      await logDirectContact();
+    } finally {
+      setDirectPending(false);
+      setStep("direct");
     }
   }
 
@@ -219,13 +246,10 @@ export function InquiryModal({
                 <Button
                   variant="outline"
                   className="mt-4 w-full"
-                  disabled={!acceptedRisk}
-                  onClick={() => {
-                    setChannel("DIRECT_TO_SELLER");
-                    void logDirectContact().then(() => setStep("direct"));
-                  }}
+                  disabled={!acceptedRisk || directPending}
+                  onClick={() => void proceedDirect()}
                 >
-                  Continue directly
+                  {directPending ? "Continuing…" : "Continue directly"}
                 </Button>
               </div>
             </div>

@@ -46,7 +46,7 @@ import {
 import { propertyFormSchema, type PropertyFormValues } from "@/lib/schemas";
 import { CITIES, type PropertyCategory, type PropertyStatus, type User } from "@/lib/types";
 import { CITY_COORDS } from "@/lib/map";
-import { cn, delay } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const MapPicker = dynamic(() => import("@/components/map/map-picker").then((mod) => mod.MapPicker), { ssr: false });
 
@@ -399,7 +399,10 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
         return;
       }
     }
-    if (valid) return;
+    if (valid) {
+      await publish(form.getValues());
+      return;
+    }
     const order = [
       "purpose",
       "category",
@@ -516,7 +519,6 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
       flashSection("photographs");
       return;
     }
-    await delay(400);
     const id = `p-${Date.now()}`;
     const images = previews;
 
@@ -562,8 +564,13 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
         ownerUserId: resolvedOwnerId,
         createdAt: new Date().toISOString(),
       });
-    } catch {
-      toast.error("Could not submit listing. Check your photos and try again.");
+    } catch (error) {
+      console.error("Listing submit failed", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not submit listing. Check your photos and connection, then try again.",
+      );
       return;
     }
     setSubmittedId(id);
@@ -1435,7 +1442,10 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
           onOpenChange={setAuthOpen}
           onAuthenticated={(authed) => {
             setAuthOpen(false);
-            void form.handleSubmit((values) => commitPublish(values, authed.id))();
+            void form.handleSubmit(
+              (values) => commitPublish(values, authed.id),
+              () => void revealFirstIssue(),
+            )();
           }}
         />
       )}

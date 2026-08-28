@@ -11,6 +11,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
+import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import {
   createInquiry,
   deleteInquiry,
@@ -178,7 +179,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
         saved = await upsertProperty(property);
       } catch (error) {
         console.error(error);
-        toast.error("Could not save property to Firestore.");
+        toast.error(firestoreErrorMessage(error, "Could not save property to Firestore."));
         throw error;
       }
     }
@@ -204,7 +205,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
         saved = await upsertProperty(base);
       } catch (error) {
         console.error(error);
-        toast.error("Could not update property in Firestore.");
+        toast.error(firestoreErrorMessage(error, "Could not update property in Firestore."));
         throw error;
       }
     }
@@ -244,7 +245,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
         return id;
       } catch (error) {
         console.error(error);
-        toast.error("Could not save inquiry to Firestore.");
+        toast.error(firestoreErrorMessage(error, "Could not save inquiry to Firestore."));
         throw error;
       }
     }
