@@ -39,6 +39,73 @@ const principles = [
   },
 ] as const;
 
+function VisionMissionSection() {
+  return (
+    <section className="border-t border-forest/5 bg-ivory py-20 sm:py-24">
+      <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.4 }}
+          transition={{ duration: 0.55, ease }}
+          className="mx-auto max-w-2xl text-center"
+        >
+          <p className="text-[11px] uppercase tracking-[0.26em] text-[#B89545]">Who we are</p>
+          <h2 className="mt-4 font-serif text-[2.25rem] leading-[1.12] text-[#082B1D] sm:text-4xl">
+            Building trust, one address at a time.
+          </h2>
+        </motion.div>
+
+        <div className="mt-14 grid gap-10 sm:mt-16 lg:grid-cols-2 lg:gap-16">
+          <motion.article
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.35 }}
+            transition={{ duration: 0.5, ease }}
+            className="border-t border-[#B89545]/50 pt-8"
+          >
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#B89545]">Our vision</p>
+            <h3 className="mt-4 font-serif text-2xl text-[#082B1D] sm:text-[1.75rem]">
+              A house deserves a careful introduction.
+            </h3>
+            <p className="mt-4 text-sm leading-relaxed text-[#526057] sm:text-[15px] sm:leading-[1.75]">
+              We see a market where buying or selling a home feels considered, never hurried — where
+              direct-from-owner residences and Dealer-verified stock share one honest floor, and
+              families compare with clarity rather than noise.
+            </p>
+            <p className="mt-4 text-sm leading-relaxed text-[#526057] sm:text-[15px] sm:leading-[1.75]">
+              Equal footing between buyer and owner is not a slogan. It is how every listing earns
+              its place on the floor.
+            </p>
+          </motion.article>
+
+          <motion.article
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.35 }}
+            transition={{ duration: 0.5, delay: 0.08, ease }}
+            className="border-t border-[#B89545]/50 pt-8"
+          >
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#B89545]">Our mission</p>
+            <h3 className="mt-4 font-serif text-2xl text-[#082B1D] sm:text-[1.75rem]">
+              One floor. Honest introductions.
+            </h3>
+            <p className="mt-4 text-sm leading-relaxed text-[#526057] sm:text-[15px] sm:leading-[1.75]">
+              Bharwana Estates Dealer exists to place private homes and Dealer-verified residences on
+              a single, honest floor. We favour clarity over noise, so every conversation starts
+              with the property, not the pitch.
+            </p>
+            <p className="mt-4 text-sm leading-relaxed text-[#526057] sm:text-[15px] sm:leading-[1.75]">
+              From Lahore to Islamabad and beyond, we offer quiet counsel: clear documents, measured
+              site visits, and a presentation that respects the address itself.
+            </p>
+          </motion.article>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function WhyBharwanaSection() {
   const [active, setActive] = useState(0);
   const current = principles[active]!;
@@ -224,6 +291,8 @@ export default function HomePage() {
       </section>
 
       <FeaturedSection />
+
+      <VisionMissionSection />
 
       <WhyBharwanaSection />
     </>
