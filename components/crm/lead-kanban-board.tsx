@@ -4,7 +4,6 @@ import { DndContext, PointerSensor, closestCorners, useSensor, useSensors, type 
 import { KanbanColumn, LeadCard } from "@/components/crm/lead-card";
 import { Button } from "@/components/ui/button";
 import { useMockStore } from "@/lib/mock-store";
-import { users } from "@/lib/mock-data/users";
 import type { InquiryStatus } from "@/lib/types";
 
 const COLUMNS: { id: InquiryStatus; title: string; accept: InquiryStatus[] }[] = [
@@ -21,7 +20,7 @@ function columnFor(status: InquiryStatus) {
 }
 
 export function LeadKanbanBoard() {
-  const { inquiries, properties, updateInquiryStatus } = useMockStore();
+  const { inquiries, properties, users, updateInquiryStatus } = useMockStore();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   function onDragEnd(event: DragEndEvent) {

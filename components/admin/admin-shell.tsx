@@ -22,7 +22,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAdminAuth } from "@/lib/admin-auth";
-import { users as seedUsers } from "@/lib/mock-data/users";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { cn } from "@/lib/utils";
@@ -86,15 +85,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   function handleViewWebsite() {
     if (admin) {
-      const marketplaceUser =
-        seedUsers.find((user) => user.email.toLowerCase() === admin.email.toLowerCase()) ?? {
-          id: `admin-${admin.email}`,
-          fullName: admin.fullName,
-          email: admin.email,
-          phone: "",
-          role: "ADMIN" as const,
-          avatarUrl: admin.avatarUrl,
-        };
+      const marketplaceUser = {
+        id: `admin-${admin.email}`,
+        fullName: admin.fullName,
+        email: admin.email,
+        phone: "",
+        role: "ADMIN" as const,
+        avatarUrl: admin.avatarUrl,
+      };
       loginAs(marketplaceUser);
     }
     router.push("/");

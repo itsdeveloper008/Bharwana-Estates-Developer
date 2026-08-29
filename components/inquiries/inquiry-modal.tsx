@@ -19,7 +19,6 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { users } from "@/lib/mock-data/users";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { inquiryFormSchema, type InquiryFormValues } from "@/lib/schemas";
@@ -38,7 +37,7 @@ export function InquiryModal({
   onOpenChange: (open: boolean) => void;
 }) {
   const { user, isReady } = useMockAuth();
-  const { addInquiry } = useMockStore();
+  const { addInquiry, users } = useMockStore();
   const searchParams = useSearchParams();
   const isOwnerListing = property.listingType === "DIRECT_OWNER";
   const [step, setStep] = useState<Step>("auth");
@@ -47,8 +46,8 @@ export function InquiryModal({
   const flowKeyRef = useRef<string | null>(null);
 
   const seller = useMemo(
-    () => users.find((item) => item.id === property.ownerUserId) ?? users.find((item) => item.role === "HOUSE_OWNER"),
-    [property.ownerUserId],
+    () => users.find((item) => item.id === property.ownerUserId),
+    [users, property.ownerUserId],
   );
 
   const returnTo = `/property/${property.id}?intent=contact`;

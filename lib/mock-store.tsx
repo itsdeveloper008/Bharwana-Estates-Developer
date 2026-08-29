@@ -24,6 +24,7 @@ import {
   subscribeProperties,
   upsertProperty,
 } from "@/lib/firestore/properties";
+import { createUserDoc, subscribeUsers } from "@/lib/firestore/users";
 import { developers as seedDevelopers } from "@/lib/mock-data/developers";
 import { inquiries as seedInquiries } from "@/lib/mock-data/inquiries";
 import { properties as seedPropertiesList } from "@/lib/mock-data/properties";
@@ -54,6 +55,7 @@ interface MockStoreContextValue {
   inquiriesError: string | null;
   usingFirestoreInquiries: boolean;
   usingFirestoreProperties: boolean;
+  usingFirestoreUsers: boolean;
   addProperty: (property: Property) => Promise<void>;
   updateProperty: (id: string, patch: Partial<Property>) => Promise<void>;
   deleteProperty: (id: string) => Promise<void>;
@@ -101,6 +103,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const [inquiriesError, setInquiriesError] = useState<string | null>(null);
   const [usingFirestoreInquiries, setUsingFirestoreInquiries] = useState(false);
   const [usingFirestoreProperties, setUsingFirestoreProperties] = useState(false);
+  const [usingFirestoreUsers, setUsingFirestoreUsers] = useState(false);
 
   useEffect(() => {
     setProperties(mergeById(seedPropertiesList, readJsonArray<Property>(PROPERTIES_KEY)));
@@ -119,11 +122,13 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       }
       localStorage.setItem(DEVELOPERS_KEY, JSON.stringify(developers));
       localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      if (!usingFirestoreUsers) {
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      }
     } catch (error) {
       console.error("Could not persist mock store", error);
     }
-  }, [properties, developers, transactions, users, hydrated, usingFirestoreProperties]);
+  }, [properties, developers, transactions, users, hydrated, usingFirestoreProperties, usingFirestoreUsers]);
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
@@ -160,12 +165,32 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     const unsub = subscribeProperties(
       (next) => {
         setUsingFirestoreProperties(true);
-        setProperties(next.length > 0 ? next : seedPropertiesList);
+        setProperties(next);
       },
       (error) => {
         console.error("Firestore properties subscription failed", error);
         setUsingFirestoreProperties(false);
         toast.error("Could not load properties from Firestore.");
+      },
+    );
+
+    return () => unsub?.();
+  }, []);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured()) {
+      setUsingFirestoreUsers(false);
+      return;
+    }
+
+    const unsub = subscribeUsers(
+      (next) => {
+        setUsingFirestoreUsers(true);
+        setUsers(next);
+      },
+      (error) => {
+        console.error("Firestore users subscription failed", error);
+        setUsingFirestoreUsers(false);
       },
     );
 
@@ -318,6 +343,20 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       const without = current.filter((item) => item.id !== user.id);
       return [user, ...without];
     });
+    if (isFirebaseConfigured()) {
+      try {
+        await createUserDoc(user.id, {
+          fullName: user.fullName,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          avatarUrl: user.avatarUrl,
+        });
+      } catch (error) {
+        console.error(error);
+        toast.error("Could not save user profile to Firestore.");
+      }
+    }
   }, []);
 
   const value = useMemo(
@@ -331,6 +370,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       inquiriesError,
       usingFirestoreInquiries,
       usingFirestoreProperties,
+      usingFirestoreUsers,
       addProperty,
       updateProperty,
       deleteProperty,
@@ -354,6 +394,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       inquiriesError,
       usingFirestoreInquiries,
       usingFirestoreProperties,
+      usingFirestoreUsers,
       addProperty,
       updateProperty,
       deleteProperty,

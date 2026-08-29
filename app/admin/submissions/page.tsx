@@ -23,7 +23,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { users } from "@/lib/mock-data/users";
 import { formatDate, formatPrice, listingBadge, statusLabel } from "@/lib/format";
 import { useMockStore } from "@/lib/mock-store";
 import type { Property } from "@/lib/types";
@@ -40,7 +39,7 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export default function AdminSubmissionsPage() {
-  const { properties, developers, updateProperty, deleteProperty } = useMockStore();
+  const { properties, developers, users, updateProperty, deleteProperty } = useMockStore();
   const [tab, setTab] = useState<Tab>("PENDING_APPROVAL");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -56,7 +55,7 @@ export default function AdminSubmissionsPage() {
     return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }, [properties, tab]);
 
-  const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), []);
+  const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
 
   const selected = properties.find((property) => property.id === selectedId) ?? null;
   const pendingCount = properties.filter((property) => property.status === "PENDING_APPROVAL").length;

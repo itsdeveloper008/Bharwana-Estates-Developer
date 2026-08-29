@@ -9,6 +9,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
+import { isFirebaseConfigured } from "@/lib/firebase/client";
+import {
+  addSavedProperty,
+  removeSavedProperty,
+  subscribeUser,
+} from "@/lib/firestore/users";
 import { useMockAuth } from "@/lib/mock-auth";
 
 const SAVED_KEY = "bharwana_saved_properties";
@@ -40,6 +47,7 @@ const FavoritesContext = createContext<FavoritesContextValue | undefined>(undefi
 export function FavoritesProvider({ children }: { children: ReactNode }) {
   const { user, isReady } = useMockAuth();
   const [ids, setIds] = useState<string[]>([]);
+  const usingFirestore = isFirebaseConfigured();
 
   useEffect(() => {
     if (!isReady) return;
@@ -47,11 +55,29 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       setIds([]);
       return;
     }
-    const map = readAllSaved();
-    setIds(map[user.id] ?? []);
-  }, [user, isReady]);
 
-  const persist = useCallback(
+    if (!usingFirestore) {
+      const map = readAllSaved();
+      setIds(map[user.id] ?? []);
+      return;
+    }
+
+    const unsub = subscribeUser(
+      user.id,
+      (profile) => {
+        setIds(profile?.savedPropertyIds ?? []);
+      },
+      (error) => {
+        console.error("Saved properties subscription failed", error);
+        const map = readAllSaved();
+        setIds(map[user.id] ?? []);
+      },
+    );
+
+    return () => unsub?.();
+  }, [user, isReady, usingFirestore]);
+
+  const persistLocal = useCallback(
     (nextIds: string[]) => {
       if (!user) return;
       const map = readAllSaved();
@@ -67,21 +93,43 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   const save = useCallback(
     (propertyId: string) => {
       if (!user || ids.includes(propertyId)) return;
-      persist([...ids, propertyId]);
+      const next = [...ids, propertyId];
+      setIds(next);
+      if (usingFirestore) {
+        void addSavedProperty(user.id, propertyId).catch((error) => {
+          console.error(error);
+          setIds(ids);
+          toast.error("Could not save this residence.");
+        });
+      } else {
+        persistLocal(next);
+      }
     },
-    [ids, persist, user],
+    [ids, persistLocal, user, usingFirestore],
   );
 
   const toggle = useCallback(
     (propertyId: string) => {
       if (!user) return false;
-      const next = ids.includes(propertyId)
-        ? ids.filter((id) => id !== propertyId)
-        : [...ids, propertyId];
-      persist(next);
+      const removing = ids.includes(propertyId);
+      const next = removing ? ids.filter((id) => id !== propertyId) : [...ids, propertyId];
+      setIds(next);
+
+      if (usingFirestore) {
+        const sync = removing
+          ? removeSavedProperty(user.id, propertyId)
+          : addSavedProperty(user.id, propertyId);
+        void sync.catch((error) => {
+          console.error(error);
+          setIds(ids);
+          toast.error(removing ? "Could not remove saved residence." : "Could not save this residence.");
+        });
+      } else {
+        persistLocal(next);
+      }
       return true;
     },
-    [ids, persist, user],
+    [ids, persistLocal, user, usingFirestore],
   );
 
   const value = useMemo(() => ({ ids, isSaved, toggle, save }), [ids, isSaved, toggle, save]);

@@ -291,6 +291,8 @@ export function RegisterForm() {
       phone: values.phone,
       password: values.password,
       role: values.role,
+      agencyName: values.role === "DEALER" ? values.agencyName : undefined,
+      registrationNumber: values.role === "DEALER" ? values.registrationNumber : undefined,
     });
     if (!result.ok) {
       setError(result.error);

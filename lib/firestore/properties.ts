@@ -2,8 +2,10 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
+  serverTimestamp,
   setDoc,
   writeBatch,
   type Unsubscribe,
@@ -172,8 +174,14 @@ export async function upsertProperty(property: Property): Promise<Property> {
     "Photo upload",
   );
   const next = { ...property, images };
+  const ref = doc(db, COLLECTION, property.id);
+  const existing = await getDoc(ref);
+  const payload = toFirestorePayload(next);
+  if (!existing.exists()) {
+    payload.createdAt = serverTimestamp();
+  }
   await withTimeout(
-    setDoc(doc(db, COLLECTION, property.id), toFirestorePayload(next), { merge: true }),
+    setDoc(ref, payload, { merge: true }),
     FIRESTORE_WRITE_TIMEOUT_MS,
     "Property save",
   );

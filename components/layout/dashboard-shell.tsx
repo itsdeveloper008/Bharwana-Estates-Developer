@@ -8,8 +8,8 @@ import { Navbar } from "@/components/layout/navbar";
 import { OwnerGate } from "@/components/owner/owner-gate";
 import { Button } from "@/components/ui/button";
 import { useMockAuth } from "@/lib/mock-auth";
+import { useMockStore } from "@/lib/mock-store";
 import type { UserRole } from "@/lib/types";
-import { users } from "@/lib/mock-data/users";
 
 const roleCopy: Record<UserRole, { title: string; description: string }> = {
   BUYER: {
@@ -42,6 +42,7 @@ export function DashboardShell({
   children: React.ReactNode;
 }) {
   const { user, loginAs } = useMockAuth();
+  const { users } = useMockStore();
   const pathname = usePathname();
   const copy = roleCopy[role];
   const demoUser = users.find((item) => item.role === role);
