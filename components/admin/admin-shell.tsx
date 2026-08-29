@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   Building2,
   ClipboardCheck,
+  ExternalLink,
   Handshake,
   LayoutDashboard,
   LogOut,
@@ -21,6 +22,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAdminAuth } from "@/lib/admin-auth";
+import { users as seedUsers } from "@/lib/mock-data/users";
+import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { cn } from "@/lib/utils";
 
@@ -72,12 +75,29 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const { admin, logout } = useAdminAuth();
+  const { loginAs } = useMockAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
   function handleSignOut() {
     logout();
     router.replace("/admin/login");
+  }
+
+  function handleViewWebsite() {
+    if (admin) {
+      const marketplaceUser =
+        seedUsers.find((user) => user.email.toLowerCase() === admin.email.toLowerCase()) ?? {
+          id: `admin-${admin.email}`,
+          fullName: admin.fullName,
+          email: admin.email,
+          phone: "",
+          role: "ADMIN" as const,
+          avatarUrl: admin.avatarUrl,
+        };
+      loginAs(marketplaceUser);
+    }
+    router.push("/");
   }
 
   const initials =
@@ -98,7 +118,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="flex-1 px-2 py-4">
           <NavLinks />
         </div>
-        <div className="border-t border-forest/10 p-4">
+        <div className="border-t border-forest/10 p-4 space-y-2">
+          <Button variant="outline" size="sm" className="w-full justify-start" onClick={handleViewWebsite}>
+            <ExternalLink className="h-4 w-4" />
+            View Website
+          </Button>
           <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
             <LogOut className="h-4 w-4" />
             Sign Out
@@ -125,7 +149,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 </div>
               </SheetContent>
             </Sheet>
-            <Link href="/" className="text-xs uppercase tracking-[0.14em] text-muted-foreground hover:text-forest">
+            <Link
+              href="/"
+              onClick={(event) => {
+                event.preventDefault();
+                handleViewWebsite();
+              }}
+              className="text-xs uppercase tracking-[0.14em] text-muted-foreground hover:text-forest"
+            >
               Marketplace
             </Link>
           </div>
@@ -139,6 +170,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <AvatarImage src={admin?.avatarUrl} alt={admin?.fullName ?? "Admin"} />
               <AvatarFallback className="bg-forest text-xs text-ivory">{initials}</AvatarFallback>
             </Avatar>
+            <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={handleViewWebsite}>
+              <ExternalLink className="h-4 w-4" />
+              View Website
+            </Button>
             <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={handleSignOut}>
               Sign Out
             </Button>

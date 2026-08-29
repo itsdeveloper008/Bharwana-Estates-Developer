@@ -3,14 +3,17 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type Ref } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Briefcase, Eye, EyeOff, Home, Loader2, UserRound } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthCrossLink } from "@/components/auth/auth-shell";
+import { GoogleRoleCompletionDialog } from "@/components/auth/google-role-completion-dialog";
+import { RoleSelector } from "@/components/auth/role-selector";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useMockAuth } from "@/lib/mock-auth";
+import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { registerSchema, userLoginSchema, type RegisterFormValues, type UserLoginValues } from "@/lib/schemas";
 import { DEFAULT_DEALER_COMMISSION_RATE, type User, type UserRole } from "@/lib/types";
@@ -24,16 +27,77 @@ const roleHome: Record<UserRole, string> = {
   ADMIN: "/admin",
 };
 
-const ROLE_OPTIONS: {
-  id: "BUYER" | "HOUSE_OWNER" | "DEALER";
-  label: string;
-  hint: string;
-  icon: typeof UserRound;
-}[] = [
-  { id: "BUYER", label: "Buyer", hint: "Browse and inquire", icon: UserRound },
-  { id: "HOUSE_OWNER", label: "House Owner", hint: "List your residence", icon: Home },
-  { id: "DEALER", label: "Dealer", hint: "List inventory, earn through Bharwana", icon: Briefcase },
-];
+function OrDivider() {
+  return (
+    <div className="relative">
+      <div className="absolute inset-0 flex items-center" aria-hidden>
+        <div className="w-full border-t border-forest/10" />
+      </div>
+      <div className="relative flex justify-center text-[11px] uppercase tracking-[0.16em]">
+        <span className="bg-ivory px-3 text-muted-foreground">or</span>
+      </div>
+    </div>
+  );
+}
+
+function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) {
+  const { loginWithGoogle } = useMockAuth();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [roleOpen, setRoleOpen] = useState(false);
+  const [draft, setDraft] = useState<GoogleSignupDraft | null>(null);
+
+  async function handleClick() {
+    setError(null);
+    setPending(true);
+    try {
+      const result = await loginWithGoogle();
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      if (result.isNewUser) {
+        setDraft(result.draft);
+        setRoleOpen(true);
+        return;
+      }
+      toast.success("Signed in with Google");
+      onSuccess(result.user);
+    } catch (err) {
+      console.error("Google continue failed", err);
+      setError("Could not sign in with Google. Try again.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="space-y-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full border-forest/15 bg-white text-forest hover:border-forest/25 hover:bg-white hover:text-forest"
+          disabled={pending}
+          onClick={() => void handleClick()}
+        >
+          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark className="h-4 w-4" />}
+          {pending ? "Connecting…" : "Continue with Google"}
+        </Button>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+      </div>
+      <GoogleRoleCompletionDialog
+        open={roleOpen}
+        onOpenChange={setRoleOpen}
+        draft={draft}
+        onComplete={(user) => {
+          setRoleOpen(false);
+          onSuccess(user);
+        }}
+      />
+    </>
+  );
+}
 
 function safeReturnTo(raw: string | null): string | null {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
@@ -60,60 +124,6 @@ function GoogleMark({ className }: { className?: string }) {
         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
       />
     </svg>
-  );
-}
-
-function OrDivider() {
-  return (
-    <div className="relative py-1">
-      <div className="absolute inset-0 flex items-center" aria-hidden>
-        <div className="w-full border-t border-forest/10" />
-      </div>
-      <div className="relative flex justify-center text-[11px] uppercase tracking-[0.16em]">
-        <span className="bg-ivory px-3 text-muted-foreground">or</span>
-      </div>
-    </div>
-  );
-}
-
-function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) {
-  const { loginWithGoogle } = useMockAuth();
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleClick() {
-    setError(null);
-    setPending(true);
-    try {
-      const result = await loginWithGoogle();
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      toast.success("Signed in with Google");
-      onSuccess(result.user);
-    } catch (err) {
-      console.error("Google continue failed", err);
-      setError("Could not sign in with Google. Try again.");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return (
-    <div className="space-y-2">
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full border-forest/15 bg-white text-forest hover:border-forest/25 hover:bg-white hover:text-forest"
-        disabled={pending}
-        onClick={() => void handleClick()}
-      >
-        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark className="h-4 w-4" />}
-        {pending ? "Connecting…" : "Continue with Google"}
-      </Button>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-    </div>
   );
 }
 
@@ -310,9 +320,9 @@ export function RegisterForm() {
   })();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
           <FormField
             control={form.control}
             name="fullName"
@@ -406,40 +416,20 @@ export function RegisterForm() {
             control={form.control}
             name="role"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="gap-1.5">
                 <FormLabel>I am a</FormLabel>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {ROLE_OPTIONS.map((option) => {
-                    const active = field.value === option.id;
-                    const Icon = option.icon;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => field.onChange(option.id)}
-                        className={cn(
-                          "rounded-lg border px-3 py-3 text-left transition-colors duration-200",
-                          active
-                            ? "border-gold bg-gold/10 text-forest"
-                            : "border-forest/15 bg-white text-forest hover:border-gold/45",
-                        )}
-                      >
-                        <Icon className={cn("h-4 w-4", active ? "text-gold-700" : "text-forest/45")} strokeWidth={1.5} />
-                        <span className="mt-2 block text-sm font-medium">{option.label}</span>
-                        <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
-                          {option.hint}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <RoleSelector
+                  value={field.value}
+                  onChange={field.onChange}
+                  compact
+                />
                 <FormMessage />
               </FormItem>
             )}
           />
 
           {selectedRole === "DEALER" && (
-            <div className="space-y-4 rounded-lg border border-forest/10 bg-cream/40 p-4">
+            <div className="space-y-3 rounded-lg border border-forest/10 bg-cream/40 p-3">
               <FormField
                 control={form.control}
                 name="agencyName"
@@ -502,14 +492,16 @@ export function RegisterForm() {
               "Create account"
             )}
           </Button>
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="!mt-2 text-center text-sm text-muted-foreground">
             Already on the floor? <AuthCrossLink href={loginHref}>Sign in</AuthCrossLink>
           </p>
         </form>
       </Form>
 
-      <OrDivider />
-      <ContinueWithGoogle onSuccess={(authed) => goAfterAuth(authed.role)} />
+      <div className="space-y-3">
+        <OrDivider />
+        <ContinueWithGoogle onSuccess={(authed) => goAfterAuth(authed.role)} />
+      </div>
     </div>
   );
 }

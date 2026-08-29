@@ -44,6 +44,8 @@ export interface User {
   phone: string;
   role: UserRole;
   avatarUrl?: string;
+  /** Persisted in localStorage per user via favorites context */
+  savedPropertyIds?: string[];
 }
 
 export interface Developer {

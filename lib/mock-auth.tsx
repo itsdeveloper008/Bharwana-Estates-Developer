@@ -27,26 +27,35 @@ import { delay } from "@/lib/utils";
 
 const SESSION_KEY = "bharwana_user_session";
 const USERS_KEY = "bharwana_registered_users";
+const PENDING_GOOGLE_KEY = "bharwana_pending_google_signup";
 
-/** Demo passwords for seed users (frontend-only). */
-const SEED_PASSWORDS: Record<string, string> = {
-  "imran@bharwana.example": "owner123",
-  "nadia.q@example.com": "owner123",
-  "ahmed.khan@example.com": "buyer123",
-  "sara.malik@example.com": "buyer123",
-  "omar.sheikh@bharwana.example": "sales123",
-  "hina.raza@bharwana.example": "sales123",
-  "kamran.dealer@example.com": "dealer123",
+export type GoogleSignupDraft = {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  avatarUrl?: string;
 };
 
 type StoredAccount = User & { password: string };
+
+type GoogleLoginResult =
+  | { ok: true; isNewUser: false; user: User }
+  | { ok: true; isNewUser: true; draft: GoogleSignupDraft }
+  | { ok: false; error: string };
 
 interface MockAuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isReady: boolean;
   login: (email: string, password: string) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
-  loginWithGoogle: () => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
+  loginWithGoogle: () => Promise<GoogleLoginResult>;
+  completeGoogleSignup: (input: {
+    draft: GoogleSignupDraft;
+    role: UserRole;
+    agencyName?: string;
+    registrationNumber?: string;
+  }) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   register: (input: {
     fullName: string;
     email: string;
@@ -81,35 +90,70 @@ function toPublicUser(account: StoredAccount | User): User {
   return { id, fullName, email, phone, role, avatarUrl };
 }
 
-function userFromFirebase(firebaseUser: FirebaseUser): User | { error: string } {
-  const email = (firebaseUser.email ?? "").trim().toLowerCase();
-  if (!email) return { error: "Google account did not return an email." };
+/** Demo passwords for seed users (frontend-only). */
+const SEED_PASSWORDS: Record<string, string> = {
+  "imran@bharwana.example": "owner123",
+  "nadia.q@example.com": "owner123",
+  "ahmed.khan@example.com": "buyer123",
+  "sara.malik@example.com": "buyer123",
+  "omar.sheikh@bharwana.example": "sales123",
+  "hina.raza@bharwana.example": "sales123",
+  "kamran.dealer@example.com": "dealer123",
+};
 
+function findExistingAccount(email: string) {
+  const normalized = email.trim().toLowerCase();
   const registered = readRegistered();
-  const existing =
-    registered.find((item) => item.email.toLowerCase() === email) ??
-    seedUsers.find((item) => item.email.toLowerCase() === email);
+  return (
+    registered.find((item) => item.email.toLowerCase() === normalized) ??
+    seedUsers.find((item) => item.email.toLowerCase() === normalized) ??
+    null
+  );
+}
 
-  const nextUser: User = existing
-    ? {
+function readPendingGoogle(): GoogleSignupDraft | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_GOOGLE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as GoogleSignupDraft;
+    return parsed?.email ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePendingGoogle(draft: GoogleSignupDraft | null) {
+  if (draft) sessionStorage.setItem(PENDING_GOOGLE_KEY, JSON.stringify(draft));
+  else sessionStorage.removeItem(PENDING_GOOGLE_KEY);
+}
+
+function resolveGoogleAccount(firebaseUser: FirebaseUser):
+  | { type: "existing"; user: User }
+  | { type: "new"; draft: GoogleSignupDraft } {
+  const email = (firebaseUser.email ?? "").trim().toLowerCase();
+  const existing = findExistingAccount(email);
+
+  if (existing) {
+    return {
+      type: "existing",
+      user: {
         ...toPublicUser(existing),
         fullName: firebaseUser.displayName?.trim() || toPublicUser(existing).fullName,
         avatarUrl: firebaseUser.photoURL ?? toPublicUser(existing).avatarUrl,
-      }
-    : {
-        id: firebaseUser.uid,
-        fullName: firebaseUser.displayName?.trim() || email.split("@")[0] || "Guest",
-        email,
-        phone: firebaseUser.phoneNumber ?? "",
-        role: "HOUSE_OWNER",
-        avatarUrl: firebaseUser.photoURL ?? undefined,
-      };
-
-  if (!existing) {
-    writeRegistered([...registered, { ...nextUser, password: "" }]);
+      },
+    };
   }
 
-  return nextUser;
+  return {
+    type: "new",
+    draft: {
+      id: firebaseUser.uid,
+      fullName: firebaseUser.displayName?.trim() || email.split("@")[0] || "Guest",
+      email,
+      phone: firebaseUser.phoneNumber ?? "",
+      avatarUrl: firebaseUser.photoURL ?? undefined,
+    },
+  };
 }
 
 function googleAuthErrorMessage(code: string) {
@@ -174,8 +218,12 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       try {
         const redirected = await getRedirectResult(auth);
         if (!cancelled && redirected?.user) {
-          const mapped = userFromFirebase(redirected.user);
-          if (!("error" in mapped)) persist(mapped);
+          const resolved = resolveGoogleAccount(redirected.user);
+          if (resolved.type === "existing") {
+            persist(resolved.user);
+          } else {
+            writePendingGoogle(resolved.draft);
+          }
         }
       } catch (error) {
         console.error("Google redirect result failed", error);
@@ -184,8 +232,21 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         if (cancelled) return;
         if (firebaseUser) {
-          const mapped = userFromFirebase(firebaseUser);
-          if (!("error" in mapped)) persist(mapped);
+          const email = (firebaseUser.email ?? "").trim().toLowerCase();
+          if (!email) {
+            setIsReady(true);
+            return;
+          }
+          const resolved = resolveGoogleAccount(firebaseUser);
+          if (resolved.type === "existing") {
+            writePendingGoogle(null);
+            persist(resolved.user);
+          } else {
+            const pending = readPendingGoogle();
+            if (pending?.email === email) {
+              persist(null);
+            }
+          }
         }
         setIsReady(true);
       });
@@ -314,10 +375,18 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const result = await signInWithPopup(auth, provider);
-      const mapped = userFromFirebase(result.user);
-      if ("error" in mapped) return { ok: false as const, error: mapped.error };
-      persist(mapped);
-      return { ok: true as const, user: mapped };
+      const email = (result.user.email ?? "").trim().toLowerCase();
+      if (!email) return { ok: false as const, error: "Google account did not return an email." };
+
+      const resolved = resolveGoogleAccount(result.user);
+      if (resolved.type === "existing") {
+        persist(resolved.user);
+        writePendingGoogle(null);
+        return { ok: true as const, isNewUser: false as const, user: resolved.user };
+      }
+
+      writePendingGoogle(resolved.draft);
+      return { ok: true as const, isNewUser: true as const, draft: resolved.draft };
     } catch (error) {
       const code =
         error && typeof error === "object" && "code" in error
@@ -327,6 +396,37 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: false as const, error: googleAuthErrorMessage(code) };
     }
   }, [persist]);
+
+  const completeGoogleSignup = useCallback(
+    async (input: {
+      draft: GoogleSignupDraft;
+      role: UserRole;
+      agencyName?: string;
+      registrationNumber?: string;
+    }) => {
+      const email = input.draft.email.trim().toLowerCase();
+      if (findExistingAccount(email)) {
+        return { ok: false as const, error: "An account with this email already exists." };
+      }
+
+      const registered = readRegistered();
+      const account: StoredAccount = {
+        id: input.draft.id,
+        fullName: input.draft.fullName.trim(),
+        email,
+        phone: input.draft.phone.trim(),
+        role: input.role,
+        password: "",
+        avatarUrl: input.draft.avatarUrl,
+      };
+      writeRegistered([...registered, account]);
+      const publicUser = toPublicUser(account);
+      persist(publicUser);
+      writePendingGoogle(null);
+      return { ok: true as const, user: publicUser };
+    },
+    [persist],
+  );
 
   const register = useCallback(
     async (input: {
@@ -402,6 +502,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     persist(null);
+    writePendingGoogle(null);
     const auth = getFirebaseAuth();
     if (auth) void signOut(auth).catch(() => undefined);
   }, [persist]);
@@ -413,12 +514,13 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       isReady,
       login,
       loginWithGoogle,
+      completeGoogleSignup,
       register,
       loginAs,
       loginAsRole,
       logout,
     }),
-    [user, isReady, login, loginWithGoogle, register, loginAs, loginAsRole, logout],
+    [user, isReady, login, loginWithGoogle, completeGoogleSignup, register, loginAs, loginAsRole, logout],
   );
 
   return <MockAuthContext.Provider value={value}>{children}</MockAuthContext.Provider>;

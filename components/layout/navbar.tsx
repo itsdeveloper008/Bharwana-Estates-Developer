@@ -89,23 +89,30 @@ export function Navbar() {
         .toUpperCase()
     : "";
 
-  const ownerLinks =
-    user?.role === "HOUSE_OWNER"
-      ? [
-          { href: "/owner", label: "My listings" },
-          { href: "/owner/add-property", label: "Add property" },
-        ]
-      : user?.role === "DEALER"
-        ? [
-            { href: "/dealer", label: "My listings" },
-            { href: "/dealer/add-property", label: "Add property" },
-            { href: "/dealer?tab=commission", label: "Commission" },
-          ]
-        : user?.role === "SALES_REP"
-          ? [{ href: "/sales", label: "Pipeline" }]
-          : user?.role === "ADMIN"
-            ? [{ href: "/admin", label: "Admin" }]
-            : [];
+  const accountLinks = user
+    ? [
+        { href: "/saved", label: "Saved Residences" },
+        ...(user.role === "HOUSE_OWNER"
+          ? [
+              { href: "/owner", label: "My Listings" },
+              { href: "/owner/add-property", label: "Add Property" },
+            ]
+          : user.role === "DEALER"
+            ? [
+                { href: "/dealer", label: "My Listings" },
+                { href: "/dealer/add-property", label: "Add Property" },
+                { href: "/dealer?tab=commission", label: "Commission" },
+              ]
+            : user.role === "SALES_REP"
+              ? [{ href: "/sales", label: "Pipeline" }]
+              : user.role === "ADMIN"
+                ? [{ href: "/admin", label: "Admin" }]
+                : [
+                    { href: "/owner", label: "My Listings" },
+                    { href: "/owner/add-property", label: "Add Property" },
+                  ]),
+      ]
+    : [];
 
   return (
     <>
@@ -290,20 +297,29 @@ export function Navbar() {
                   <DropdownMenuSeparator className="bg-forest/10" />
                   {(user.role === "HOUSE_OWNER"
                     ? [
+                        { href: "/saved", label: "Saved Residences" },
                         { href: "/owner", label: "My Listings" },
                         { href: "/owner/add-property", label: "Add Property" },
                       ]
                     : user.role === "DEALER"
                       ? [
+                          { href: "/saved", label: "Saved Residences" },
                           { href: "/dealer", label: "My Listings" },
                           { href: "/dealer/add-property", label: "Add Property" },
                           { href: "/dealer?tab=commission", label: "Commission" },
                         ]
                       : user.role === "SALES_REP"
-                        ? [{ href: "/sales", label: "Pipeline" }]
+                        ? [
+                            { href: "/saved", label: "Saved Residences" },
+                            { href: "/sales", label: "Pipeline" },
+                          ]
                         : user.role === "ADMIN"
-                          ? [{ href: "/admin", label: "Admin" }]
+                          ? [
+                              { href: "/saved", label: "Saved Residences" },
+                              { href: "/admin", label: "Admin" },
+                            ]
                           : [
+                              { href: "/saved", label: "Saved Residences" },
                               { href: "/owner", label: "My Listings" },
                               { href: "/owner/add-property", label: "Add Property" },
                             ]
@@ -418,7 +434,8 @@ export function Navbar() {
                   );
                 })}
 
-                {ownerLinks.map((link, index) => (
+                {user &&
+                  accountLinks.map((link, index) => (
                   <motion.li
                     key={link.href}
                     initial={{ opacity: 0, y: 16 }}

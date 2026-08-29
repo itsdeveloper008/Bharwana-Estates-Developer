@@ -33,9 +33,9 @@ export function AuthVisualPanel() {
         />
       </motion.div>
       <div className="absolute inset-0 bg-gradient-to-t from-forest via-forest/55 to-forest/15" />
-      <div className="absolute bottom-12 left-12 right-12 text-ivory">
+      <div className="absolute bottom-8 left-10 right-10 text-ivory">
         <p className="font-display text-sm tracking-crest text-gold">BHARWANA</p>
-        <div className="relative mt-3 min-h-[3.5rem]">
+        <div className="relative mt-2 min-h-[2.75rem]">
           <AnimatePresence mode="wait">
             <motion.p
               key={TAGLINES[index]}
@@ -43,7 +43,7 @@ export function AuthVisualPanel() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.45, ease: "easeOut" }}
-              className="font-serif text-4xl drop-shadow-[0_2px_12px_rgba(0,0,0,0.35)]"
+              className="font-serif text-3xl drop-shadow-[0_2px_12px_rgba(0,0,0,0.35)]"
             >
               {TAGLINES[index]}
             </motion.p>

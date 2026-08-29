@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { PropertySaveButton } from "@/components/properties/property-save-button";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice, listingBadge } from "@/lib/format";
 import type { Property } from "@/lib/types";
@@ -44,12 +45,13 @@ export function PropertyCard({
       <Badge
         variant={property.listingType === "DIRECT_OWNER" ? "owner" : "verified"}
         className={cn(
-          "absolute uppercase",
+          "absolute rounded-full uppercase",
           isList ? "left-1.5 top-1.5 scale-90 text-[8px]" : "left-2.5 top-2.5 text-[10px]",
         )}
       >
         {listingBadge(property.listingType)}
       </Badge>
+      <PropertySaveButton propertyId={property.id} variant="card" />
     </>
   );
 

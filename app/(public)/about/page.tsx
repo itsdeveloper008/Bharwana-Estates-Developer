@@ -1,3 +1,4 @@
+import { FaqTeaser } from "@/components/faq/faq-teaser";
 import { AboutCTA } from "@/components/about/AboutCTA";
 import { AboutFloorImage } from "@/components/about/AboutFloorImage";
 import { AboutHero } from "@/components/about/AboutHero";
@@ -23,6 +24,7 @@ export default function AboutPage() {
       <ValuesGrid />
       <TrustAffiliation />
       <TeamGrid />
+      <FaqTeaser />
       <AboutCTA />
     </>
   );

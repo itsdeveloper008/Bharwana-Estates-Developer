@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Handshake, Mail, Phone, Scale, ShieldCheck, UserRound } from "lucide-react";
+import { AlertTriangle, Handshake, Mail, Phone, Scale, ShieldCheck, UserRound } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -231,9 +231,12 @@ export function InquiryModal({
                   Deal directly with the owner. Bharwana does not mediate, verify, or take responsibility for
                   direct transactions.
                 </p>
-                <p className="mt-3 border border-forest/10 bg-cream/50 px-3 py-2 text-xs leading-relaxed text-forest/65">
-                  By choosing this option, you acknowledge this transaction is conducted entirely at your own
-                  risk, outside Bharwana Estates Dealer&apos;s involvement.
+                <p className="mt-3 flex gap-2 border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />
+                  <span>
+                    By choosing this option, you acknowledge this transaction is conducted entirely at your own
+                    risk, outside Bharwana Estates Dealer&apos;s involvement.
+                  </span>
                 </p>
                 <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-forest">
                   <Checkbox

@@ -7,8 +7,8 @@ export default function RegisterPage() {
   return (
     <>
       <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Join</p>
-      <h1 className="mt-2 font-serif text-4xl">Create an account</h1>
-      <p className="mt-2 mb-8 text-sm text-muted-foreground">
+      <h1 className="mt-1.5 font-serif text-3xl">Create an account</h1>
+      <p className="mt-1.5 mb-4 text-sm text-muted-foreground">
         Register as a buyer, house owner, or dealer. Sales and admin seats are issued internally.
       </p>
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>

@@ -3,16 +3,16 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import { Bath, BedDouble, Heart, Maximize2, Share2 } from "lucide-react";
+import { Bath, BedDouble, Maximize2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InquiryModal } from "@/components/inquiries/inquiry-modal";
 import { PropertyGallery } from "@/components/properties/property-gallery";
-import { useFavorites } from "@/lib/favorites-context";
+import { PropertySaveButton } from "@/components/properties/property-save-button";
+import { PropertyShareButton } from "@/components/properties/property-share-button";
 import { useMockAuth } from "@/lib/mock-auth";
 import { formatArea, formatDate, formatPrice, formatPriceFull, listingBadge, statusLabel } from "@/lib/format";
 import type { Property } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
 const MiniMap = dynamic(() => import("@/components/map/map-canvas").then((mod) => mod.MiniMap), { ssr: false });
 
@@ -20,8 +20,6 @@ function PropertyDetailInner({ property }: { property: Property }) {
   const [open, setOpen] = useState(false);
   const { user, isReady } = useMockAuth();
   const searchParams = useSearchParams();
-  const { isSaved, toggle } = useFavorites();
-  const saved = isSaved(property.id);
   const ownerListing = property.listingType === "DIRECT_OWNER";
 
   useEffect(() => {
@@ -55,7 +53,7 @@ function PropertyDetailInner({ property }: { property: Property }) {
           </div>
         </div>
         <aside className="lg:sticky lg:top-24 lg:self-start">
-          <Badge variant={ownerListing ? "owner" : "verified"} className="uppercase">
+          <Badge variant={ownerListing ? "owner" : "verified"} className="rounded-full uppercase">
             {listingBadge(property.listingType)}
           </Badge>
           <h1 className="mt-4 font-serif text-4xl leading-tight">{property.title}</h1>
@@ -64,7 +62,7 @@ function PropertyDetailInner({ property }: { property: Property }) {
           </p>
           <p className="mt-6 font-serif text-4xl text-gold-700">{formatPrice(property.price)}</p>
           <p className="text-xs text-muted-foreground">{formatPriceFull(property.price)}</p>
-          <div className="mt-6 grid grid-cols-3 gap-3 border-y border-forest/10 py-5">
+          <div className="mt-6 grid grid-cols-3 gap-3 rounded-2xl border-y border-forest/10 py-5">
             {specs.map((spec) => (
               <div key={spec.label}>
                 <spec.icon className="h-4 w-4 text-gold" />
@@ -77,22 +75,12 @@ function PropertyDetailInner({ property }: { property: Property }) {
             {statusLabel(property.status)} · Listed {formatDate(property.createdAt)}
           </p>
           <div className="mt-6 flex flex-col gap-3">
-            <Button size="lg" onClick={() => setOpen(true)}>
+            <Button size="lg" className="rounded-full" onClick={() => setOpen(true)}>
               {ownerListing ? "How to proceed" : "Inquire / book visit"}
             </Button>
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => toggle(property.id)}>
-                <Heart className={cn("h-4 w-4", saved && "fill-gold text-gold")} />
-                {saved ? "Saved" : "Save"}
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => console.log("share", property.id)}
-              >
-                <Share2 className="h-4 w-4" />
-                Share
-              </Button>
+              <PropertySaveButton propertyId={property.id} showLabel variant="detail" />
+              <PropertyShareButton property={property} />
             </div>
           </div>
         </aside>

@@ -12,6 +12,7 @@ const footerLinks = [
   { href: "/properties", label: "Properties" },
   { href: "/map", label: "Map" },
   { href: "/about", label: "About" },
+  { href: "/faq", label: "FAQ" },
   { href: "/team", label: "Team" },
   { href: "/owner/add-property", label: "List a property" },
   { href: "/login", label: "Sign in" },
