@@ -318,8 +318,33 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
     },
   });
 
-  const watched = useWatch({ control: form.control });
-  const listingType = watched.listingType ?? "DIRECT_OWNER";
+  const [
+    previewTitle,
+    previewPrice,
+    previewBedrooms,
+    previewBathrooms,
+    previewAreaSqft,
+    previewCity,
+    previewListingType,
+    previewPurpose,
+    previewCategory,
+    previewSubtype,
+  ] = useWatch({
+    control: form.control,
+    name: [
+      "title",
+      "price",
+      "bedrooms",
+      "bathrooms",
+      "areaSqft",
+      "city",
+      "listingType",
+      "purpose",
+      "category",
+      "subtype",
+    ],
+  });
+  const listingType = previewListingType ?? "DIRECT_OWNER";
   const { isValid, isSubmitting, errors } = form.formState;
 
   const adminAssignmentOk =
@@ -554,7 +579,6 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
     const status: PropertyStatus = isAdmin ? adminPublishStatus : "PENDING_APPROVAL";
 
     try {
-      toast.message("Uploading photos to storage…");
       await addProperty({
         id,
         ...values,
@@ -608,19 +632,31 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
 
   const previewProperty = useMemo(
     () => ({
-      title: watched.title?.trim() || "Your listing title",
-      price: Number.isFinite(watched.price) ? watched.price! : 0,
-      bedrooms: Number.isFinite(watched.bedrooms) ? watched.bedrooms! : 0,
-      bathrooms: Number.isFinite(watched.bathrooms) ? watched.bathrooms! : 0,
-      areaSqft: Number.isFinite(watched.areaSqft) ? watched.areaSqft! : 0,
-      city: watched.city || "City",
-      listingType: watched.listingType ?? "DIRECT_OWNER",
-      purpose: watched.purpose ?? "SALE",
-      category: (watched.category ?? "HOME") as PropertyCategory,
-      subtype: watched.subtype ?? "",
+      title: previewTitle?.trim() || "Your listing title",
+      price: Number.isFinite(previewPrice) ? previewPrice! : 0,
+      bedrooms: Number.isFinite(previewBedrooms) ? previewBedrooms! : 0,
+      bathrooms: Number.isFinite(previewBathrooms) ? previewBathrooms! : 0,
+      areaSqft: Number.isFinite(previewAreaSqft) ? previewAreaSqft! : 0,
+      city: previewCity || "City",
+      listingType: previewListingType ?? "DIRECT_OWNER",
+      purpose: previewPurpose ?? "SALE",
+      category: (previewCategory ?? "HOME") as PropertyCategory,
+      subtype: previewSubtype ?? "",
       cover: previews[0],
     }),
-    [watched, previews],
+    [
+      previewTitle,
+      previewPrice,
+      previewBedrooms,
+      previewBathrooms,
+      previewAreaSqft,
+      previewCity,
+      previewListingType,
+      previewPurpose,
+      previewCategory,
+      previewSubtype,
+      previews,
+    ],
   );
 
   if (done) {

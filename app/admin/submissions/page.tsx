@@ -56,11 +56,11 @@ export default function AdminSubmissionsPage() {
     return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }, [properties, tab]);
 
+  const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), []);
+
   const selected = properties.find((property) => property.id === selectedId) ?? null;
   const pendingCount = properties.filter((property) => property.status === "PENDING_APPROVAL").length;
-  const selectedOwner = selected
-    ? users.find((user) => user.id === selected.ownerUserId)
-    : undefined;
+  const selectedOwner = selected ? userById.get(selected.ownerUserId ?? "") : undefined;
 
   function dealerForProperty(property: Property) {
     if (!property.developerId) return undefined;
@@ -96,7 +96,7 @@ export default function AdminSubmissionsPage() {
   return (
     <div>
       <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Verification</p>
-      <h1 className="font-serif text-3xl">Submissions</h1>
+      <h1 className="font-serif text-2xl sm:text-3xl">Submissions</h1>
       <p className="mb-6 mt-2 text-sm text-muted-foreground">
         Review seller inventory before it reaches the public floor. {pendingCount} pending.
       </p>
@@ -136,7 +136,7 @@ export default function AdminSubmissionsPage() {
           </TableHeader>
           <TableBody>
             {filtered.map((property) => {
-              const owner = users.find((user) => user.id === property.ownerUserId);
+              const owner = userById.get(property.ownerUserId ?? "");
               return (
                 <TableRow
                   key={property.id}

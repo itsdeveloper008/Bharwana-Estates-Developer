@@ -1,5 +1,5 @@
 /** Shared timeout for client-side Firestore / Storage writes (avoids infinite "Sending…"). */
-export const FIRESTORE_WRITE_TIMEOUT_MS = 45_000;
+export const FIRESTORE_WRITE_TIMEOUT_MS = 20_000;
 
 export function firestoreErrorMessage(error: unknown, fallback: string) {
   if (error && typeof error === "object" && "code" in error) {

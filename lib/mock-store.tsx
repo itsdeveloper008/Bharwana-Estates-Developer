@@ -173,45 +173,44 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addProperty = useCallback(async (property: Property) => {
-    let saved = property;
-    if (isFirebaseConfigured()) {
+    setProperties((current) => [property, ...current.filter((item) => item.id !== property.id)]);
+
+    void (async () => {
       try {
-        saved = await upsertProperty(property);
+        const saved = await upsertProperty(property);
+        setProperties((current) =>
+          current.map((item) => (item.id === property.id ? saved : item)),
+        );
       } catch (error) {
         console.error(error);
+        setProperties((current) => current.filter((item) => item.id !== property.id));
         toast.error(firestoreErrorMessage(error, "Could not save property to Firestore."));
-        throw error;
       }
-    }
-    setProperties((current) => {
-      const without = current.filter((item) => item.id !== saved.id);
-      return [saved, ...without];
-    });
+    })();
   }, []);
 
   const updateProperty = useCallback(async (id: string, patch: Partial<Property>) => {
-    let base: Property | undefined;
+    let merged: Property | undefined;
     setProperties((current) => {
       const existing = current.find((property) => property.id === id);
       if (!existing) return current;
-      base = { ...existing, ...patch, id };
-      return current;
+      merged = { ...existing, ...patch, id };
+      return current.map((property) => (property.id === id ? merged! : property));
     });
-    if (!base) return;
+    if (!merged) return;
 
-    let saved = base;
-    if (isFirebaseConfigured()) {
-      try {
-        saved = await upsertProperty(base);
-      } catch (error) {
-        console.error(error);
-        toast.error(firestoreErrorMessage(error, "Could not update property in Firestore."));
-        throw error;
-      }
+    if (!isFirebaseConfigured()) return;
+
+    try {
+      const saved = await upsertProperty(merged);
+      setProperties((current) =>
+        current.map((property) => (property.id === id ? saved : property)),
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error(firestoreErrorMessage(error, "Could not update property in Firestore."));
+      throw error;
     }
-    setProperties((current) =>
-      current.map((property) => (property.id === id ? saved : property)),
-    );
   }, []);
 
   const deleteProperty = useCallback(async (id: string) => {
@@ -228,43 +227,35 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addInquiry = useCallback(async (input: InquiryInput) => {
-    if (isFirebaseConfigured()) {
+    const tempId = `inq-${Date.now()}`;
+    const optimistic: Inquiry = {
+      id: tempId,
+      propertyId: input.propertyId,
+      buyerId: input.buyerId,
+      channel: input.channel,
+      notes: input.notes,
+      status: input.status ?? "NEW",
+      assignedSalesId: input.assignedSalesId,
+      createdAt: new Date().toISOString(),
+    };
+    setInquiryState((current) => [optimistic, ...current]);
+
+    if (!isFirebaseConfigured()) return tempId;
+
+    void (async () => {
       try {
         const id = await createInquiry(input);
-        const saved: Inquiry = {
-          id,
-          propertyId: input.propertyId,
-          buyerId: input.buyerId,
-          channel: input.channel,
-          notes: input.notes,
-          status: input.status ?? "NEW",
-          assignedSalesId: input.assignedSalesId,
-          createdAt: new Date().toISOString(),
-        };
-        setInquiryState((current) => [saved, ...current.filter((item) => item.id !== id)]);
-        return id;
+        const saved: Inquiry = { ...optimistic, id };
+        setInquiryState((current) =>
+          current.map((item) => (item.id === tempId ? saved : item)),
+        );
       } catch (error) {
         console.error(error);
         toast.error(firestoreErrorMessage(error, "Could not save inquiry to Firestore."));
-        throw error;
       }
-    }
+    })();
 
-    const id = `inq-${Date.now()}`;
-    setInquiryState((current) => [
-      {
-        id,
-        propertyId: input.propertyId,
-        buyerId: input.buyerId,
-        channel: input.channel,
-        notes: input.notes,
-        status: input.status ?? "NEW",
-        assignedSalesId: input.assignedSalesId,
-        createdAt: new Date().toISOString(),
-      },
-      ...current,
-    ]);
-    return id;
+    return tempId;
   }, []);
 
   const updateInquiryStatus = useCallback(async (id: string, status: InquiryStatus) => {

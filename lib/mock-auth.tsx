@@ -335,7 +335,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      await delay(400);
+      await delay(0);
       const registered = readRegistered();
       const fromRegister = registered.find((item) => item.email.toLowerCase() === normalized);
       if (fromRegister) {
@@ -483,7 +483,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      await delay(400);
+      await delay(0);
       const account: StoredAccount = {
         id: `u-${Date.now()}`,
         fullName: input.fullName.trim(),

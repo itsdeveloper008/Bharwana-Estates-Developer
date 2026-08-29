@@ -37,9 +37,9 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
           >
             {image.startsWith("data:") ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={image} alt="" className="h-full w-full object-cover" />
+              <img src={image} alt="" className="h-full w-full object-cover" loading="lazy" />
             ) : (
-              <Image src={image} alt="" fill className="object-cover" sizes="120px" />
+              <Image src={image} alt="" fill className="object-cover" sizes="120px" loading="lazy" />
             )}
           </button>
         ))}

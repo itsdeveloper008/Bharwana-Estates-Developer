@@ -6,15 +6,17 @@ import "./globals.css";
 /** Body / UI — matches Imarat (Yantramanav) */
 const yantramanav = Yantramanav({
   subsets: ["latin"],
-  weight: ["400", "500", "700"],
+  weight: ["400", "700"],
   variable: "--font-sans",
+  display: "swap",
 });
 
 /** Headings / display — matches Imarat (Rajdhani) */
 const rajdhani = Rajdhani({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["500", "700"],
   variable: "--font-serif",
+  display: "swap",
 });
 
 export const metadata: Metadata = {

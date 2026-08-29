@@ -44,7 +44,6 @@ export function InquiryModal({
   const [step, setStep] = useState<Step>("auth");
   const [channel, setChannel] = useState<InquiryChannel>("PLATFORM_ASSISTED");
   const [acceptedRisk, setAcceptedRisk] = useState(false);
-  const [directPending, setDirectPending] = useState(false);
   const flowKeyRef = useRef<string | null>(null);
 
   const seller = useMemo(
@@ -72,7 +71,6 @@ export function InquiryModal({
   useEffect(() => {
     if (!open) {
       flowKeyRef.current = null;
-      setDirectPending(false);
       return;
     }
     if (!isReady) return;
@@ -130,13 +128,8 @@ export function InquiryModal({
 
   async function proceedDirect() {
     setChannel("DIRECT_TO_SELLER");
-    setDirectPending(true);
-    try {
-      await logDirectContact();
-    } finally {
-      setDirectPending(false);
-      setStep("direct");
-    }
+    setStep("direct");
+    void logDirectContact();
   }
 
   async function onSubmit(values: InquiryFormValues) {
@@ -144,24 +137,20 @@ export function InquiryModal({
       setStep("auth");
       return;
     }
-    try {
-      await addInquiry({
-        propertyId: property.id,
-        buyerId: user.id,
-        status: "NEW",
-        channel,
-        notes: `${values.fullName} · ${values.phone}${values.visitDate ? ` · visit ${values.visitDate}` : ""} · ${values.email} · ${values.message}`,
-      });
-      setStep("success");
-      toast.success("Inquiry received.");
-    } catch {
-      toast.error("Could not send inquiry. Check your connection and try again.");
-    }
+    setStep("success");
+    toast.success("Inquiry received.");
+    void addInquiry({
+      propertyId: property.id,
+      buyerId: user.id,
+      status: "NEW",
+      channel,
+      notes: `${values.fullName} · ${values.phone}${values.visitDate ? ` · visit ${values.visitDate}` : ""} · ${values.email} · ${values.message}`,
+    });
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto bg-ivory sm:max-w-lg">
+      <DialogContent className="max-h-[90dvh] w-[calc(100%-1rem)] overflow-y-auto bg-ivory sm:max-w-lg">
         {step === "auth" && (
           <>
             <DialogHeader>
@@ -249,10 +238,10 @@ export function InquiryModal({
                 <Button
                   variant="outline"
                   className="mt-4 w-full"
-                  disabled={!acceptedRisk || directPending}
+                  disabled={!acceptedRisk}
                   onClick={() => void proceedDirect()}
                 >
-                  {directPending ? "Continuing…" : "Continue directly"}
+                  Continue directly
                 </Button>
               </div>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { InquiryDetailModal } from "@/components/admin/inquiry-detail-modal";
 import { Badge } from "@/components/ui/badge";
@@ -28,10 +28,13 @@ export default function AdminInquiriesPage() {
   } = useMockStore();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  const propertyById = useMemo(
+    () => new Map(properties.map((property) => [property.id, property])),
+    [properties],
+  );
+
   const selected = inquiries.find((inquiry) => inquiry.id === selectedId) ?? null;
-  const selectedProperty = selected
-    ? properties.find((property) => property.id === selected.propertyId)
-    : undefined;
+  const selectedProperty = selected ? propertyById.get(selected.propertyId) : undefined;
   const assignedRep = selected?.assignedSalesId
     ? users.find((user) => user.id === selected.assignedSalesId)
     : undefined;
@@ -39,7 +42,7 @@ export default function AdminInquiriesPage() {
   return (
     <div>
       <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Pipeline</p>
-      <h1 className="font-serif text-3xl">Inquiries</h1>
+      <h1 className="font-serif text-2xl sm:text-3xl">Inquiries</h1>
       <p className="mb-8 mt-2 text-sm text-muted-foreground">
         {usingFirestoreInquiries
           ? "Live from Firestore — new leads appear without refresh. Click a row to view full details."
@@ -73,7 +76,7 @@ export default function AdminInquiriesPage() {
             </TableHeader>
             <TableBody>
               {inquiries.map((inquiry) => {
-                const property = properties.find((item) => item.id === inquiry.propertyId);
+                const property = propertyById.get(inquiry.propertyId);
                 return (
                   <TableRow
                     key={inquiry.id}

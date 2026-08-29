@@ -19,7 +19,6 @@ const nextConfig = {
       },
     ],
   },
-  transpilePackages: ["mapbox-gl", "react-map-gl", "maplibre-gl"],
   async rewrites() {
     // Keep auth helper proxy for any leftover Firebase auth iframe usage.
     return [

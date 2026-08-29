@@ -107,7 +107,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Local mock admins only when Firebase env is missing
-      await delay(400);
+      await delay(0);
       const session = authenticateAdmin(normalized, password);
       if (!session) {
         return { ok: false as const, error: "Invalid email or password" };
