@@ -8,6 +8,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthCrossLink } from "@/components/auth/auth-shell";
 import { GoogleRoleCompletionDialog } from "@/components/auth/google-role-completion-dialog";
+import { PhoneOtpSection } from "@/components/auth/phone-otp-section";
 import { RoleSelector } from "@/components/auth/role-selector";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -248,6 +249,8 @@ export function LoginForm() {
         </form>
       </Form>
 
+      <OrDivider />
+      <PhoneOtpSection onSuccess={(authed) => goAfterAuth(authed.role)} />
       <OrDivider />
       <ContinueWithGoogle onSuccess={(authed) => goAfterAuth(authed.role)} />
     </div>
@@ -501,6 +504,8 @@ export function RegisterForm() {
       </Form>
 
       <div className="space-y-3">
+        <OrDivider />
+        <PhoneOtpSection variant="register" onSuccess={(authed) => goAfterAuth(authed.role)} />
         <OrDivider />
         <ContinueWithGoogle onSuccess={(authed) => goAfterAuth(authed.role)} />
       </div>

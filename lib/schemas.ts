@@ -78,6 +78,17 @@ export const userLoginSchema = z.object({
 
 export type UserLoginValues = z.infer<typeof userLoginSchema>;
 
+export const phoneOtpRequestSchema = z.object({
+  phone: z.string().min(10, "Enter a valid phone number"),
+});
+
+export const phoneOtpVerifySchema = z.object({
+  otp: z.string().length(6, "Enter the 6-digit code"),
+});
+
+export type PhoneOtpRequestValues = z.infer<typeof phoneOtpRequestSchema>;
+export type PhoneOtpVerifyValues = z.infer<typeof phoneOtpVerifySchema>;
+
 export const adminLoginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),

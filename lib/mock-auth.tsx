@@ -11,18 +11,22 @@ import {
 } from "react";
 import {
   GoogleAuthProvider,
+  RecaptchaVerifier,
   createUserWithEmailAndPassword,
   getRedirectResult,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithPhoneNumber,
   signInWithPopup,
   signOut,
   updateProfile,
+  type ConfirmationResult,
   type User as FirebaseUser,
 } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { createUserDoc, getUserDoc } from "@/lib/firestore/users";
 import { users as seedUsers } from "@/lib/mock-data/users";
+import { isValidPhoneE164, normalizePhoneE164 } from "@/lib/phone-format";
 import type { User, UserRole } from "@/lib/types";
 import { delay } from "@/lib/utils";
 
@@ -45,12 +49,25 @@ type GoogleLoginResult =
   | { ok: true; isNewUser: true; draft: GoogleSignupDraft }
   | { ok: false; error: string };
 
+type PhoneLoginResult =
+  | { ok: true; isNewUser: false; user: User }
+  | { ok: true; isNewUser: true; draft: GoogleSignupDraft }
+  | { ok: false; error: string };
+
 interface MockAuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isReady: boolean;
   login: (email: string, password: string) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   loginWithGoogle: () => Promise<GoogleLoginResult>;
+  sendPhoneOtp: (
+    phone: string,
+    verifier: RecaptchaVerifier,
+  ) => Promise<{ ok: true; confirmation: ConfirmationResult } | { ok: false; error: string }>;
+  verifyPhoneOtp: (
+    confirmation: ConfirmationResult,
+    code: string,
+  ) => Promise<PhoneLoginResult>;
   completeGoogleSignup: (input: {
     draft: GoogleSignupDraft;
     role: UserRole;
@@ -112,6 +129,27 @@ function writePendingGoogle(draft: GoogleSignupDraft | null) {
   else sessionStorage.removeItem(PENDING_GOOGLE_KEY);
 }
 
+function phoneAuthErrorMessage(code: string) {
+  switch (code) {
+    case "auth/invalid-phone-number":
+      return "That phone number looks invalid. Use format +92 3XX XXXXXXX.";
+    case "auth/too-many-requests":
+      return "Too many attempts. Wait a moment and try again.";
+    case "auth/captcha-check-failed":
+      return "Security check failed. Refresh the page and try again.";
+    case "auth/invalid-verification-code":
+      return "Incorrect code. Check the SMS and try again.";
+    case "auth/code-expired":
+      return "Code expired. Request a new one.";
+    case "auth/missing-verification-code":
+      return "Enter the 6-digit code from your SMS.";
+    case "auth/quota-exceeded":
+      return "SMS limit reached. Try again later or use email sign-in.";
+    default:
+      return code ? `Could not verify phone (${code}).` : "Could not verify phone. Try again.";
+  }
+}
+
 function googleAuthErrorMessage(code: string) {
   switch (code) {
     case "auth/popup-closed-by-user":
@@ -140,11 +178,14 @@ async function loadFirestoreUser(firebaseUser: FirebaseUser): Promise<User | nul
 
 function draftFromFirebaseUser(firebaseUser: FirebaseUser): GoogleSignupDraft {
   const email = (firebaseUser.email ?? "").trim().toLowerCase();
+  const phone = firebaseUser.phoneNumber ?? "";
+  const placeholderEmail =
+    email || (phone ? `${phone.replace(/\D/g, "")}@phone.bharwana.local` : `${firebaseUser.uid}@phone.bharwana.local`);
   return {
     id: firebaseUser.uid,
-    fullName: firebaseUser.displayName?.trim() || email.split("@")[0] || "Guest",
-    email,
-    phone: firebaseUser.phoneNumber ?? "",
+    fullName: firebaseUser.displayName?.trim() || "Member",
+    email: placeholderEmail,
+    phone,
     avatarUrl: firebaseUser.photoURL ?? undefined,
   };
 }
@@ -209,22 +250,20 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             return;
           }
 
-          const email = (firebaseUser.email ?? "").trim().toLowerCase();
-          if (!email) {
-            setIsReady(true);
-            return;
-          }
-
           const profile = await loadFirestoreUser(firebaseUser);
           if (profile) {
             writePendingGoogle(null);
             persist(profile);
           } else {
+            const draft = draftFromFirebaseUser(firebaseUser);
             const pending = readPendingGoogle();
-            if (pending?.email === email) {
+            const samePending =
+              pending?.id === firebaseUser.uid ||
+              (pending?.phone && pending.phone === firebaseUser.phoneNumber);
+            if (samePending) {
               persist(null);
             } else {
-              writePendingGoogle(draftFromFirebaseUser(firebaseUser));
+              writePendingGoogle(draft);
               persist(null);
             }
           }
@@ -358,6 +397,70 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: false as const, error: googleAuthErrorMessage(code) };
     }
   }, [persist]);
+
+  const sendPhoneOtp = useCallback(
+    async (phone: string, verifier: RecaptchaVerifier) => {
+      if (!isFirebaseConfigured()) {
+        return {
+          ok: false as const,
+          error: "Phone sign-in is not ready on this deploy. Firebase env vars are missing.",
+        };
+      }
+      const auth = getFirebaseAuth();
+      if (!auth) {
+        return { ok: false as const, error: "Phone sign-in is unavailable right now." };
+      }
+
+      const normalized = normalizePhoneE164(phone);
+      if (!isValidPhoneE164(normalized)) {
+        return { ok: false as const, error: "Enter a valid phone number (e.g. +92 300 1234567)." };
+      }
+
+      try {
+        const confirmation = await signInWithPhoneNumber(auth, normalized, verifier);
+        return { ok: true as const, confirmation };
+      } catch (error) {
+        const code =
+          error && typeof error === "object" && "code" in error
+            ? String((error as { code?: string }).code)
+            : "";
+        console.error("Phone OTP send failed", error);
+        return { ok: false as const, error: phoneAuthErrorMessage(code) };
+      }
+    },
+    [],
+  );
+
+  const verifyPhoneOtp = useCallback(
+    async (confirmation: ConfirmationResult, code: string) => {
+      const trimmed = code.trim();
+      if (trimmed.length !== 6) {
+        return { ok: false as const, error: "Enter the 6-digit code." };
+      }
+
+      try {
+        const result = await confirmation.confirm(trimmed);
+        const profile = await loadFirestoreUser(result.user);
+        if (profile) {
+          persist(profile);
+          writePendingGoogle(null);
+          return { ok: true as const, isNewUser: false as const, user: profile };
+        }
+
+        const draft = draftFromFirebaseUser(result.user);
+        writePendingGoogle(draft);
+        return { ok: true as const, isNewUser: true as const, draft };
+      } catch (error) {
+        const code =
+          error && typeof error === "object" && "code" in error
+            ? String((error as { code?: string }).code)
+            : "";
+        console.error("Phone OTP verify failed", error);
+        return { ok: false as const, error: phoneAuthErrorMessage(code) };
+      }
+    },
+    [persist],
+  );
 
   const completeGoogleSignup = useCallback(
     async (input: {
@@ -498,13 +601,15 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       isReady,
       login,
       loginWithGoogle,
+      sendPhoneOtp,
+      verifyPhoneOtp,
       completeGoogleSignup,
       register,
       loginAs,
       loginAsRole,
       logout,
     }),
-    [user, isReady, login, loginWithGoogle, completeGoogleSignup, register, loginAs, loginAsRole, logout],
+    [user, isReady, login, loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, completeGoogleSignup, register, loginAs, loginAsRole, logout],
   );
 
   return <MockAuthContext.Provider value={value}>{children}</MockAuthContext.Provider>;

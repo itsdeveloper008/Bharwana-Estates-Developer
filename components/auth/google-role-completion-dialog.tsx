@@ -24,15 +24,18 @@ export function GoogleRoleCompletionDialog({
   onOpenChange,
   draft,
   onComplete,
+  requireFullName = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   draft: GoogleSignupDraft | null;
   onComplete: (user: User) => void;
+  requireFullName?: boolean;
 }) {
   const { completeGoogleSignup } = useMockAuth();
   const { addDeveloper } = useMockStore();
   const [role, setRole] = useState<"BUYER" | "HOUSE_OWNER" | "DEALER">("BUYER");
+  const [fullName, setFullName] = useState("");
   const [agencyName, setAgencyName] = useState("");
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +43,11 @@ export function GoogleRoleCompletionDialog({
 
   async function handleSubmit() {
     if (!draft) return;
+    const resolvedName = requireFullName ? fullName.trim() : draft.fullName.trim();
+    if (requireFullName && resolvedName.length < 2) {
+      setError("Enter your full name.");
+      return;
+    }
     if (role === "DEALER" && !agencyName.trim()) {
       setError("Agency name is required for dealer accounts.");
       return;
@@ -48,7 +56,7 @@ export function GoogleRoleCompletionDialog({
     setPending(true);
     try {
       const result = await completeGoogleSignup({
-        draft,
+        draft: { ...draft, fullName: resolvedName || draft.fullName },
         role,
         agencyName: agencyName.trim() || undefined,
         registrationNumber: registrationNumber.trim() || undefined,
@@ -89,6 +97,19 @@ export function GoogleRoleCompletionDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {requireFullName && (
+            <div className="space-y-1.5">
+              <Label htmlFor="signup-full-name">Full name</Label>
+              <Input
+                id="signup-full-name"
+                className="bg-white"
+                placeholder="Your name"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+              />
+            </div>
+          )}
+
           <div>
             <Label className="mb-2 block">I am a</Label>
             <RoleSelector value={role} onChange={setRole} compact />
