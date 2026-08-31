@@ -341,7 +341,20 @@ export function Navbar() {
           </div>
 
           {/* Mobile controls */}
-          <div className="flex items-center gap-3 lg:hidden">
+          <div className="flex items-center gap-2 sm:gap-3 lg:hidden">
+            {isReady && !user ? (
+              <Link
+                href="/login"
+                className={cn(
+                  "inline-flex shrink-0 px-1 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors duration-300 sm:text-[11px] sm:tracking-[0.16em]",
+                  overHero
+                    ? "text-[#F5F1E8]/95 hover:text-[#F5F1E8]"
+                    : "text-[#06291C] hover:text-[#082B1D]",
+                )}
+              >
+                Sign in
+              </Link>
+            ) : null}
             <a
               href={phoneHref}
               aria-label={`Call ${phoneDisplay}`}
@@ -452,7 +465,7 @@ export function Navbar() {
                   </motion.li>
                 ))}
 
-                {!user && (
+                {!isReady ? null : !user ? (
                   <motion.li
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -466,7 +479,7 @@ export function Navbar() {
                       Sign in
                     </Link>
                   </motion.li>
-                )}
+                ) : null}
               </ul>
             </nav>
 

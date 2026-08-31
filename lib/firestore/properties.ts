@@ -193,3 +193,22 @@ export async function deleteProperty(id: string): Promise<void> {
   if (!db) throw new Error("Firebase is not configured");
   await deleteDoc(doc(db, COLLECTION, id));
 }
+
+/** Delete every document in the properties collection (QA / demo reset). */
+export async function clearAllProperties(): Promise<number> {
+  const db = getDb();
+  if (!db) throw new Error("Firebase is not configured");
+
+  const existing = await getDocs(collection(db, COLLECTION));
+  if (existing.empty) return 0;
+
+  const chunkSize = 400;
+  const docs = existing.docs;
+  for (let i = 0; i < docs.length; i += chunkSize) {
+    const chunk = docs.slice(i, i + chunkSize);
+    const batch = writeBatch(db);
+    chunk.forEach((item) => batch.delete(item.ref));
+    await batch.commit();
+  }
+  return docs.length;
+}

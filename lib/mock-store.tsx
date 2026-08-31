@@ -45,6 +45,19 @@ const DEVELOPERS_KEY = "bharwana_developers_v1";
 const TRANSACTIONS_KEY = "bharwana_transactions_v1";
 const USERS_KEY = "bharwana_users_v1";
 
+/** Purge stale mock localStorage — Firestore is the source of truth when configured. */
+function purgeMockLocalStorage() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(PROPERTIES_KEY);
+    localStorage.removeItem(DEVELOPERS_KEY);
+    localStorage.removeItem(TRANSACTIONS_KEY);
+    localStorage.removeItem(USERS_KEY);
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
 interface MockStoreContextValue {
   properties: Property[];
   inquiries: Inquiry[];
@@ -106,10 +119,18 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const [usingFirestoreUsers, setUsingFirestoreUsers] = useState(false);
 
   useEffect(() => {
-    setProperties(mergeById(seedPropertiesList, readJsonArray<Property>(PROPERTIES_KEY)));
-    setDevelopers(mergeById(seedDevelopers, readJsonArray<Developer>(DEVELOPERS_KEY)));
-    setTransactions(mergeById(seedTransactions, readJsonArray<Transaction>(TRANSACTIONS_KEY)));
-    setUsers(mergeById(seedUsers, readJsonArray<User>(USERS_KEY)));
+    if (isFirebaseConfigured()) {
+      purgeMockLocalStorage();
+      setProperties([]);
+      setDevelopers(seedDevelopers);
+      setTransactions(seedTransactions);
+      setUsers(seedUsers);
+    } else {
+      setProperties(mergeById(seedPropertiesList, readJsonArray<Property>(PROPERTIES_KEY)));
+      setDevelopers(mergeById(seedDevelopers, readJsonArray<Developer>(DEVELOPERS_KEY)));
+      setTransactions(mergeById(seedTransactions, readJsonArray<Transaction>(TRANSACTIONS_KEY)));
+      setUsers(mergeById(seedUsers, readJsonArray<User>(USERS_KEY)));
+    }
     setHydrated(true);
   }, []);
 
