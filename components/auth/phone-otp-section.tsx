@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { RecaptchaVerifier, type ConfirmationResult } from "firebase/auth";
@@ -13,9 +13,16 @@ import { Input } from "@/components/ui/input";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { useMockAuth } from "@/lib/mock-auth";
-import { phoneOtpRequestSchema, phoneOtpVerifySchema, type PhoneOtpRequestValues, type PhoneOtpVerifyValues } from "@/lib/schemas";
+import {
+  phoneOtpRequestSchema,
+  phoneOtpVerifySchema,
+  type PhoneOtpRequestValues,
+  type PhoneOtpVerifyValues,
+} from "@/lib/schemas";
 import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const RECAPTCHA_CONTAINER_ID = "phone-auth-recaptcha";
 
 type Step = "phone" | "otp";
 
@@ -27,7 +34,6 @@ export function PhoneOtpSection({
   variant?: "login" | "register";
 }) {
   const { sendPhoneOtp, verifyPhoneOtp } = useMockAuth();
-  const recaptchaContainerId = useId().replace(/:/g, "");
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const confirmationRef = useRef<ConfirmationResult | null>(null);
 
@@ -55,13 +61,20 @@ export function PhoneOtpSection({
     };
   }, []);
 
-  function getRecaptchaVerifier() {
+  async function resetRecaptcha() {
+    recaptchaRef.current?.clear();
+    recaptchaRef.current = null;
+  }
+
+  async function getRecaptchaVerifier() {
     const auth = getFirebaseAuth();
     if (!auth) throw new Error("Firebase Auth is not available");
+
     if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(auth, recaptchaContainerId, {
+      recaptchaRef.current = new RecaptchaVerifier(auth, RECAPTCHA_CONTAINER_ID, {
         size: "invisible",
       });
+      await recaptchaRef.current.render();
     }
     return recaptchaRef.current;
   }
@@ -74,12 +87,12 @@ export function PhoneOtpSection({
     setError(null);
     setPending(true);
     try {
-      const verifier = getRecaptchaVerifier();
+      await resetRecaptcha();
+      const verifier = await getRecaptchaVerifier();
       const result = await sendPhoneOtp(values.phone, verifier);
       if (!result.ok) {
         setError(result.error);
-        recaptchaRef.current?.clear();
-        recaptchaRef.current = null;
+        await resetRecaptcha();
         return;
       }
       confirmationRef.current = result.confirmation;
@@ -89,9 +102,8 @@ export function PhoneOtpSection({
       toast.success("Verification code sent.");
     } catch (err) {
       console.error(err);
-      setError("Could not send code. Refresh and try again.");
-      recaptchaRef.current?.clear();
-      recaptchaRef.current = null;
+      setError("Could not send code. Refresh the page and try again.");
+      await resetRecaptcha();
     } finally {
       setPending(false);
     }
@@ -123,13 +135,12 @@ export function PhoneOtpSection({
     }
   }
 
-  function handleChangeNumber() {
+  async function handleChangeNumber() {
     setStep("phone");
     setError(null);
     confirmationRef.current = null;
     otpForm.reset({ otp: "" });
-    recaptchaRef.current?.clear();
-    recaptchaRef.current = null;
+    await resetRecaptcha();
   }
 
   if (!isFirebaseConfigured()) {
@@ -226,13 +237,13 @@ export function PhoneOtpSection({
                   "Verify & continue"
                 )}
               </Button>
-              <Button type="button" variant="ghost" className="w-full" onClick={handleChangeNumber}>
+              <Button type="button" variant="ghost" className="w-full" onClick={() => void handleChangeNumber()}>
                 Use a different number
               </Button>
             </form>
           </Form>
         )}
-        <div id={recaptchaContainerId} />
+        <div id={RECAPTCHA_CONTAINER_ID} />
       </div>
 
       <GoogleRoleCompletionDialog

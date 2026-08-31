@@ -10,18 +10,23 @@ import {
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
-const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "";
-const configuredAuthDomain = (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "").trim();
+/** Vercel env vars were saved with a literal "\\n" suffix — strip that and whitespace. */
+function sanitizeFirebaseEnv(value: string | undefined): string {
+  return (value ?? "").trim().replace(/\\n$/g, "").replace(/\n$/g, "").trim();
+}
+
+const projectId = sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+const configuredAuthDomain = sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN);
 const projectAuthDomain = projectId ? `${projectId}.firebaseapp.com` : "";
 const authDomain = configuredAuthDomain || projectAuthDomain;
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
   authDomain,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  projectId,
+  storageBucket: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+  appId: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
 };
 
 export function isFirebaseConfigured() {

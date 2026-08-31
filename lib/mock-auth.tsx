@@ -145,6 +145,8 @@ function phoneAuthErrorMessage(code: string) {
       return "Enter the 6-digit code from your SMS.";
     case "auth/quota-exceeded":
       return "SMS limit reached. Try again later or use email sign-in.";
+    case "auth/operation-not-allowed":
+      return "Phone sign-in is disabled for this Firebase project. Enable Phone under Authentication → Sign-in method.";
     default:
       return code ? `Could not verify phone (${code}).` : "Could not verify phone. Try again.";
   }
