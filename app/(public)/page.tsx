@@ -204,7 +204,7 @@ function WhyBharwanaSection() {
                 onMouseEnter={() => setActive(index)}
                 onFocus={() => setActive(index)}
                 onClick={() => setActive(index)}
-                className="group w-full rounded-sm bg-transparent p-0 text-left outline-none transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-[#B89545]/40"
+                className="group w-full rounded-2xl bg-transparent p-0 text-left outline-none transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-[#B89545]/40"
               >
                 <span
                   className={cn(

@@ -29,7 +29,7 @@ export function RoleSelector({
             type="button"
             onClick={() => onChange(option.id)}
             className={cn(
-              "rounded-lg border text-left transition-colors duration-200",
+              "rounded-2xl border text-left transition-colors duration-200",
               compact ? "px-2.5 py-2" : "px-3 py-3",
               active
                 ? "border-gold bg-gold/10 text-forest"

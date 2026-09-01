@@ -288,7 +288,7 @@ export function FilterBar({
             </SheetContent>
           </Sheet>
           {showViewToggle && (
-            <div className="flex rounded-md border border-forest/15 p-0.5">
+            <div className="flex rounded-xl border border-forest/15 p-0.5">
               <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon" onClick={() => setView("grid")}>
                 <LayoutGrid className="h-4 w-4" />
               </Button>

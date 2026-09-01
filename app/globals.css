@@ -23,7 +23,10 @@
     --border: 40 16% 86%;
     --input: 40 16% 86%;
     --ring: 43 54% 54%;
-    --radius: 0.35rem;
+  /* Bharwana radius scale: control (buttons/inputs), card (panels/modals), panel (large blocks) */
+    --radius: 0.75rem;
+    --radius-card: 1rem;
+    --radius-panel: 1.25rem;
     --forest: 152 51% 12%;
     --gold: 43 54% 54%;
     --chart-1: 43 54% 54%;
@@ -73,7 +76,7 @@
 
 .mapboxgl-popup-content,
 .maplibregl-popup-content {
-  @apply !rounded-md !border !border-border !bg-card !p-0 !shadow-lg;
+  @apply !rounded-xl !border !border-border !bg-card !p-0 !shadow-lg;
   font-family: inherit;
 }
 

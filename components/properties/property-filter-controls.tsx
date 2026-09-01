@@ -151,7 +151,7 @@ export function RangeFilterPopover({
         <button
           type="button"
           className={cn(
-            "flex h-11 w-full items-center justify-between rounded-md border bg-white px-3 text-left text-sm text-forest transition-colors",
+            "flex h-11 w-full items-center justify-between rounded-xl border bg-white px-3 text-left text-sm text-forest transition-colors",
             accentBorder ? "border-gold/50" : "border-input",
             open && "border-forest/30",
           )}
@@ -185,7 +185,7 @@ export function RangeFilterPopover({
               inputMode="numeric"
               value={draftMin}
               onChange={(event) => setDraftMin(event.target.value)}
-              className="h-11 rounded-lg bg-white"
+              className="h-11 rounded-xl bg-white"
             />
           </div>
           <div>
@@ -197,7 +197,7 @@ export function RangeFilterPopover({
               placeholder="Any"
               value={draftMax}
               onChange={(event) => setDraftMax(event.target.value)}
-              className="h-11 rounded-lg bg-white placeholder:text-muted-foreground"
+              className="h-11 rounded-xl bg-white placeholder:text-muted-foreground"
             />
           </div>
         </div>
@@ -307,7 +307,7 @@ export function PropertyTypePicker({
               setOpen(false);
             }}
             className={cn(
-              "inline-flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
+              "inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
               category === activeTab && subtype === "ALL"
                 ? "border-forest bg-forest/10 text-forest"
                 : "border-forest/15 text-forest/80 hover:border-forest/30",
@@ -334,7 +334,7 @@ export function PropertyTypePicker({
                   setOpen(false);
                 }}
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
+                  "inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
                   selected
                     ? "border-forest bg-forest/10 text-forest"
                     : "border-forest/15 text-forest/80 hover:border-forest/30",

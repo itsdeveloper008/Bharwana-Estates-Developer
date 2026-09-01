@@ -1353,14 +1353,14 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={src} alt="" className="h-full w-full object-cover" />
                     {index === 0 && (
-                      <span className="absolute left-1.5 top-1.5 rounded-sm bg-gold px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-forest shadow-sm">
+                      <span className="absolute left-1.5 top-1.5 rounded-full bg-gold px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-forest shadow-sm">
                         Cover
                       </span>
                     )}
                     <div className="absolute bottom-1.5 left-1.5 flex gap-1 opacity-0 transition-opacity duration-200 group-hover/thumb:opacity-100">
                       <button
                         type="button"
-                        className="rounded-sm bg-forest/80 p-1 text-ivory disabled:opacity-40"
+                        className="rounded-lg bg-forest/80 p-1 text-ivory disabled:opacity-40"
                         disabled={index === 0}
                         onClick={() => movePreview(index, -1)}
                         aria-label="Move earlier"
@@ -1369,7 +1369,7 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
                       </button>
                       <button
                         type="button"
-                        className="rounded-sm bg-forest/80 p-1 text-ivory disabled:opacity-40"
+                        className="rounded-lg bg-forest/80 p-1 text-ivory disabled:opacity-40"
                         disabled={index === previews.length - 1}
                         onClick={() => movePreview(index, 1)}
                         aria-label="Move later"

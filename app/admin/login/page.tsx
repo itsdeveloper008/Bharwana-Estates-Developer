@@ -8,7 +8,7 @@ export const metadata = {
 export default function AdminLoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-ivory px-4 py-16">
-      <div className="w-full max-w-md border border-forest/10 bg-card px-8 py-10 shadow-lift">
+      <div className="w-full max-w-md rounded-2xl border border-forest/10 bg-card px-8 py-10 shadow-lift">
         <div className="mb-8 text-center">
           <Image
             src="/logo.png"

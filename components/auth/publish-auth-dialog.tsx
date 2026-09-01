@@ -89,7 +89,7 @@ export function PublishAuthDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border-forest/10 bg-ivory sm:rounded-sm">
+      <DialogContent className="max-w-md border-forest/10 bg-ivory">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl text-forest">
             {mode === "login" ? "Sign in to publish" : "Create an account"}

@@ -21,7 +21,7 @@ export function FaqAccordion({
   const [openId, setOpenId] = useState<string | null>(items[0]?.id ?? null);
 
   return (
-    <div className={cn("divide-y divide-forest/10 border-y border-forest/10", className)}>
+    <div className={cn("divide-y divide-forest/10 overflow-hidden rounded-2xl border border-forest/10", className)}>
       {items.map((item) => {
         const open = openId === item.id;
         return (

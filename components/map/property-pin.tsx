@@ -62,7 +62,7 @@ export function PropertyPin({
       aria-label="Property pin"
     >
       {showPrice && typeof price === "number" ? (
-        <span className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-forest px-2 py-1 text-[10px] font-medium text-gold shadow-lift">
+        <span className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-forest px-2 py-1 text-[10px] font-medium text-gold shadow-lift">
           {formatPrice(price)}
         </span>
       ) : null}

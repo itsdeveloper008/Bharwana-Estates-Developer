@@ -82,7 +82,7 @@ export function AdminDetailModal({
               {badges ? <div className="flex flex-wrap items-center gap-2">{badges}</div> : null}
             </div>
             <DialogPrimitive.Close
-              className="absolute right-4 top-4 rounded-sm text-forest/60 transition-colors hover:text-forest focus:outline-none focus:ring-2 focus:ring-gold/40"
+              className="absolute right-4 top-4 rounded-lg text-forest/60 transition-colors hover:text-forest focus:outline-none focus:ring-2 focus:ring-gold/40"
               aria-label="Close"
             >
               <X className="h-5 w-5" />

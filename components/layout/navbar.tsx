@@ -289,7 +289,7 @@ export function Navbar() {
                     {initials}
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-60 rounded-sm border-forest/10 bg-ivory p-1.5 shadow-[0_20px_40px_-20px_rgba(8,43,29,0.35)]">
+                <DropdownMenuContent align="end" className="w-60 rounded-xl border-forest/10 bg-ivory p-1.5 shadow-[0_20px_40px_-20px_rgba(8,43,29,0.35)]">
                   <DropdownMenuLabel className="px-3 py-2.5 font-normal">
                     <p className="font-serif text-lg text-forest">{user.fullName}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{user.email}</p>
@@ -324,14 +324,14 @@ export function Navbar() {
                               { href: "/owner/add-property", label: "Add Property" },
                             ]
                   ).map((link) => (
-                    <DropdownMenuItem key={link.href} asChild className="cursor-pointer rounded-sm focus:bg-cream focus:text-forest">
+                    <DropdownMenuItem key={link.href} asChild className="cursor-pointer rounded-lg focus:bg-cream focus:text-forest">
                       <Link href={link.href}>{link.label}</Link>
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator className="bg-forest/10" />
                   <DropdownMenuItem
                     onClick={logout}
-                    className="cursor-pointer rounded-sm text-destructive focus:bg-cream focus:text-destructive"
+                    className="cursor-pointer rounded-lg text-destructive focus:bg-cream focus:text-destructive"
                   >
                     Sign Out
                   </DropdownMenuItem>

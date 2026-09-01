@@ -470,7 +470,7 @@ export function RegisterForm() {
           />
 
           {selectedRole === "DEALER" && (
-            <div className="space-y-3 rounded-lg border border-forest/10 bg-cream/40 p-3">
+            <div className="space-y-3 rounded-2xl border border-forest/10 bg-cream/40 p-3">
               <FormField
                 control={form.control}
                 name="agencyName"

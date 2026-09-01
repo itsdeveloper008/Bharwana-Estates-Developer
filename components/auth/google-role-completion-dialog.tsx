@@ -116,7 +116,7 @@ export function GoogleRoleCompletionDialog({
           </div>
 
           {role === "DEALER" && (
-            <div className="space-y-3 rounded-lg border border-forest/10 bg-cream/40 p-3">
+            <div className="space-y-3 rounded-2xl border border-forest/10 bg-cream/40 p-3">
               <div className="space-y-1.5">
                 <Label htmlFor="google-agency">Agency / Company Name</Label>
                 <Input

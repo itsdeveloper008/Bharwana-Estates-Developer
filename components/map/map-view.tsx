@@ -384,7 +384,7 @@ export function MapView({
       </GoogleMap>
 
       <div className="pointer-events-none absolute right-3 top-3 z-30 flex flex-wrap justify-end gap-1 sm:right-4 sm:top-4">
-        <div className="pointer-events-auto flex overflow-hidden rounded-md border border-forest/15 bg-ivory/95 shadow-lift">
+        <div className="pointer-events-auto flex overflow-hidden rounded-xl border border-forest/15 bg-ivory/95 shadow-lift">
           {MAP_MODES.map((mode) => (
             <button
               key={mode.id}
@@ -453,7 +453,7 @@ export function MapView({
         <div className="absolute bottom-4 left-4 z-20">
           <button
             type="button"
-            className="rounded-md bg-ivory/95 px-3 py-1.5 text-xs text-forest shadow-lift underline-offset-2 hover:underline"
+            className="rounded-xl bg-ivory/95 px-3 py-1.5 text-xs text-forest shadow-lift underline-offset-2 hover:underline"
             onClick={() => {
               onResetBounds();
               setShowSearchArea(false);
@@ -466,7 +466,7 @@ export function MapView({
         </div>
       )}
 
-      <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-md bg-ivory/95 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-forest shadow-lift sm:left-auto sm:right-14 sm:translate-x-0">
+      <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-ivory/95 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-forest shadow-lift sm:left-auto sm:right-14 sm:translate-x-0">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full border border-gold bg-forest" />
           Owner

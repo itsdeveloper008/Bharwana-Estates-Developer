@@ -156,7 +156,7 @@ export function PhoneOtpSection({
   if (!isFirebaseConfigured()) {
     return (
       <p className="text-sm text-muted-foreground">
-        Phone sign-in is unavailable on this deploy. Use email or Google instead.
+        Phone sign-in needs Firebase environment variables on this deploy. Use email or Google instead.
       </p>
     );
   }
@@ -178,7 +178,7 @@ export function PhoneOtpSection({
                     <FormLabel>Mobile number</FormLabel>
                     <FormControl>
                       <div className="flex">
-                        <span className="inline-flex items-center rounded-l-md border border-r-0 border-forest/15 bg-cream/70 px-3 text-sm font-medium text-forest">
+                        <span className="inline-flex items-center rounded-l-xl border border-r-0 border-forest/15 bg-cream/70 px-3 text-sm font-medium text-forest">
                           +92
                         </span>
                         <Input
