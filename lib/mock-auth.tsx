@@ -23,7 +23,7 @@ import {
   type ConfirmationResult,
   type User as FirebaseUser,
 } from "firebase/auth";
-import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
+import { getFirebaseAuth, isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
 import { createUserDocWithRetry, getUserDoc, type UserDocInput } from "@/lib/firestore/users";
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import { users as seedUsers } from "@/lib/mock-data/users";
@@ -156,7 +156,17 @@ function writePendingRegister(profile: PendingRegisterProfile | null) {
   else sessionStorage.removeItem(PENDING_REGISTER_KEY);
 }
 
-function phoneAuthErrorMessage(code: string) {
+function phoneAuthErrorMessage(code: string, rawMessage = "") {
+  const message = rawMessage.toLowerCase();
+  if (code === "auth/billing-not-enabled" || message.includes("billing")) {
+    return "Phone sign-in requires the Firebase Blaze plan. Ask the project owner to enable billing in Firebase Console.";
+  }
+  if (
+    code === "auth/operation-not-allowed" &&
+    (message.includes("region") || message.includes("sms unable to be sent"))
+  ) {
+    return "SMS is not enabled for Pakistan (+92) on this Firebase project. Add PK under Authentication → Settings → SMS region policy.";
+  }
   switch (code) {
     case "auth/invalid-phone-number":
       return "That phone number looks invalid. Use format +92 3XX XXXXXXX.";
@@ -296,6 +306,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (!isFirebaseConfigured()) {
+        logFirebaseConfigDiagnostics("auth");
         if (!cancelled) setIsReady(true);
         return;
       }
@@ -516,7 +527,11 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             ? String((error as { code?: string }).code)
             : "";
         console.error("Phone OTP send failed", error);
-        return { ok: false as const, error: phoneAuthErrorMessage(code) };
+        const rawMessage =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "";
+        return { ok: false as const, error: phoneAuthErrorMessage(code, rawMessage) };
       }
     },
     [],
@@ -547,7 +562,11 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             ? String((error as { code?: string }).code)
             : "";
         console.error("Phone OTP verify failed", error);
-        return { ok: false as const, error: phoneAuthErrorMessage(code) };
+        const rawMessage =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "";
+        return { ok: false as const, error: phoneAuthErrorMessage(code, rawMessage) };
       }
     },
     [persist],

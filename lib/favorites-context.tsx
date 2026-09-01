@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
-import { isFirebaseConfigured } from "@/lib/firebase/client";
+import { isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
 import {
   addSavedProperty,
   removeSavedProperty,
@@ -57,6 +57,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     }
 
     if (!usingFirestore) {
+      logFirebaseConfigDiagnostics("saved-properties");
       const map = readAllSaved();
       setIds(map[user.id] ?? []);
       return;

@@ -29,6 +29,46 @@ const firebaseConfig = {
   appId: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
 };
 
+export const FIREBASE_NOT_CONFIGURED_MESSAGE =
+  "Firebase is not configured on this deploy. Add the NEXT_PUBLIC_FIREBASE_* environment variables on the host and redeploy.";
+
+const FIREBASE_ENV_KEYS = [
+  "NEXT_PUBLIC_FIREBASE_API_KEY",
+  "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+  "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+  "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+  "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+  "NEXT_PUBLIC_FIREBASE_APP_ID",
+] as const;
+
+export function getMissingFirebaseEnvVars(): string[] {
+  const env: Record<(typeof FIREBASE_ENV_KEYS)[number], string | undefined> = {
+    NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  };
+
+  return FIREBASE_ENV_KEYS.filter((key) => {
+    if (key === "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN") {
+      return !sanitizeFirebaseEnv(env[key]) && !sanitizeFirebaseEnv(env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+    }
+    return !sanitizeFirebaseEnv(env[key]);
+  });
+}
+
+export function logFirebaseConfigDiagnostics(context?: string) {
+  if (typeof window === "undefined" || isFirebaseConfigured()) return;
+  const missing = getMissingFirebaseEnvVars();
+  const prefix = context ? `[Bharwana Firebase · ${context}]` : "[Bharwana Firebase]";
+  console.warn(
+    `${prefix} Not configured on this deploy.`,
+    missing.length > 0 ? `Missing or empty: ${missing.join(", ")}` : "Required values are empty or invalid.",
+  );
+}
+
 export function isFirebaseConfigured() {
   return Boolean(
     firebaseConfig.apiKey &&

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { AuthFormEntrance, AuthVisualPanel } from "@/components/auth/auth-shell";
+import { FirebaseConfigBanner } from "@/components/firebase/firebase-config-banner";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,7 +12,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <Image src="/logo.png" alt="Bharwana" width={44} height={44} className="h-11 w-11 object-contain" />
           <span className="font-display text-xs tracking-crest text-forest">BHARWANA</span>
         </Link>
-        <AuthFormEntrance>{children}</AuthFormEntrance>
+        <AuthFormEntrance>
+          <FirebaseConfigBanner context="auth" />
+          {children}
+        </AuthFormEntrance>
       </div>
     </div>
   );

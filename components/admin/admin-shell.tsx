@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { FirebaseConfigBanner } from "@/components/firebase/firebase-config-banner";
 import { useAdminAuth } from "@/lib/admin-auth";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
@@ -178,7 +179,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+        <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8">
+          <FirebaseConfigBanner context="admin" />
+          {children}
+        </main>
       </div>
     </div>
   );

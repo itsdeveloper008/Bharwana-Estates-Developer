@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAdminAuth } from "@/lib/admin-auth";
-import { isFirebaseConfigured } from "@/lib/firebase/client";
+import { isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
 import { deleteUserDoc, subscribeUsers } from "@/lib/firestore/users";
 import type { User } from "@/lib/types";
 
@@ -25,8 +25,8 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
+      logFirebaseConfigDiagnostics("admin/users");
       setLoading(false);
-      setError("Firebase is not configured on this deploy.");
       return;
     }
 
