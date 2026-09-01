@@ -30,7 +30,7 @@ export function OurStory() {
           </p>
           <blockquote className="mt-8 border-l border-gold/50 pl-5">
             <p className="font-serif text-xl italic leading-snug text-forest sm:text-2xl">
-              “Equal footing between buyer and owner is not a slogan — it is how every listing
+              “Equal footing between buyer and owner is not a slogan. It is how every listing
               earns the floor.”
             </p>
             <footer className="mt-3 text-[11px] uppercase tracking-[0.18em] text-gold-700">
@@ -54,7 +54,7 @@ export function OurStory() {
         >
           <Image
             src="/about.jpg"
-            alt="Bharwana Estates — about us"
+            alt="Bharwana Estates, about us"
             fill
             className="object-cover"
             sizes="(max-width: 1024px) 100vw, 50vw"

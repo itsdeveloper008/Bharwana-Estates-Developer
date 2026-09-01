@@ -157,7 +157,7 @@ export function InquiryDetailModal({
             {parsed.message ?? <AdminDetailPlaceholder />}
           </p>
           {parsed.isDirectReveal ? (
-            <p className="mt-2 text-xs text-muted-foreground">Direct-to-seller reveal — no platform mediation.</p>
+            <p className="mt-2 text-xs text-muted-foreground">Direct-to-seller reveal. No platform mediation.</p>
           ) : null}
         </AdminDetailSection>
 

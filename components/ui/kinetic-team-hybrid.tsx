@@ -10,7 +10,7 @@ import {
   useReducedMotion,
   useSpring,
 } from "framer-motion";
-import { ArrowUpRight, Minus, Plus } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface KineticTeamMember {
@@ -128,7 +128,7 @@ export default function KineticTeamHybrid({
           transition={{ duration: 0.6, delay: 0.15 }}
           className="mt-16 hidden text-center font-serif text-xl italic text-[#F5F1E8]/45 md:mt-20 md:block md:text-2xl"
         >
-          Hover a name to meet them. Select to open the full profile.
+          Hover a name to preview. Click to open the full profile.
         </motion.p>
       </div>
 
@@ -155,20 +155,11 @@ export default function KineticTeamHybrid({
                   className="object-cover object-top"
                   sizes="420px"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#082B1D] via-[#082B1D]/25 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 space-y-2 p-7">
-                  <p className="text-[10px] uppercase tracking-[0.24em] text-[#B9954A]">
-                    {activeMember.department ?? "Team"}
-                  </p>
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#082B1D]/95 via-[#082B1D]/50 to-transparent px-7 pb-7 pt-20">
                   <p className="font-serif text-2xl leading-snug text-[#F5F1E8]">{activeMember.name}</p>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-[#F5F1E8]/55">
+                  <p className="mt-1.5 text-[11px] uppercase tracking-[0.18em] text-[#F5F1E8]/60">
                     {activeMember.role}
                   </p>
-                  {activeMember.quote ? (
-                    <p className="mt-3 max-w-[90%] font-serif text-[15px] italic leading-relaxed text-[#F5F1E8]/75">
-                      “{activeMember.quote}”
-                    </p>
-                  ) : null}
                 </div>
               </motion.div>
             )}
@@ -255,21 +246,6 @@ function TeamRow({
           <div className="block text-[#F5F1E8]/50 md:hidden">
             {isActive ? <Minus size={20} strokeWidth={1.5} /> : <Plus size={20} strokeWidth={1.5} />}
           </div>
-
-          <motion.div
-            animate={{ x: isActive ? 0 : -12, opacity: isActive ? 1 : 0 }}
-            className="hidden text-[#B9954A] md:block"
-          >
-            <Link
-              href={data.href}
-              aria-label={`View full profile of ${data.name}`}
-              className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B9954A]"
-              onClick={(event) => event.stopPropagation()}
-            >
-              Profile
-              <ArrowUpRight size={26} strokeWidth={1.4} />
-            </Link>
-          </motion.div>
         </div>
       </div>
 
@@ -292,15 +268,11 @@ function TeamRow({
                   sizes="100vw"
                   priority
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#082B1D] via-[#082B1D]/30 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 space-y-2 p-6">
-                  {data.department ? (
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-[#B9954A]">{data.department}</p>
-                  ) : null}
-                  {data.quote ? (
-                    <p className="font-serif text-lg italic leading-snug text-[#F5F1E8]/85">“{data.quote}”</p>
-                  ) : null}
-                  <p className="pt-1 text-xs uppercase tracking-[0.2em] text-[#F5F1E8]">View full profile →</p>
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#082B1D]/95 via-[#082B1D]/45 to-transparent px-6 pb-6 pt-16">
+                  <p className="font-serif text-2xl text-[#F5F1E8]">{data.name}</p>
+                  <p className="mt-1.5 text-[11px] uppercase tracking-[0.18em] text-[#F5F1E8]/60">
+                    {data.role}
+                  </p>
                 </div>
               </Link>
             </div>

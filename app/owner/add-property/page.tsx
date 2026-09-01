@@ -17,7 +17,7 @@ export default function AddPropertyPage() {
             storage is connected; publish writes to the shared review queue.
           </>
         ) : (
-          "Fill every step freely. Sign in only when you publish — your details stay on this page."
+          "Fill every step freely. Sign in only when you publish. Your details stay on this page."
         )}
       </p>
       <PropertyForm />

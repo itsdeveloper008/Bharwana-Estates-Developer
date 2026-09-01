@@ -24,7 +24,8 @@ import {
   type User as FirebaseUser,
 } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
-import { createUserDoc, getUserDoc } from "@/lib/firestore/users";
+import { createUserDocWithRetry, getUserDoc, type UserDocInput } from "@/lib/firestore/users";
+import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import { users as seedUsers } from "@/lib/mock-data/users";
 import { isValidPhoneE164, normalizePhoneE164 } from "@/lib/phone-format";
 import type { User, UserRole } from "@/lib/types";
@@ -33,6 +34,7 @@ import { delay } from "@/lib/utils";
 const SESSION_KEY = "bharwana_user_session";
 const USERS_KEY = "bharwana_registered_users";
 const PENDING_GOOGLE_KEY = "bharwana_pending_google_signup";
+const PENDING_REGISTER_KEY = "bharwana_pending_register_profile";
 
 export type GoogleSignupDraft = {
   id: string;
@@ -129,6 +131,31 @@ function writePendingGoogle(draft: GoogleSignupDraft | null) {
   else sessionStorage.removeItem(PENDING_GOOGLE_KEY);
 }
 
+type PendingRegisterProfile = {
+  uid: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  role: UserRole;
+  agencyName?: string;
+  registrationNumber?: string;
+};
+
+function readPendingRegister(): PendingRegisterProfile | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_REGISTER_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PendingRegisterProfile;
+  } catch {
+    return null;
+  }
+}
+
+function writePendingRegister(profile: PendingRegisterProfile | null) {
+  if (profile) sessionStorage.setItem(PENDING_REGISTER_KEY, JSON.stringify(profile));
+  else sessionStorage.removeItem(PENDING_REGISTER_KEY);
+}
+
 function phoneAuthErrorMessage(code: string) {
   switch (code) {
     case "auth/invalid-phone-number":
@@ -149,6 +176,29 @@ function phoneAuthErrorMessage(code: string) {
       return "Phone sign-in is disabled for this Firebase project. Enable Phone under Authentication → Sign-in method.";
     default:
       return code ? `Could not verify phone (${code}).` : "Could not verify phone. Try again.";
+  }
+}
+
+function emailAuthErrorMessage(code: string) {
+  switch (code) {
+    case "auth/email-already-in-use":
+      return "This email is already registered. Sign in instead, or use a different email.";
+    case "auth/weak-password":
+      return "Password should be at least 6 characters.";
+    case "auth/invalid-email":
+      return "Enter a valid email address.";
+    case "auth/invalid-credential":
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+      return "Invalid email or password.";
+    case "auth/too-many-requests":
+      return "Too many attempts. Try again later.";
+    case "auth/user-disabled":
+      return "This account has been disabled.";
+    case "auth/operation-not-allowed":
+      return "Email sign-in is disabled for this Firebase project.";
+    default:
+      return code ? `Could not complete sign-in (${code}).` : "Could not complete sign-in. Try again.";
   }
 }
 
@@ -175,7 +225,35 @@ function googleAuthErrorMessage(code: string) {
 }
 
 async function loadFirestoreUser(firebaseUser: FirebaseUser): Promise<User | null> {
-  return getUserDoc(firebaseUser.uid);
+  try {
+    return await getUserDoc(firebaseUser.uid);
+  } catch (error) {
+    console.error("Could not load user profile", error);
+    return null;
+  }
+}
+
+async function repairMissingProfile(
+  firebaseUser: FirebaseUser,
+  defaults: Partial<UserDocInput> = {},
+): Promise<User | null> {
+  try {
+    await firebaseUser.getIdToken(true);
+    const email = (defaults.email ?? firebaseUser.email ?? "").trim().toLowerCase();
+    if (!email) return null;
+    return await createUserDocWithRetry(firebaseUser.uid, {
+      fullName: defaults.fullName?.trim() || firebaseUser.displayName?.trim() || email.split("@")[0] || "Member",
+      email,
+      phone: defaults.phone?.trim() || firebaseUser.phoneNumber || "",
+      role: defaults.role ?? "BUYER",
+      avatarUrl: defaults.avatarUrl ?? firebaseUser.photoURL ?? undefined,
+      agencyName: defaults.agencyName,
+      registrationNumber: defaults.registrationNumber,
+    });
+  } catch (error) {
+    console.error("Could not repair missing user profile", error);
+    return null;
+  }
 }
 
 function draftFromFirebaseUser(firebaseUser: FirebaseUser): GoogleSignupDraft {
@@ -246,17 +324,19 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         if (cancelled) return;
         void (async () => {
-          if (!firebaseUser) {
-            persist(null);
-            setIsReady(true);
-            return;
-          }
+          try {
+            if (!firebaseUser) {
+              persist(null);
+              return;
+            }
 
-          const profile = await loadFirestoreUser(firebaseUser);
-          if (profile) {
-            writePendingGoogle(null);
-            persist(profile);
-          } else {
+            const profile = await loadFirestoreUser(firebaseUser);
+            if (profile) {
+              writePendingGoogle(null);
+              persist(profile);
+              return;
+            }
+
             const draft = draftFromFirebaseUser(firebaseUser);
             const pending = readPendingGoogle();
             const samePending =
@@ -268,10 +348,17 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
               writePendingGoogle(draft);
               persist(null);
             }
+          } catch (error) {
+            console.error("Auth state sync failed", error);
+          } finally {
+            if (!cancelled) setIsReady(true);
           }
-          setIsReady(true);
         })();
       });
+
+      window.setTimeout(() => {
+        if (!cancelled) setIsReady(true);
+      }, 4000);
     }
 
     void boot();
@@ -305,34 +392,36 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         if (auth) {
           try {
             const credential = await signInWithEmailAndPassword(auth, normalized, password);
-            const profile = await loadFirestoreUser(credential.user);
+            let profile = await loadFirestoreUser(credential.user);
+            if (!profile) {
+              const pending = readPendingRegister();
+              profile = await repairMissingProfile(credential.user, {
+                email: normalized,
+                fullName: pending?.email === normalized ? pending.fullName : undefined,
+                phone: pending?.email === normalized ? pending.phone : undefined,
+                role: pending?.email === normalized ? pending.role : "BUYER",
+                agencyName: pending?.email === normalized ? pending.agencyName : undefined,
+                registrationNumber:
+                  pending?.email === normalized ? pending.registrationNumber : undefined,
+              });
+            }
             if (!profile) {
               return {
                 ok: false as const,
-                error: "Account profile not found. Please register again or contact support.",
+                error:
+                  "Your account exists but your profile could not be loaded. Try again in a moment or contact support.",
               };
             }
             persist(profile);
+            writePendingRegister(null);
             return { ok: true as const, user: profile };
           } catch (error) {
             const code =
               error && typeof error === "object" && "code" in error
                 ? String((error as { code?: string }).code)
                 : "";
-            if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
-              return { ok: false as const, error: "Invalid email or password" };
-            }
-            if (code === "auth/too-many-requests") {
-              return { ok: false as const, error: "Too many attempts. Try again later." };
-            }
-            if (code === "auth/user-disabled") {
-              return { ok: false as const, error: "This account has been disabled." };
-            }
-            if (code === "auth/invalid-email") {
-              return { ok: false as const, error: "Invalid email or password" };
-            }
             console.error("Firebase login failed", error);
-            return { ok: false as const, error: "Could not sign in. Try again." };
+            return { ok: false as const, error: emailAuthErrorMessage(code) };
           }
         }
       }
@@ -475,7 +564,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
       if (isFirebaseConfigured()) {
         try {
-          const profile = await createUserDoc(input.draft.id, {
+          const profile = await createUserDocWithRetry(input.draft.id, {
             fullName: input.draft.fullName,
             email,
             phone: input.draft.phone,
@@ -489,7 +578,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           return { ok: true as const, user: profile };
         } catch (error) {
           console.error("Google signup profile save failed", error);
-          return { ok: false as const, error: "Could not create your profile. Try again." };
+          return {
+            ok: false as const,
+            error: firestoreErrorMessage(error, "Could not save your profile. Try again."),
+          };
         }
       }
 
@@ -533,10 +625,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         if (auth) {
           try {
             const credential = await createUserWithEmailAndPassword(auth, email, input.password);
-            if (input.fullName.trim()) {
-              await updateProfile(credential.user, { displayName: input.fullName.trim() });
-            }
-            const profile = await createUserDoc(credential.user.uid, {
+            await credential.user.getIdToken(true);
+
+            const profileInput: UserDocInput = {
               fullName: input.fullName.trim(),
               email,
               phone: input.phone.trim(),
@@ -544,22 +635,47 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
               avatarUrl: credential.user.photoURL ?? undefined,
               agencyName: input.agencyName,
               registrationNumber: input.registrationNumber,
-            });
+            };
+
+            const [, profile] = await Promise.all([
+              input.fullName.trim()
+                ? updateProfile(credential.user, { displayName: input.fullName.trim() })
+                : Promise.resolve(),
+              createUserDocWithRetry(credential.user.uid, profileInput),
+            ]);
+
             persist(profile);
+            writePendingRegister(null);
             return { ok: true as const, user: profile };
           } catch (error) {
             const code =
               error && typeof error === "object" && "code" in error
                 ? String((error as { code?: string }).code)
                 : "";
-            if (code === "auth/email-already-in-use") {
-              return { ok: false as const, error: "An account with this email already exists" };
+            if (code.startsWith("auth/")) {
+              console.error("Firebase register failed", error);
+              return { ok: false as const, error: emailAuthErrorMessage(code) };
             }
-            if (code === "auth/weak-password") {
-              return { ok: false as const, error: "Password should be at least 6 characters" };
+            const currentUser = auth.currentUser;
+            if (currentUser?.email?.toLowerCase() === email) {
+              writePendingRegister({
+                uid: currentUser.uid,
+                fullName: input.fullName.trim(),
+                email,
+                phone: input.phone.trim(),
+                role,
+                agencyName: input.agencyName,
+                registrationNumber: input.registrationNumber,
+              });
             }
-            console.error("Firebase register failed", error);
-            return { ok: false as const, error: "Could not create account. Try again." };
+            console.error("Firebase register profile save failed", error);
+            return {
+              ok: false as const,
+              error: firestoreErrorMessage(
+                error,
+                "Account was created but your profile could not be saved. Try signing in.",
+              ),
+            };
           }
         }
       }

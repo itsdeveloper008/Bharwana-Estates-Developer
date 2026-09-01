@@ -45,7 +45,7 @@ export function HowItWorks() {
           <h2 className="mt-3 font-serif text-4xl">How a home moves through Bharwana</h2>
           <div className="mt-4 h-px w-14 bg-gold/60" />
           <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">
-            A quiet path from first look to keys — the same care whether you browse, inquire, or list.
+            A quiet path from first look to keys. The same care whether you browse, inquire, or list.
           </p>
         </motion.div>
 

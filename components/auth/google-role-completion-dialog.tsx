@@ -77,7 +77,7 @@ export function GoogleRoleCompletionDialog({
           registrationNumber: registrationNumber.trim() || undefined,
         });
       }
-      toast.success(role === "DEALER" ? "Dealer account created — pending review" : "Account created");
+      toast.success(role === "DEALER" ? "Dealer account created. Pending review." : "Account created");
       onOpenChange(false);
       onComplete(result.user);
     } finally {

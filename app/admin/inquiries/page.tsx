@@ -45,7 +45,7 @@ export default function AdminInquiriesPage() {
       <h1 className="font-serif text-2xl sm:text-3xl">Inquiries</h1>
       <p className="mb-8 mt-2 text-sm text-muted-foreground">
         {usingFirestoreInquiries
-          ? "Live from Firestore — new leads appear without refresh. Click a row to view full details."
+          ? "Live from Firestore. New leads appear without refresh. Click a row to view full details."
           : "Local-only until Firebase is configured on this deploy. Leads will not sync across devices."}
       </p>
 

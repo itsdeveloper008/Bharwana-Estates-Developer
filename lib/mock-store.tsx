@@ -69,6 +69,9 @@ interface MockStoreContextValue {
   usingFirestoreInquiries: boolean;
   usingFirestoreProperties: boolean;
   usingFirestoreUsers: boolean;
+  propertiesLoading: boolean;
+  propertiesError: string | null;
+  storeReady: boolean;
   addProperty: (property: Property) => Promise<void>;
   updateProperty: (id: string, patch: Partial<Property>) => Promise<void>;
   deleteProperty: (id: string) => Promise<void>;
@@ -117,6 +120,8 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const [usingFirestoreInquiries, setUsingFirestoreInquiries] = useState(false);
   const [usingFirestoreProperties, setUsingFirestoreProperties] = useState(false);
   const [usingFirestoreUsers, setUsingFirestoreUsers] = useState(false);
+  const [propertiesLoading, setPropertiesLoading] = useState(isFirebaseConfigured());
+  const [propertiesError, setPropertiesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isFirebaseConfigured()) {
@@ -180,22 +185,48 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isFirebaseConfigured()) {
       setUsingFirestoreProperties(false);
+      setPropertiesLoading(false);
+      setPropertiesError(null);
       return;
     }
 
+    setPropertiesLoading(true);
+    setPropertiesError(null);
+
+    const timeout = window.setTimeout(() => {
+      setPropertiesLoading(false);
+      setPropertiesError((current) => current ?? "Loading properties is taking longer than expected. Try refreshing.");
+    }, 15_000);
+
     const unsub = subscribeProperties(
       (next) => {
+        window.clearTimeout(timeout);
         setUsingFirestoreProperties(true);
         setProperties(next);
+        setPropertiesLoading(false);
+        setPropertiesError(null);
       },
       (error) => {
+        window.clearTimeout(timeout);
         console.error("Firestore properties subscription failed", error);
         setUsingFirestoreProperties(false);
+        setProperties([]);
+        setPropertiesLoading(false);
+        setPropertiesError(firestoreErrorMessage(error, "Could not load properties from Firestore."));
         toast.error("Could not load properties from Firestore.");
       },
     );
 
-    return () => unsub?.();
+    if (!unsub) {
+      window.clearTimeout(timeout);
+      setPropertiesLoading(false);
+      setPropertiesError("Properties are unavailable right now.");
+    }
+
+    return () => {
+      window.clearTimeout(timeout);
+      unsub?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -392,6 +423,9 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       usingFirestoreInquiries,
       usingFirestoreProperties,
       usingFirestoreUsers,
+      propertiesLoading,
+      propertiesError,
+      storeReady: hydrated,
       addProperty,
       updateProperty,
       deleteProperty,
@@ -416,6 +450,9 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       usingFirestoreInquiries,
       usingFirestoreProperties,
       usingFirestoreUsers,
+      propertiesLoading,
+      propertiesError,
+      hydrated,
       addProperty,
       updateProperty,
       deleteProperty,

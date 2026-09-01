@@ -14,7 +14,7 @@ import {
 import { getDb } from "@/lib/firebase/client";
 import { FIRESTORE_WRITE_TIMEOUT_MS } from "@/lib/firestore/errors";
 import type { User, UserRole } from "@/lib/types";
-import { withTimeout } from "@/lib/utils";
+import { delay, withTimeout } from "@/lib/utils";
 
 const COLLECTION = "users";
 
@@ -114,6 +114,24 @@ export async function createUserDoc(uid: string, input: UserDocInput): Promise<U
     avatarUrl: input.avatarUrl,
     savedPropertyIds: [],
   };
+}
+
+/** Retry profile writes — auth token can lag right after sign-up. */
+export async function createUserDocWithRetry(
+  uid: string,
+  input: UserDocInput,
+  attempts = 3,
+): Promise<User> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await createUserDoc(uid, input);
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts - 1) await delay(350 * (attempt + 1));
+    }
+  }
+  throw lastError;
 }
 
 /** Removes the Firestore profile only — Firebase Auth account deletion needs Admin SDK / Cloud Function. */

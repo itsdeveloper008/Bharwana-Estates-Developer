@@ -287,7 +287,7 @@ export function TeamDirectory() {
       members={kineticMembers}
       eyebrow="Bharwana Estates"
       title="Our Team"
-      subtitle="Leadership, design, and craft — open a profile to read every detail behind the floor."
+      subtitle="Leadership, design, and craft. Open a profile to read every detail behind the floor."
     />
   );
 }

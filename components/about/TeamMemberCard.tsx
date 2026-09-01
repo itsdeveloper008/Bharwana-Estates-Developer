@@ -76,8 +76,9 @@ export function TeamMemberCard({
           className="object-cover object-top transition-transform duration-700 group-hover:scale-[1.04]"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         />
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-forest/80 via-forest/20 to-transparent p-5 pt-16 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          <p className="line-clamp-3 text-sm leading-relaxed text-ivory/90">{member.bio}</p>
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-forest/90 via-forest/35 to-transparent px-5 pb-5 pt-14 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          <p className="font-serif text-xl text-ivory">{member.fullName}</p>
+          <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-gold">{member.role}</p>
         </div>
       </div>
       <div className="border-t border-forest/5 px-5 py-5">

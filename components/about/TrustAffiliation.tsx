@@ -17,7 +17,7 @@ export function TrustAffiliation() {
             <h2 className="mt-3 font-serif text-3xl sm:text-4xl">Part of Bharwana Estate Group</h2>
             <div className="mt-4 h-px w-14 bg-gold/60" />
             <p className="mt-5 max-w-md text-sm leading-relaxed text-forest/80 sm:text-base">
-              Bharwana Estates Dealer stands within the Bharwana Estate Group — a backing that
+              Bharwana Estates Dealer stands within the Bharwana Estate Group, a backing that
               favours continuity, measured growth, and introductions that outlast a single
               transaction.
             </p>

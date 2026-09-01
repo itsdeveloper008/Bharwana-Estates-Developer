@@ -68,7 +68,7 @@ export default function AdminDashboardPage() {
           ? `Firebase connected. Inquiries ${usingFirestoreInquiries ? "live on" : "local (fallback)"} · Properties ${
               usingFirestoreProperties ? "live on" : "local (fallback)"
             } · Team ${teamOnFirestore ? "on" : "off"} Firestore.`
-          : "Firebase env not set — inquiries and listings stay local to each browser until keys are added on the host."}
+          : "Firebase env not set. Inquiries and listings stay local to each browser until keys are added on the host."}
       </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

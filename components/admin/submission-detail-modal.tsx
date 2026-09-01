@@ -60,7 +60,7 @@ export function SubmissionDetailModal({
       <div className="space-y-3">
         {dealerBlocksApproval && (
           <p className="border border-amber-600/25 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Dealer account pending approval — approve the dealer first.
+            Dealer account pending approval. Approve the dealer first.
           </p>
         )}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

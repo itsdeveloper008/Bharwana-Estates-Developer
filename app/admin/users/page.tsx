@@ -53,7 +53,7 @@ export default function AdminUsersPage() {
       <h1 className="font-serif text-2xl sm:text-3xl">Users</h1>
       <p className="mb-8 mt-2 text-sm text-muted-foreground">
         Marketplace users, live from Firebase. Admin login accounts are separate. Deleting a row
-        removes the Firestore profile only — full Firebase Auth account deletion requires a
+        removes the Firestore profile only. Full Firebase Auth account deletion requires a
         server-side Admin SDK call (Cloud Function) in a future backend pass.
       </p>
 
@@ -90,7 +90,7 @@ export default function AdminUsersPage() {
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.fullName}</TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.phone || "—"}</TableCell>
+                    <TableCell>{user.phone || "-"}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{user.role.replaceAll("_", " ")}</Badge>
                     </TableCell>

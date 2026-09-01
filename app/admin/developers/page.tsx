@@ -176,7 +176,7 @@ export default function AdminDevelopersPage() {
                                 pendingCommission > 0
                                   ? " and outstanding commission"
                                   : ""
-                              }. Deleting may orphan listings — are you sure?`
+                              }. Deleting may orphan listings. Are you sure?`
                             : "This cannot be undone."
                         }
                         onConfirm={async () => {

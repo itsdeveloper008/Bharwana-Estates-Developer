@@ -10,10 +10,29 @@ import { cn } from "@/lib/utils";
 
 export function PropertiesExplorer() {
   const searchParams = useSearchParams();
-  const { properties } = useMockStore();
+  const { properties, propertiesLoading, propertiesError } = useMockStore();
   const view = searchParams.get("view") === "list" ? "list" : "grid";
   const filters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
   const results = useMemo(() => filterProperties(properties, filters), [properties, filters]);
+
+  if (propertiesLoading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6">
+        <p className="text-sm text-muted-foreground">Loading the collection…</p>
+      </div>
+    );
+  }
+
+  if (propertiesError) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6">
+        <p className="text-sm text-destructive" role="alert">
+          {propertiesError}
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">Refresh the page or try again in a moment.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">

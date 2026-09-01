@@ -204,7 +204,7 @@ export function Navbar() {
 
           {/* Actions — desktop */}
           <div className="hidden items-center gap-4 lg:flex xl:gap-5">
-            {!isReady ? null : user ? null : (
+            {user ? null : (
               <Link
                 href="/login"
                 className={cn(
@@ -342,7 +342,7 @@ export function Navbar() {
 
           {/* Mobile controls */}
           <div className="flex items-center gap-2 sm:gap-3 lg:hidden">
-            {isReady && !user ? (
+            {!user ? (
               <Link
                 href="/login"
                 className={cn(
@@ -465,7 +465,7 @@ export function Navbar() {
                   </motion.li>
                 ))}
 
-                {!isReady ? null : !user ? (
+                {!user ? (
                   <motion.li
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}

@@ -1,16 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -36,6 +31,10 @@ export function AdminLoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
+  useEffect(() => {
+    form.reset({ email: "", password: "" });
+  }, [form]);
+
   async function onSubmit(values: AdminLoginValues) {
     setFormError(null);
     const result = await login(values.email, values.password);
@@ -59,13 +58,17 @@ export function AdminLoginForm() {
               <FormControl>
                 <Input
                   type="email"
-                  autoComplete="email"
+                  autoComplete="username"
                   placeholder="you@company.com"
+                  value={field.value ?? ""}
+                  name={field.name}
+                  onBlur={field.onBlur}
+                  onChange={field.onChange}
+                  ref={field.ref}
                   className={cn(
                     "bg-white",
                     fieldState.error && "border-destructive focus-visible:ring-destructive",
                   )}
-                  {...field}
                 />
               </FormControl>
               <FormMessage />
@@ -84,11 +87,15 @@ export function AdminLoginForm() {
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     placeholder="••••••••"
+                    value={field.value ?? ""}
+                    name={field.name}
+                    onBlur={field.onBlur}
+                    onChange={field.onChange}
+                    ref={field.ref}
                     className={cn(
                       "bg-white pr-10",
                       fieldState.error && "border-destructive focus-visible:ring-destructive",
                     )}
-                    {...field}
                   />
                   <button
                     type="button"
@@ -110,17 +117,6 @@ export function AdminLoginForm() {
             {formError}
           </p>
         )}
-
-        <div className="flex items-center justify-between">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="cursor-not-allowed text-sm text-muted-foreground/70">
-                Forgot password?
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>Coming soon</TooltipContent>
-          </Tooltip>
-        </div>
 
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? (

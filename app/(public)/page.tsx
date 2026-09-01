@@ -69,7 +69,7 @@ function VisionMissionSection() {
               A house deserves a careful introduction.
             </h3>
             <p className="mt-4 text-sm leading-relaxed text-[#526057] sm:text-[15px] sm:leading-[1.75]">
-              We see a market where buying or selling a home feels considered, never hurried — where
+              We see a market where buying or selling a home feels considered, never hurried, where
               direct-from-owner residences and Dealer-verified stock share one honest floor, and
               families compare with clarity rather than noise.
             </p>

@@ -5,7 +5,7 @@ export function firestoreErrorMessage(error: unknown, fallback: string) {
   if (error && typeof error === "object" && "code" in error) {
     const code = String((error as { code?: string }).code);
     if (code === "permission-denied") {
-      return "Permission denied — check Firestore security rules for this collection.";
+      return "Permission denied. Check Firestore security rules for this collection.";
     }
     if (code === "unavailable") {
       return "Firestore is temporarily unavailable. Try again in a moment.";

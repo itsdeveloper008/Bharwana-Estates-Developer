@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, type Ref } from "react";
+import { useEffect, useState, type Ref } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthCrossLink } from "@/components/auth/auth-shell";
+import { AuthMethodToggle, type AuthMethod } from "@/components/auth/auth-method-toggle";
 import { GoogleRoleCompletionDialog } from "@/components/auth/google-role-completion-dialog";
 import { PhoneOtpSection } from "@/components/auth/phone-otp-section";
 import { RoleSelector } from "@/components/auth/role-selector";
@@ -149,11 +150,15 @@ function PasswordField({
             type={show ? "text" : "password"}
             autoComplete={autoComplete}
             placeholder="••••••••"
+            value={field.value ?? ""}
+            name={field.name}
+            onBlur={field.onBlur}
+            onChange={field.onChange}
+            ref={field.ref}
             className={cn(
               "bg-white pr-10",
               fieldState.error && "border-destructive focus-visible:ring-destructive",
             )}
-            {...field}
           />
           <button
             type="button"
@@ -174,6 +179,7 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useMockAuth();
+  const [authMethod, setAuthMethod] = useState<AuthMethod>("email");
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<UserLoginValues>({
@@ -181,6 +187,10 @@ export function LoginForm() {
     mode: "onBlur",
     defaultValues: { email: "", password: "" },
   });
+
+  useEffect(() => {
+    form.reset({ email: "", password: "" });
+  }, [form]);
 
   function goAfterAuth(role: UserRole) {
     const returnTo = safeReturnTo(searchParams.get("returnTo"));
@@ -200,57 +210,69 @@ export function LoginForm() {
 
   return (
     <div className="space-y-6">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field, fieldState }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input
-                    className={cn(
-                      "bg-white",
-                      fieldState.error && "border-destructive focus-visible:ring-destructive",
-                    )}
-                    type="email"
-                    placeholder="you@email.com"
-                    autoComplete="email"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field, fieldState }) => (
-              <PasswordField field={field} fieldState={fieldState} autoComplete="current-password" />
-            )}
-          />
-          {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          )}
-          <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Signing in…
-              </>
-            ) : (
-              "Sign in"
-            )}
-          </Button>
-        </form>
-      </Form>
+      <AuthMethodToggle value={authMethod} onChange={setAuthMethod} />
 
-      <OrDivider />
-      <PhoneOtpSection onSuccess={(authed) => goAfterAuth(authed.role)} />
+      {authMethod === "email" ? (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      className={cn(
+                        "bg-white",
+                        fieldState.error && "border-destructive focus-visible:ring-destructive",
+                      )}
+                      type="email"
+                      placeholder="you@email.com"
+                      autoComplete="username"
+                      value={field.value ?? ""}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      onChange={field.onChange}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field, fieldState }) => (
+                <PasswordField field={field} fieldState={fieldState} autoComplete="current-password" />
+              )}
+            />
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
+            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Signing in…
+                </>
+              ) : (
+                "Sign in"
+              )}
+            </Button>
+          </form>
+        </Form>
+      ) : (
+        <PhoneOtpSection
+          variant="login"
+          recaptchaId="phone-auth-recaptcha-login"
+          onSuccess={(authed) => goAfterAuth(authed.role)}
+        />
+      )}
+
       <OrDivider />
       <ContinueWithGoogle onSuccess={(authed) => goAfterAuth(authed.role)} />
     </div>
@@ -262,7 +284,9 @@ export function RegisterForm() {
   const searchParams = useSearchParams();
   const { register } = useMockAuth();
   const { addDeveloper } = useMockStore();
+  const [authMethod, setAuthMethod] = useState<AuthMethod>("email");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<RegisterFormValues>({
@@ -288,35 +312,44 @@ export function RegisterForm() {
 
   async function onSubmit(values: RegisterFormValues) {
     setError(null);
-    const result = await register({
-      fullName: values.fullName,
-      email: values.email,
-      phone: values.phone,
-      password: values.password,
-      role: values.role,
-      agencyName: values.role === "DEALER" ? values.agencyName : undefined,
-      registrationNumber: values.role === "DEALER" ? values.registrationNumber : undefined,
-    });
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-
-    if (values.role === "DEALER") {
-      await addDeveloper({
-        id: `d-${Date.now()}`,
-        companyName: values.agencyName!.trim(),
-        contactPerson: values.fullName.trim(),
-        commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
-        dealerUserId: result.user.id,
-        status: "PENDING_REVIEW",
-        origin: "SELF_REGISTERED",
-        registrationNumber: values.registrationNumber?.trim() || undefined,
+    setSubmitting(true);
+    try {
+      const result = await register({
+        fullName: values.fullName,
+        email: values.email,
+        phone: values.phone,
+        password: values.password,
+        role: values.role,
+        agencyName: values.role === "DEALER" ? values.agencyName : undefined,
+        registrationNumber: values.role === "DEALER" ? values.registrationNumber : undefined,
       });
-    }
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
 
-    toast.success(values.role === "DEALER" ? "Dealer account created — pending review" : "Account created");
-    goAfterAuth(values.role);
+      if (values.role === "DEALER") {
+        void addDeveloper({
+          id: `d-${Date.now()}`,
+          companyName: values.agencyName!.trim(),
+          contactPerson: values.fullName.trim(),
+          commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
+          dealerUserId: result.user.id,
+          status: "PENDING_REVIEW",
+          origin: "SELF_REGISTERED",
+          registrationNumber: values.registrationNumber?.trim() || undefined,
+        }).catch((err) => console.error("Dealer profile save failed", err));
+      }
+
+      toast.success(
+        values.role === "DEALER"
+          ? "Dealer account created. Pending review."
+          : "Account created successfully.",
+      );
+      goAfterAuth(values.role);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const loginHref = (() => {
@@ -326,6 +359,9 @@ export function RegisterForm() {
 
   return (
     <div className="space-y-4">
+      <AuthMethodToggle value={authMethod} onChange={setAuthMethod} />
+
+      {authMethod === "email" ? (
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
           <FormField
@@ -487,8 +523,8 @@ export function RegisterForm() {
               {error}
             </p>
           )}
-          <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? (
+          <Button type="submit" className="w-full" disabled={submitting || form.formState.isSubmitting}>
+            {submitting || form.formState.isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Creating…
@@ -502,13 +538,24 @@ export function RegisterForm() {
           </p>
         </form>
       </Form>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Verify your mobile number to create an account. First-time sign-in will ask for your role, same as Google.
+          </p>
+          <PhoneOtpSection
+            variant="register"
+            recaptchaId="phone-auth-recaptcha-register"
+            onSuccess={(authed) => goAfterAuth(authed.role)}
+          />
+          <p className="text-center text-sm text-muted-foreground">
+            Already on the floor? <AuthCrossLink href={loginHref}>Sign in</AuthCrossLink>
+          </p>
+        </div>
+      )}
 
-      <div className="space-y-3">
-        <OrDivider />
-        <PhoneOtpSection variant="register" onSuccess={(authed) => goAfterAuth(authed.role)} />
-        <OrDivider />
-        <ContinueWithGoogle onSuccess={(authed) => goAfterAuth(authed.role)} />
-      </div>
+      <OrDivider />
+      <ContinueWithGoogle onSuccess={(authed) => goAfterAuth(authed.role)} />
     </div>
   );
 }

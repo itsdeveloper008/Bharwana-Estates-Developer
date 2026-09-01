@@ -23,10 +23,10 @@ export default function CookiesPage() {
           title: "Cookies we use",
           paragraphs: ["We may use the following types of cookies:"],
           list: [
-            "Essential cookies — required for security, authentication, and core site functionality",
-            "Preference cookies — remember settings such as session state",
-            "Analytics cookies — help us understand traffic and improve the experience",
-            "Third-party cookies — set by integrated services such as maps or authentication providers",
+            "Essential cookies: required for security, authentication, and core site functionality",
+            "Preference cookies: remember settings such as session state",
+            "Analytics cookies: help us understand traffic and improve the experience",
+            "Third-party cookies: set by integrated services such as maps or authentication providers",
           ],
         },
         {

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { useMockAuth } from "@/lib/mock-auth";
+import { normalizePhoneE164 } from "@/lib/phone-format";
 import {
   phoneOtpRequestSchema,
   phoneOtpVerifySchema,
@@ -22,16 +23,16 @@ import {
 import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const RECAPTCHA_CONTAINER_ID = "phone-auth-recaptcha";
-
 type Step = "phone" | "otp";
 
 export function PhoneOtpSection({
   onSuccess,
   variant = "login",
+  recaptchaId = "phone-auth-recaptcha",
 }: {
   onSuccess: (user: User) => void;
   variant?: "login" | "register";
+  recaptchaId?: string;
 }) {
   const { sendPhoneOtp, verifyPhoneOtp } = useMockAuth();
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
@@ -71,12 +72,20 @@ export function PhoneOtpSection({
     if (!auth) throw new Error("Firebase Auth is not available");
 
     if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(auth, RECAPTCHA_CONTAINER_ID, {
+      recaptchaRef.current = new RecaptchaVerifier(auth, recaptchaId, {
         size: "invisible",
       });
       await recaptchaRef.current.render();
     }
     return recaptchaRef.current;
+  }
+
+  function toE164(localPhone: string) {
+    const digits = localPhone.replace(/\D/g, "");
+    if (localPhone.trim().startsWith("+")) {
+      return normalizePhoneE164(localPhone);
+    }
+    return normalizePhoneE164(digits.startsWith("92") ? `+${digits}` : `+92${digits.replace(/^0/, "")}`);
   }
 
   async function handleSendOtp(values: PhoneOtpRequestValues) {
@@ -89,14 +98,15 @@ export function PhoneOtpSection({
     try {
       await resetRecaptcha();
       const verifier = await getRecaptchaVerifier();
-      const result = await sendPhoneOtp(values.phone, verifier);
+      const e164 = toE164(values.phone);
+      const result = await sendPhoneOtp(e164, verifier);
       if (!result.ok) {
         setError(result.error);
         await resetRecaptcha();
         return;
       }
       confirmationRef.current = result.confirmation;
-      setSentPhone(values.phone);
+      setSentPhone(e164);
       setStep("otp");
       otpForm.reset({ otp: "" });
       toast.success("Verification code sent.");
@@ -144,8 +154,15 @@ export function PhoneOtpSection({
   }
 
   if (!isFirebaseConfigured()) {
-    return null;
+    return (
+      <p className="text-sm text-muted-foreground">
+        Phone sign-in is unavailable on this deploy. Use email or Google instead.
+      </p>
+    );
   }
+
+  const sendLabel = "Send code";
+  const verifyLabel = variant === "register" ? "Verify & create account" : "Verify & sign in";
 
   return (
     <>
@@ -160,17 +177,22 @@ export function PhoneOtpSection({
                   <FormItem>
                     <FormLabel>Mobile number</FormLabel>
                     <FormControl>
-                      <Input
-                        className={cn(
-                          "bg-white",
-                          fieldState.error && "border-destructive focus-visible:ring-destructive",
-                        )}
-                        type="tel"
-                        inputMode="tel"
-                        autoComplete="tel"
-                        placeholder="+92 300 1234567"
-                        {...field}
-                      />
+                      <div className="flex">
+                        <span className="inline-flex items-center rounded-l-md border border-r-0 border-forest/15 bg-cream/70 px-3 text-sm font-medium text-forest">
+                          +92
+                        </span>
+                        <Input
+                          className={cn(
+                            "rounded-l-none bg-white",
+                            fieldState.error && "border-destructive focus-visible:ring-destructive",
+                          )}
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="tel-national"
+                          placeholder="300 1234567"
+                          {...field}
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -181,14 +203,14 @@ export function PhoneOtpSection({
                   {error}
                 </p>
               )}
-              <Button type="submit" variant="outline" className="w-full border-forest/15 bg-white" disabled={pending}>
+              <Button type="submit" className="w-full" disabled={pending}>
                 {pending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Sending code…
                   </>
                 ) : (
-                  "Continue with phone"
+                  sendLabel
                 )}
               </Button>
             </form>
@@ -208,7 +230,7 @@ export function PhoneOtpSection({
                     <FormControl>
                       <Input
                         className={cn(
-                          "bg-white tracking-[0.35em]",
+                          "bg-white text-center text-lg tracking-[0.35em]",
                           fieldState.error && "border-destructive focus-visible:ring-destructive",
                         )}
                         inputMode="numeric"
@@ -234,7 +256,7 @@ export function PhoneOtpSection({
                     Verifying…
                   </>
                 ) : (
-                  "Verify & continue"
+                  verifyLabel
                 )}
               </Button>
               <Button type="button" variant="ghost" className="w-full" onClick={() => void handleChangeNumber()}>
@@ -243,7 +265,7 @@ export function PhoneOtpSection({
             </form>
           </Form>
         )}
-        <div id={RECAPTCHA_CONTAINER_ID} />
+        <div id={recaptchaId} />
       </div>
 
       <GoogleRoleCompletionDialog
