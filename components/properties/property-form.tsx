@@ -4,13 +4,14 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { LayoutGroup, motion } from "framer-motion";
 import {
   ArrowDown,
   ArrowUp,
   Bath,
   BedDouble,
   Check,
+  ChevronLeft,
   CircleDollarSign,
   FileText,
   ImageIcon,
@@ -23,7 +24,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -31,18 +32,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { PublishAuthDialog } from "@/components/auth/publish-auth-dialog";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
-import { formatArea, formatPrice, listingBadge } from "@/lib/format";
 import {
   defaultSubtypeFor,
   LISTING_PURPOSES,
   PROPERTY_CATEGORIES,
   PROPERTY_SUBTYPES,
-  purposeLabel,
-  subtypeLabel,
 } from "@/lib/property-taxonomy";
 import { propertyFormSchema, type PropertyFormValues } from "@/lib/schemas";
 import { CITIES, type PropertyCategory, type PropertyStatus, type User } from "@/lib/types";
@@ -58,14 +55,62 @@ const fieldFocus =
 type FormMode = "public" | "admin";
 type AdminPublishChoice = Extract<PropertyStatus, "PUBLISHED" | "PENDING_APPROVAL">;
 
-const FORM_SECTIONS = [
-  { id: "purpose-type", label: "Purpose & Type", icon: Layers },
-  { id: "listing-details", label: "Listing Details", icon: FileText },
-  { id: "pricing", label: "Pricing", icon: CircleDollarSign },
-  { id: "listing-owner", label: "Listing Owner", icon: UserRound, adminOnly: true },
-  { id: "specs-location", label: "Specs & Location", icon: MapPin },
+const WIZARD_STEPS = [
+  { id: "details", label: "Details", icon: FileText },
+  { id: "place", label: "Place", icon: MapPin },
   { id: "photographs", label: "Photographs", icon: ImageIcon },
 ] as const;
+
+const STEP_FIELDS: Record<number, (keyof PropertyFormValues)[]> = {
+  0: ["purpose", "category", "subtype", "title", "description"],
+  1: ["listingType", "price", "bedrooms", "bathrooms", "areaSqft", "city", "address", "latitude", "longitude"],
+};
+
+function WizardStepIndicator({ current }: { current: number }) {
+  return (
+    <nav aria-label="Listing steps" className="mb-10">
+      <ol className="flex items-start">
+        {WIZARD_STEPS.map((step, index) => {
+          const complete = index < current;
+          const active = index === current;
+          return (
+            <li key={step.id} className="flex flex-1 items-center">
+              <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center">
+                <span
+                  className={cn(
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors",
+                    complete && "border-gold bg-gold text-forest",
+                    active && !complete && "border-gold bg-gold/15 text-forest",
+                    !active && !complete && "border-forest/15 bg-white text-forest/45",
+                  )}
+                >
+                  {complete ? <Check className="h-4 w-4" strokeWidth={2.5} /> : index + 1}
+                </span>
+                <span
+                  className={cn(
+                    "text-[10px] uppercase tracking-[0.14em]",
+                    active || complete ? "text-gold-700" : "text-muted-foreground",
+                  )}
+                >
+                  {step.label}
+                </span>
+              </div>
+              {index < WIZARD_STEPS.length - 1 ? (
+                <div
+                  className={cn(
+                    "mx-2 mb-6 h-px min-w-[1.5rem] flex-1",
+                    index < current ? "bg-gold" : "bg-forest/10",
+                  )}
+                  aria-hidden
+                />
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
 
 function NumberInput({
   value,
@@ -97,23 +142,6 @@ function NumberInput({
         onChange={(event) => onChange(event.target.valueAsNumber)}
       />
     </div>
-  );
-}
-
-function LiveValue({ value, className }: { value: string; className?: string }) {
-  return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.span
-        key={value}
-        initial={{ opacity: 0.35 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0.35 }}
-        transition={{ duration: 0.22, ease: "easeOut" }}
-        className={className}
-      >
-        {value}
-      </motion.span>
-    </AnimatePresence>
   );
 }
 
@@ -166,80 +194,6 @@ function FormSection({
   );
 }
 
-function LivePreviewCard({
-  previewProperty,
-}: {
-  previewProperty: {
-    title: string;
-    price: number;
-    bedrooms: number;
-    bathrooms: number;
-    areaSqft: number;
-    city: string;
-    listingType: "DIRECT_OWNER" | "BUSINESS";
-    purpose: "SALE" | "RENT";
-    category: PropertyCategory;
-    subtype: string;
-    cover?: string;
-  };
-}) {
-  return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-[0_22px_55px_-28px_rgba(15,46,29,0.32)] ring-1 ring-[#EDE6D8]/70">
-      <div className="relative aspect-[4/3] bg-gradient-to-br from-[#f7ebe6] via-[#f3e8e4] to-[#e9ddd4]">
-        {previewProperty.cover ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={previewProperty.cover} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/75 shadow-[0_8px_20px_-12px_rgba(15,46,29,0.25)]">
-              <ImageIcon className="h-5 w-5 text-forest/35" strokeWidth={1.5} />
-            </span>
-            <span className="text-xs">Cover photo appears here</span>
-          </div>
-        )}
-        <Badge
-          variant={previewProperty.listingType === "DIRECT_OWNER" ? "owner" : "verified"}
-          className="absolute left-3 top-3 text-[10px] uppercase"
-        >
-          {listingBadge(previewProperty.listingType)}
-        </Badge>
-      </div>
-      <div className="space-y-2 px-4 py-4">
-        <p className="text-[10px] uppercase tracking-[0.16em] text-gold-700">
-          <LiveValue
-            value={`${purposeLabel(previewProperty.purpose)} · ${
-              subtypeLabel(previewProperty.category, previewProperty.subtype) || "Type"
-            }`}
-          />
-        </p>
-        <p className="font-serif text-xl leading-snug text-forest">
-          <LiveValue value={previewProperty.title} />
-        </p>
-        <p className="text-sm font-medium text-gold-700">
-          <LiveValue
-            value={
-              previewProperty.price > 0
-                ? `${formatPrice(previewProperty.price)}${previewProperty.purpose === "RENT" ? " / mo" : ""}`
-                : "Price"
-            }
-          />
-        </p>
-        <p className="text-xs text-muted-foreground">
-          <LiveValue
-            value={
-              previewProperty.category === "PLOTS"
-                ? `${previewProperty.areaSqft > 0 ? formatArea(previewProperty.areaSqft) : "Area"} · ${previewProperty.city}`
-                : `${previewProperty.bedrooms} bed · ${previewProperty.bathrooms} bath · ${
-                    previewProperty.areaSqft > 0 ? formatArea(previewProperty.areaSqft) : "Area"
-                  } · ${previewProperty.city}`
-            }
-          />
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
   const isAdmin = mode === "admin";
   const router = useRouter();
@@ -264,13 +218,7 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
   const [newOwnerContact, setNewOwnerContact] = useState("");
   const [assignError, setAssignError] = useState<string | null>(null);
   const [adminPublishStatus, setAdminPublishStatus] = useState<AdminPublishChoice>("PUBLISHED");
-  const [activeSection, setActiveSection] = useState<string>("purpose-type");
-  const [highlightSection, setHighlightSection] = useState<string | null>(null);
-
-  const navSections = useMemo(
-    () => FORM_SECTIONS.filter((section) => !("adminOnly" in section && section.adminOnly) || isAdmin),
-    [isAdmin],
-  );
+  const [currentStep, setCurrentStep] = useState(0);
 
   const houseOwners = useMemo(
     () => users.filter((item) => item.role === "HOUSE_OWNER"),
@@ -318,39 +266,8 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
     },
   });
 
-  const [
-    previewTitle,
-    previewPrice,
-    previewBedrooms,
-    previewBathrooms,
-    previewAreaSqft,
-    previewCity,
-    previewListingType,
-    previewPurpose,
-    previewCategory,
-    previewSubtype,
-  ] = useWatch({
-    control: form.control,
-    name: [
-      "title",
-      "price",
-      "bedrooms",
-      "bathrooms",
-      "areaSqft",
-      "city",
-      "listingType",
-      "purpose",
-      "category",
-      "subtype",
-    ],
-  });
-  const listingType = previewListingType ?? "DIRECT_OWNER";
-  const { isValid, isSubmitting, errors } = form.formState;
-
-  const adminAssignmentOk =
-    !isAdmin ||
-    (listingType === "DIRECT_OWNER" ? Boolean(assignOwnerId) : Boolean(assignDeveloperId));
-  const canSubmit = isValid && previews.length >= 1 && adminAssignmentOk && !assignError;
+  const listingType = form.watch("listingType") ?? "DIRECT_OWNER";
+  const { isSubmitting, errors } = form.formState;
 
   useEffect(() => {
     if (isAdmin) return;
@@ -378,50 +295,72 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
     };
   }, []);
 
-  useEffect(() => {
-    const nodes = navSections
-      .map((section) => document.getElementById(section.id))
-      .filter((node): node is HTMLElement => Boolean(node));
-    if (!nodes.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible[0]?.target.id) setActiveSection(visible[0].target.id);
-      },
-      { rootMargin: "-20% 0px -55% 0px", threshold: [0.15, 0.35, 0.55] },
-    );
-    nodes.forEach((node) => observer.observe(node));
-    return () => observer.disconnect();
-  }, [navSections, done]);
-
-  function scrollToSection(id: string) {
-    const node = document.getElementById(id);
-    if (!node) return;
-    node.scrollIntoView({ behavior: "smooth", block: "start" });
-    setActiveSection(id);
+  function goToStep(step: number) {
+    setCurrentStep(step);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function flashSection(id: string) {
-    setHighlightSection(id);
-    scrollToSection(id);
-    window.setTimeout(() => setHighlightSection((current) => (current === id ? null : current)), 1600);
+  function stepForField(field: string): number {
+    const map: Record<string, number> = {
+      purpose: 0,
+      category: 0,
+      subtype: 0,
+      title: 0,
+      description: 0,
+      listingType: 1,
+      price: 1,
+      bedrooms: 1,
+      bathrooms: 1,
+      areaSqft: 1,
+      city: 1,
+      address: 1,
+      latitude: 1,
+      longitude: 1,
+    };
+    return map[field] ?? 0;
+  }
+
+  async function validateCurrentStep(): Promise<boolean> {
+    if (currentStep === 2) {
+      if (previews.length < 1) {
+        setPhotoError(true);
+        return false;
+      }
+      return true;
+    }
+    const fields = STEP_FIELDS[currentStep];
+    const valid = await form.trigger(fields);
+    if (currentStep === 1 && isAdmin) {
+      const issue = validateAdminAssignment(form.getValues());
+      if (issue) {
+        setAssignError(issue);
+        return false;
+      }
+    }
+    return valid;
+  }
+
+  async function handleContinue() {
+    const ok = await validateCurrentStep();
+    if (ok) goToStep(Math.min(currentStep + 1, 2));
+  }
+
+  function handleBack() {
+    goToStep(Math.max(currentStep - 1, 0));
   }
 
   async function revealFirstIssue() {
     const valid = await form.trigger();
     if (previews.length < 1) {
       setPhotoError(true);
-      flashSection("photographs");
+      goToStep(2);
       return;
     }
     if (isAdmin) {
       const issue = validateAdminAssignment(form.getValues());
       if (issue) {
         setAssignError(issue);
-        flashSection("listing-owner");
+        goToStep(1);
         return;
       }
     }
@@ -446,23 +385,7 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
       "longitude",
     ] as const;
     const first = order.find((name) => errors[name] || form.getFieldState(name).error);
-    const sectionForField: Record<string, string> = {
-      purpose: "purpose-type",
-      category: "purpose-type",
-      subtype: "purpose-type",
-      title: "listing-details",
-      description: "listing-details",
-      listingType: "pricing",
-      price: "pricing",
-      bedrooms: "specs-location",
-      bathrooms: "specs-location",
-      areaSqft: "specs-location",
-      city: "specs-location",
-      address: "specs-location",
-      latitude: "specs-location",
-      longitude: "specs-location",
-    };
-    flashSection(first ? sectionForField[first] ?? "purpose-type" : "purpose-type");
+    goToStep(first ? stepForField(first) : 0);
   }
 
   function onFiles(files: FileList | null) {
@@ -542,7 +465,7 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
   async function commitPublish(values: PropertyFormValues, ownerId: string | undefined) {
     if (previews.length < 1) {
       setPhotoError(true);
-      flashSection("photographs");
+      goToStep(2);
       return;
     }
     const id = `p-${Date.now()}`;
@@ -556,7 +479,7 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
       const assignIssue = validateAdminAssignment(values);
       if (assignIssue) {
         setAssignError(assignIssue);
-        flashSection("listing-owner");
+        goToStep(1);
         return;
       }
       if (values.listingType === "DIRECT_OWNER") {
@@ -610,14 +533,14 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
   async function publish(values: PropertyFormValues) {
     if (previews.length < 1) {
       setPhotoError(true);
-      flashSection("photographs");
+      goToStep(2);
       return;
     }
     if (isAdmin) {
       const assignIssue = validateAdminAssignment(values);
       if (assignIssue) {
         setAssignError(assignIssue);
-        flashSection("listing-owner");
+        goToStep(1);
         return;
       }
       await commitPublish(values, assignOwnerId || undefined);
@@ -629,35 +552,6 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
     }
     await commitPublish(values, user.id);
   }
-
-  const previewProperty = useMemo(
-    () => ({
-      title: previewTitle?.trim() || "Your listing title",
-      price: Number.isFinite(previewPrice) ? previewPrice! : 0,
-      bedrooms: Number.isFinite(previewBedrooms) ? previewBedrooms! : 0,
-      bathrooms: Number.isFinite(previewBathrooms) ? previewBathrooms! : 0,
-      areaSqft: Number.isFinite(previewAreaSqft) ? previewAreaSqft! : 0,
-      city: previewCity || "City",
-      listingType: previewListingType ?? "DIRECT_OWNER",
-      purpose: previewPurpose ?? "SALE",
-      category: (previewCategory ?? "HOME") as PropertyCategory,
-      subtype: previewSubtype ?? "",
-      cover: previews[0],
-    }),
-    [
-      previewTitle,
-      previewPrice,
-      previewBedrooms,
-      previewBathrooms,
-      previewAreaSqft,
-      previewCity,
-      previewListingType,
-      previewPurpose,
-      previewCategory,
-      previewSubtype,
-      previews,
-    ],
-  );
 
   if (done) {
     const published = isAdmin && submittedStatus === "PUBLISHED";
@@ -710,54 +604,9 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
     );
   }
 
-  const previewBlock = (
-    <>
-      <div className="flex items-center gap-2">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold/70 opacity-60" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
-        </span>
-        <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Live preview</p>
-      </div>
-      <p className="mt-1 text-sm text-muted-foreground">How buyers will see this listing</p>
-      <div className="mt-4">
-        <LivePreviewCard previewProperty={previewProperty} />
-      </div>
-    </>
-  );
-
   return (
-    <div className="grid gap-8 lg:grid-cols-[132px_minmax(0,1fr)_minmax(260px,320px)] xl:grid-cols-[148px_minmax(0,1fr)_minmax(280px,340px)] lg:items-start">
-      <nav className="hidden lg:sticky lg:top-28 lg:block lg:self-start lg:pl-1" aria-label="Form sections">
-        <LayoutGroup id="form-section-nav">
-          <ul className="space-y-2.5">
-            {navSections.map((section) => {
-              const active = activeSection === section.id;
-              return (
-                <li key={section.id}>
-                  <button
-                    type="button"
-                    onClick={() => scrollToSection(section.id)}
-                    className={cn(
-                      "relative block w-full py-2.5 pl-4 text-left text-[11px] uppercase tracking-[0.14em] transition-colors duration-300",
-                      active ? "text-gold-700" : "text-muted-foreground hover:text-forest",
-                    )}
-                  >
-                    {active ? (
-                      <motion.span
-                        layoutId="form-nav-pill"
-                        className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-full bg-gold"
-                        transition={{ type: "spring", stiffness: 420, damping: 36 }}
-                      />
-                    ) : null}
-                    {section.label}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </LayoutGroup>
-      </nav>
+    <div className="w-full">
+      <WizardStepIndicator current={currentStep} />
 
       <Form {...form}>
         <form
@@ -766,12 +615,13 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
           })}
           className="flex flex-col"
         >
+          {currentStep === 0 && (
+            <>
           <FormSection
             id="purpose-type"
             title="Purpose & Type"
             icon={Layers}
             lead
-            highlighted={highlightSection === "purpose-type"}
             className="mb-10"
           >
             <FormField
@@ -933,14 +783,11 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
             />
           </FormSection>
 
-          <div className="lg:hidden">{previewBlock}</div>
-
           <FormSection
             id="listing-details"
             title="Listing Details"
             icon={FileText}
             tone="cream"
-            highlighted={highlightSection === "listing-details"}
             className="mb-8"
           >
             <FormField
@@ -979,12 +826,15 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
               )}
             />
           </FormSection>
+            </>
+          )}
 
+          {currentStep === 1 && (
+            <>
           <FormSection
             id="pricing"
             title="Pricing"
             icon={CircleDollarSign}
-            highlighted={highlightSection === "pricing"}
             className="mb-7"
           >
             <div className="grid gap-4 sm:grid-cols-2">
@@ -1047,7 +897,6 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
               title="Listing Owner"
               icon={UserRound}
               tone="cream"
-              highlighted={highlightSection === "listing-owner"}
               className="mb-8"
             >
               {listingType === "DIRECT_OWNER" ? (
@@ -1147,7 +996,6 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
             id="specs-location"
             title="Specs & Location"
             icon={MapPin}
-            highlighted={highlightSection === "specs-location"}
             className="mb-11"
           >
             {form.watch("category") !== "PLOTS" && (
@@ -1290,13 +1138,16 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
               }}
             />
           </FormSection>
+            </>
+          )}
 
+          {currentStep === 2 && (
+            <>
           <FormSection
             id="photographs"
             title="Photographs"
             icon={ImageIcon}
             tone="cream"
-            highlighted={highlightSection === "photographs"}
             className="mb-10"
           >
             <div
@@ -1438,24 +1289,7 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
                 isAdmin && "border-t border-gold/20 pt-5",
               )}
             >
-              {!canSubmit && (
-                <p className="text-[11px] text-muted-foreground sm:text-right">
-                  Complete all required fields to submit
-                </p>
-              )}
-              <Button
-                type={canSubmit ? "submit" : "button"}
-                disabled={isSubmitting}
-                className={cn("sm:min-w-[220px]", !canSubmit && "opacity-55")}
-                onClick={
-                  canSubmit
-                    ? undefined
-                    : (event) => {
-                        event.preventDefault();
-                        void revealFirstIssue();
-                      }
-                }
-              >
+              <Button type="submit" disabled={isSubmitting} className="sm:min-w-[220px]">
                 {isSubmitting
                   ? isAdmin && adminPublishStatus === "PUBLISHED"
                     ? "Publishing…"
@@ -1468,10 +1302,26 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
               </Button>
             </div>
           </div>
+            </>
+          )}
+
+          <div className="mt-8 flex items-center justify-between gap-4 border-t border-forest/10 pt-8">
+            {currentStep > 0 ? (
+              <Button type="button" variant="outline" onClick={handleBack} className="gap-2">
+                <ChevronLeft className="h-4 w-4" />
+                Back
+              </Button>
+            ) : (
+              <span />
+            )}
+            {currentStep < 2 ? (
+              <Button type="button" onClick={() => void handleContinue()} className="min-w-[140px]">
+                Continue
+              </Button>
+            ) : null}
+          </div>
         </form>
       </Form>
-
-      <aside className="hidden lg:sticky lg:top-28 lg:block lg:self-start">{previewBlock}</aside>
 
       {!isAdmin && (
         <PublishAuthDialog
