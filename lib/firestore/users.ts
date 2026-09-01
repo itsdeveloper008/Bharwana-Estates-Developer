@@ -156,3 +156,35 @@ export async function removeSavedProperty(uid: string, propertyId: string): Prom
     savedPropertyIds: arrayRemove(propertyId),
   });
 }
+
+/** Grant or update admin role on the canonical users/{uid} profile. */
+export async function grantAdminRole(
+  uid: string,
+  input: { email: string; fullName: string; phone?: string },
+): Promise<User> {
+  const db = getDb();
+  if (!db) throw new Error("Firebase is not configured");
+
+  const payload: Record<string, unknown> = {
+    fullName: input.fullName.trim(),
+    email: input.email.trim().toLowerCase(),
+    phone: (input.phone ?? "").trim(),
+    role: "ADMIN",
+    savedPropertyIds: [],
+  };
+
+  await withTimeout(
+    setDoc(doc(db, COLLECTION, uid), payload, { merge: true }),
+    FIRESTORE_WRITE_TIMEOUT_MS,
+    "Grant admin role",
+  );
+
+  return {
+    id: uid,
+    fullName: input.fullName.trim(),
+    email: input.email.trim().toLowerCase(),
+    phone: (input.phone ?? "").trim(),
+    role: "ADMIN",
+    savedPropertyIds: [],
+  };
+}

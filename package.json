@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "phone-auth:diagnose": "node scripts/diagnose-phone-auth.mjs",
+    "phone-auth:configure": "node scripts/configure-phone-auth.mjs",
+    "admin:grant": "node scripts/grant-admin.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

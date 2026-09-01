@@ -9,15 +9,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User as FirebaseUser } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
-import {
-  authenticateAdmin,
-  type AdminSession,
-} from "@/lib/mock-data/admin-users";
-import { delay } from "@/lib/utils";
+import { resolveAdminAuthorization } from "@/lib/firestore/admin-access";
 
-const STORAGE_KEY = "bharwana_admin_session";
+export interface AdminSession {
+  uid: string;
+  email: string;
+  fullName: string;
+  role: "ADMIN";
+  avatarUrl?: string;
+}
 
 interface AdminAuthContextValue {
   admin: AdminSession | null;
@@ -28,6 +30,8 @@ interface AdminAuthContextValue {
 }
 
 const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefined);
+
+const NOT_ADMIN_ERROR = "This account does not have admin access.";
 
 function authErrorMessage(code: string): string {
   switch (code) {
@@ -47,82 +51,130 @@ function authErrorMessage(code: string): string {
   }
 }
 
+async function resolveAdminSession(firebaseUser: FirebaseUser): Promise<AdminSession | null> {
+  const authResult = await resolveAdminAuthorization(
+    firebaseUser.uid,
+    firebaseUser.email ?? "",
+  );
+
+  if (!authResult.authorized) return null;
+
+  const profile = authResult.profile;
+  return {
+    uid: firebaseUser.uid,
+    email: profile.email.toLowerCase(),
+    fullName: profile.fullName,
+    role: "ADMIN",
+    avatarUrl: profile.avatarUrl ?? firebaseUser.photoURL ?? undefined,
+  };
+}
+
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState<AdminSession | null>(null);
   const [isReady, setIsReady] = useState(false);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as AdminSession;
-        if (parsed?.email && parsed?.role === "ADMIN") {
-          setAdmin(parsed);
-        }
-      }
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
-    } finally {
-      setIsReady(true);
-    }
+  const clearUnauthorizedFirebaseSession = useCallback(async () => {
+    const auth = getFirebaseAuth();
+    if (!auth?.currentUser) return;
+    await signOut(auth).catch(() => undefined);
   }, []);
 
-  const persist = useCallback((session: AdminSession | null) => {
-    setAdmin(session);
-    if (session) localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    else localStorage.removeItem(STORAGE_KEY);
-  }, []);
+  useEffect(() => {
+    try {
+      localStorage.removeItem("bharwana_admin_session");
+    } catch {
+      // ignore
+    }
+
+    if (!isFirebaseConfigured()) {
+      setAdmin(null);
+      setIsReady(true);
+      return;
+    }
+
+    const auth = getFirebaseAuth();
+    if (!auth) {
+      setAdmin(null);
+      setIsReady(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      void (async () => {
+        try {
+          if (!firebaseUser) {
+            if (!cancelled) setAdmin(null);
+            return;
+          }
+
+          const session = await resolveAdminSession(firebaseUser);
+          if (!session) {
+            await clearUnauthorizedFirebaseSession();
+            if (!cancelled) setAdmin(null);
+            return;
+          }
+
+          if (!cancelled) setAdmin(session);
+        } catch (error) {
+          console.error("Admin auth state sync failed", error);
+          await clearUnauthorizedFirebaseSession();
+          if (!cancelled) setAdmin(null);
+        } finally {
+          if (!cancelled) setIsReady(true);
+        }
+      })();
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [clearUnauthorizedFirebaseSession]);
 
   const login = useCallback(
     async (email: string, password: string) => {
+      if (!isFirebaseConfigured()) {
+        return {
+          ok: false as const,
+          error: "Admin sign-in requires Firebase. Configure NEXT_PUBLIC_FIREBASE_* on this deploy.",
+        };
+      }
+
+      const auth = getFirebaseAuth();
+      if (!auth) {
+        return { ok: false as const, error: "Firebase Auth is not available." };
+      }
+
       const normalized = email.trim().toLowerCase();
 
-      // Firebase email/password when the project is configured
-      if (isFirebaseConfigured()) {
-        const auth = getFirebaseAuth();
-        if (!auth) {
-          return { ok: false as const, error: "Firebase Auth is not available." };
+      try {
+        const credential = await signInWithEmailAndPassword(auth, normalized, password);
+        const session = await resolveAdminSession(credential.user);
+        if (!session) {
+          await signOut(auth);
+          return { ok: false as const, error: NOT_ADMIN_ERROR };
         }
-        try {
-          const credential = await signInWithEmailAndPassword(auth, normalized, password);
-          const firebaseUser = credential.user;
-          const session: AdminSession = {
-            email: (firebaseUser.email ?? normalized).toLowerCase(),
-            fullName:
-              firebaseUser.displayName?.trim() ||
-              firebaseUser.email?.split("@")[0] ||
-              "Admin",
-            role: "ADMIN",
-            avatarUrl: firebaseUser.photoURL ?? undefined,
-          };
-          persist(session);
-          return { ok: true as const };
-        } catch (error) {
-          const code =
-            error && typeof error === "object" && "code" in error
-              ? String((error as { code?: string }).code)
-              : "";
-          return { ok: false as const, error: authErrorMessage(code) };
-        }
-      }
 
-      // Local mock admins only when Firebase env is missing
-      await delay(0);
-      const session = authenticateAdmin(normalized, password);
-      if (!session) {
-        return { ok: false as const, error: "Invalid email or password" };
+        setAdmin(session);
+        return { ok: true as const };
+      } catch (error) {
+        const code =
+          error && typeof error === "object" && "code" in error
+            ? String((error as { code?: string }).code)
+            : "";
+        return { ok: false as const, error: authErrorMessage(code) };
       }
-      persist(session);
-      return { ok: true as const };
     },
-    [persist],
+    [],
   );
 
   const logout = useCallback(() => {
-    persist(null);
+    setAdmin(null);
     const auth = getFirebaseAuth();
     if (auth) void signOut(auth).catch(() => undefined);
-  }, [persist]);
+  }, []);
 
   const value = useMemo(
     () => ({

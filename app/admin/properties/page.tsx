@@ -25,9 +25,6 @@ export default function AdminPropertiesPage() {
         <div>
           <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Inventory</p>
           <h1 className="font-serif text-3xl">Properties</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Shared mock inventory. Delete removes a listing from the session store.
-          </p>
         </div>
         <Button asChild>
           <Link href="/admin/properties/add">Add Property</Link>

@@ -22,7 +22,6 @@ export default function AdminInquiriesPage() {
     users,
     inquiriesLoading,
     inquiriesError,
-    usingFirestoreInquiries,
     removeInquiry,
     updateInquiryStatus,
   } = useMockStore();
@@ -42,12 +41,7 @@ export default function AdminInquiriesPage() {
   return (
     <div>
       <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Pipeline</p>
-      <h1 className="font-serif text-2xl sm:text-3xl">Inquiries</h1>
-      <p className="mb-8 mt-2 text-sm text-muted-foreground">
-        {usingFirestoreInquiries
-          ? "Live from Firestore. New leads appear without refresh. Click a row to view full details."
-          : "Local-only until Firebase is configured on this deploy. Leads will not sync across devices."}
-      </p>
+      <h1 className="mb-8 font-serif text-2xl sm:text-3xl">Inquiries</h1>
 
       {inquiriesError && (
         <p className="mb-4 border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">

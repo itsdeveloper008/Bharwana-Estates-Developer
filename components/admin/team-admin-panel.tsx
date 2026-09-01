@@ -99,8 +99,7 @@ function SortableRow({
 }
 
 export function TeamAdminPanel() {
-  const { members, addMember, updateMember, deleteMember, reorderMembers, usingFirestore } =
-    useTeamStore();
+  const { members, addMember, updateMember, deleteMember, reorderMembers } = useTeamStore();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TeamMember | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -154,10 +153,6 @@ export function TeamAdminPanel() {
         <div>
           <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">People</p>
           <h1 className="font-serif text-3xl">Team</h1>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Manage who appears on the public About page. Drag rows to set display order.
-            {usingFirestore ? " Synced with Firestore." : " Local mode (Firebase env not set)."}
-          </p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" />

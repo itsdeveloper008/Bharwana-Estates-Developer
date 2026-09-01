@@ -67,10 +67,7 @@ export default function AdminCommissionsPage() {
   return (
     <div>
       <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Finance</p>
-      <h1 className="font-serif text-3xl">Commission report</h1>
-      <p className="mb-8 mt-2 text-sm text-muted-foreground">
-        Closed deals across all dealers. Status changes sync to each dealer&apos;s Commission tab.
-      </p>
+      <h1 className="mb-8 font-serif text-3xl">Commission report</h1>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <div className="border border-forest/10 bg-white p-5">

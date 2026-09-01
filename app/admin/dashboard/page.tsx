@@ -3,16 +3,13 @@
 import Link from "next/link";
 import { Building2, ClipboardCheck, Handshake, MessageSquare, Percent, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { formatPriceFull } from "@/lib/format";
 import { sumCommission, useMockStore } from "@/lib/mock-store";
 import { useTeamStore } from "@/lib/team-store";
 
 export default function AdminDashboardPage() {
-  const { properties, inquiries, developers, transactions, usingFirestoreInquiries, usingFirestoreProperties } =
-    useMockStore();
-  const { members, usingFirestore: teamOnFirestore } = useTeamStore();
-  const firebaseReady = isFirebaseConfigured();
+  const { properties, inquiries, developers, transactions } = useMockStore();
+  const { members } = useTeamStore();
 
   const activeInquiries = inquiries.filter(
     (inquiry) => !["CLOSED_WON", "CLOSED_LOST"].includes(inquiry.status),
@@ -63,13 +60,6 @@ export default function AdminDashboardPage() {
     <div>
       <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Overview</p>
       <h1 className="font-serif text-3xl">Dashboard</h1>
-      <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-        {firebaseReady
-          ? `Firebase connected. Inquiries ${usingFirestoreInquiries ? "live on" : "local (fallback)"} · Properties ${
-              usingFirestoreProperties ? "live on" : "local (fallback)"
-            } · Team ${teamOnFirestore ? "on" : "off"} Firestore.`
-          : "Firebase env not set. Inquiries and listings stay local to each browser until keys are added on the host."}
-      </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {stats.map((stat) => (

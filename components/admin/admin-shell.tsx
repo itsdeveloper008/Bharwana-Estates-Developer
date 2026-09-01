@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -37,6 +38,24 @@ const navItems = [
   { href: "/admin/team", label: "Team", icon: UsersRound },
   { href: "/admin/users", label: "Users", icon: Users },
 ];
+
+function AdminBrand() {
+  return (
+    <Link href="/admin/dashboard" className="flex items-center gap-3">
+      <Image
+        src="/logo.png"
+        alt="Bharwana Estates"
+        width={36}
+        height={36}
+        className="h-9 w-9 shrink-0 object-contain"
+      />
+      <div>
+        <p className="font-display text-[11px] tracking-crest text-forest">BHARWANA</p>
+        <p className="text-[10px] uppercase tracking-[0.18em] text-gold-700">Admin</p>
+      </div>
+    </Link>
+  );
+}
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -111,8 +130,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-ivory">
       <aside className="hidden w-60 shrink-0 border-r border-forest/10 bg-cream/40 lg:flex lg:flex-col">
         <div className="border-b border-forest/10 px-5 py-5">
-          <p className="font-display text-[11px] tracking-crest text-forest">BHARWANA</p>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-gold-700">Admin</p>
+          <AdminBrand />
         </div>
         <div className="flex-1 px-2 py-4">
           <NavLinks />
@@ -141,7 +159,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </SheetTrigger>
               <SheetContent side="left" className="w-64 bg-ivory p-0">
                 <SheetHeader className="border-b border-forest/10 px-5 py-5 text-left">
-                  <SheetTitle className="font-display text-sm tracking-crest">BHARWANA</SheetTitle>
+                  <SheetTitle asChild>
+                    <AdminBrand />
+                  </SheetTitle>
                 </SheetHeader>
                 <div className="px-2 py-4">
                   <NavLinks onNavigate={() => setOpen(false)} />

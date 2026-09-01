@@ -95,10 +95,7 @@ export default function AdminSubmissionsPage() {
   return (
     <div>
       <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Verification</p>
-      <h1 className="font-serif text-2xl sm:text-3xl">Submissions</h1>
-      <p className="mb-6 mt-2 text-sm text-muted-foreground">
-        Review seller inventory before it reaches the public floor. {pendingCount} pending.
-      </p>
+      <h1 className="mb-6 font-serif text-2xl sm:text-3xl">Submissions</h1>
 
       <div className="mb-6 flex flex-wrap gap-2">
         {TABS.map((item) => (
