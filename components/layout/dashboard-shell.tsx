@@ -86,7 +86,7 @@ export function DashboardShell({
         <div className="mx-auto flex max-w-lg flex-col items-center px-6 py-24 text-center">
           <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Preview access</p>
           <h1 className="mt-3 font-serif text-4xl">{copy.title}</h1>
-          <p className="mt-3 text-sm text-muted-foreground">{copy.description}</p>
+          <p className="type-subheading">{copy.description}</p>
           <Button className="mt-8" onClick={() => demoUser && loginAs(demoUser)}>
             Continue as {demoUser?.fullName}
           </Button>

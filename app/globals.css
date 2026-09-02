@@ -54,7 +54,21 @@
   h2,
   h3,
   h4 {
-    @apply font-serif font-semibold tracking-tight text-forest;
+    @apply font-serif font-normal tracking-tight text-forest;
+  }
+}
+
+@layer components {
+  .type-eyebrow {
+    @apply font-sans text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700;
+  }
+
+  .type-subheading {
+    @apply mt-5 max-w-[42rem] font-sans text-lg leading-[1.65] text-forest/65 sm:text-xl;
+  }
+
+  .type-subheading-on-dark {
+    @apply mt-5 max-w-xl font-sans text-base leading-[1.65] text-ivory/85 sm:text-lg;
   }
 }
 

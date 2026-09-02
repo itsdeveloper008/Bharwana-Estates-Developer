@@ -1,20 +1,18 @@
-import { Rajdhani, Yantramanav } from "next/font/google";
+import { Inter, Playfair_Display } from "next/font/google";
 import type { Metadata } from "next";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-/** Body / UI — matches Imarat (Yantramanav) */
-const yantramanav = Yantramanav({
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
   display: "swap",
 });
 
-/** Headings / display — matches Imarat (Rajdhani) */
-const rajdhani = Rajdhani({
+const playfair = Playfair_Display({
   subsets: ["latin"],
-  weight: ["500", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-serif",
   display: "swap",
 });
@@ -44,10 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${yantramanav.variable} ${rajdhani.variable} font-sans`}
-        style={{ ["--font-display" as string]: "var(--font-serif)" }}
-      >
+      <body className={`${inter.variable} ${playfair.variable} font-sans`}>
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -27,7 +27,7 @@ export function SavedPropertiesPage() {
       <div className="mx-auto max-w-2xl px-4 py-20 text-center sm:px-6">
         <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Saved</p>
         <h1 className="mt-3 font-serif text-4xl">Saved Residences</h1>
-        <p className="mt-4 text-sm text-muted-foreground">
+        <p className="type-subheading">
           Sign in to keep a private shortlist of homes you want to revisit.
         </p>
         <Button asChild className="mt-8 rounded-full">

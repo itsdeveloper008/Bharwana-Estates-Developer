@@ -18,7 +18,7 @@ export function TeamGrid() {
           <p className="text-[11px] uppercase tracking-[0.28em] text-gold-700">Our people</p>
           <h2 className="mt-3 font-serif text-4xl sm:text-5xl">Meet the Team</h2>
           <div className="mx-auto mt-5 h-px w-16 bg-gold/60" />
-          <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">
+          <p className="type-subheading mx-auto text-center">
             Leadership, design, and craft behind every introduction. Open a profile for the full
             story.
           </p>

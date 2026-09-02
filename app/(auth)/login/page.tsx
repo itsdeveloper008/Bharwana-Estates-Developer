@@ -9,7 +9,7 @@ export default function LoginPage() {
     <>
       <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Members</p>
       <h1 className="mt-2 font-serif text-4xl">Sign in</h1>
-      <p className="mt-2 mb-8 text-sm text-muted-foreground">
+      <p className="type-subheading mb-8">
         Sign in with email, phone OTP, or Google to list homes or manage your listings.
       </p>
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>

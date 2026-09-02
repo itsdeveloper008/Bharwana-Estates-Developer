@@ -91,23 +91,28 @@ export function PillToggleGroup({
   allowDeselect?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-0.5 rounded-full bg-ivory/95 p-1 shadow-lift sm:bg-cream/80">
-      {options.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          onClick={() => {
-            if (allowDeselect && value === item.id) onChange("ALL");
-            else onChange(item.id);
-          }}
-          className={cn(
-            "rounded-full px-4 py-2 text-sm font-medium transition-colors duration-200",
-            value === item.id ? "bg-forest/10 text-forest" : "text-forest/60 hover:text-forest",
-          )}
-        >
-          {item.label}
-        </button>
-      ))}
+    <div className="inline-flex items-center gap-0.5 rounded-full bg-ivory p-1 shadow-lift ring-1 ring-forest/10">
+      {options.map((item) => {
+        const isActive = value === item.id;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => {
+              if (allowDeselect && value === item.id) onChange("ALL");
+              else onChange(item.id);
+            }}
+            className={cn(
+              "rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-200",
+              isActive
+                ? "bg-forest text-ivory shadow-[0_8px_20px_-10px_rgba(15,46,29,0.45)]"
+                : "text-forest/80 hover:bg-forest/[0.07] hover:text-forest",
+            )}
+          >
+            {item.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

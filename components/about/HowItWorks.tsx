@@ -44,7 +44,7 @@ export function HowItWorks() {
           <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">The process</p>
           <h2 className="mt-3 font-serif text-4xl">How a home moves through Bharwana</h2>
           <div className="mt-4 h-px w-14 bg-gold/60" />
-          <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">
+          <p className="type-subheading">
             A quiet path from first look to keys. The same care whether you browse, inquire, or list.
           </p>
         </motion.div>

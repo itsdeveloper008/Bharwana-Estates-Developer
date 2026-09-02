@@ -28,7 +28,7 @@ export function FaqPageContent() {
     <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-20">
       <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Questions</p>
       <h1 className="mt-3 font-serif text-4xl sm:text-5xl">Answers before you ask.</h1>
-      <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
+      <p className="type-subheading">
         Clear guidance on how Bharwana introduces buyers, sellers, and dealers, drawn from how the
         platform actually works.
       </p>

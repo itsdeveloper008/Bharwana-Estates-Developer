@@ -33,7 +33,7 @@ export function AboutHero() {
             Building Trust, One Address at a Time
           </h1>
           <div className="mx-auto mt-6 h-px w-16 bg-gold/70" />
-          <p className="mx-auto mt-6 max-w-xl text-sm leading-relaxed text-ivory/75 sm:text-base">
+          <p className="type-subheading-on-dark mx-auto">
             Bharwana Estates Dealer exists to place private homes and
             Dealer-verified residences on a single, honest floor. We favour
             clarity over noise, so every conversation starts with the property,

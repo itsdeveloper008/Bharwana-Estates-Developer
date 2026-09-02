@@ -18,7 +18,7 @@ export function OurStory() {
           <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Our story</p>
           <h2 className="mt-3 font-serif text-4xl">A house deserves a careful introduction.</h2>
           <div className="mt-4 h-px w-14 bg-gold/60" />
-          <p className="mt-6 text-sm leading-relaxed text-forest/80 sm:text-base">
+          <p className="type-subheading">
             Bharwana Estates Dealer was founded on the principle that buying or selling a home
             should feel considered, never hurried. We bring direct-from-owner residences and
             Dealer-verified stock onto one floor, so families can compare with honesty and speak

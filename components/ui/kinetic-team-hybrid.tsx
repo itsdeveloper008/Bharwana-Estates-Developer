@@ -86,7 +86,7 @@ export default function KineticTeamHybrid({
             <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-[#B9954A]">
               {eyebrow}
             </p>
-            <h1 className="mt-5 font-serif text-[2.75rem] font-normal leading-[1.05] tracking-tight text-[#F5F1E8] sm:text-6xl md:text-7xl lg:text-[5.75rem]">
+            <h1 className="mt-5 font-serif text-[2.75rem] leading-[1.05] tracking-tight text-[#F5F1E8] sm:text-6xl md:text-7xl lg:text-[5.75rem]">
               {title.split(" ").length > 1 ? (
                 <>
                   {title.split(" ").slice(0, -1).join(" ")}{" "}
@@ -96,7 +96,7 @@ export default function KineticTeamHybrid({
                 title
               )}
             </h1>
-            <p className="mt-6 max-w-lg text-base leading-relaxed text-[#F5F1E8]/55 sm:text-lg">
+            <p className="type-subheading-on-dark max-w-lg">
               {subtitle}
             </p>
           </div>

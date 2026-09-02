@@ -12,7 +12,7 @@ export function FaqTeaser() {
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Questions</p>
         <h2 className="mt-3 font-serif text-4xl sm:text-5xl">Answers before you ask.</h2>
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+        <p className="type-subheading">
           A few of the questions we hear most often from buyers and sellers.
         </p>
         <FaqAccordion items={items} className="mt-10" />

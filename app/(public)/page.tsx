@@ -131,7 +131,7 @@ function WhyBharwanaSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.5 }}
               transition={{ duration: 0.7, delay: 0.05, ease }}
-              className="mt-5 font-serif text-[2.5rem] font-normal leading-[1.1] tracking-tight text-[#082B1D] sm:text-5xl lg:text-[4.5rem] lg:leading-[1.05]"
+              className="mt-5 font-serif text-[2.5rem] leading-[1.1] tracking-tight text-[#082B1D] sm:text-5xl lg:text-[4.5rem] lg:leading-[1.05]"
             >
               Homes deserve a more thoughtful introduction.
             </motion.h2>
@@ -141,7 +141,7 @@ function WhyBharwanaSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.5 }}
               transition={{ duration: 0.6, delay: 0.12, ease }}
-              className="mt-6 max-w-[24rem] text-[15px] leading-[1.75] text-[#526057]"
+              className="type-subheading max-w-[38rem]"
             >
               Property should feel considered, transparent, and personal. We bring homes, owners, and
               buyers together without unnecessary noise.
@@ -152,7 +152,7 @@ function WhyBharwanaSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.55, delay: 0.2, ease }}
-              className="mt-8 text-[10px] uppercase tracking-[0.2em] text-[#082B1D]/40"
+              className="mt-10 text-[10px] uppercase tracking-[0.2em] text-[#082B1D]/40"
             >
               Private residences · Verified homes · Thoughtful service
             </motion.p>
@@ -280,7 +280,7 @@ export default function HomePage() {
             <h1 className="mt-3 max-w-3xl font-serif text-4xl text-ivory sm:text-5xl sm:leading-[1.08]">
               Homes held with the gravity of a family name.
             </h1>
-            <p className="mt-4 max-w-xl text-sm text-ivory/75 sm:text-base">
+            <p className="type-subheading-on-dark">
               Direct-owner residences and Dealer-verified stock, presented as a brochure, not a marketplace stall.
             </p>
             <div className="mt-8 w-full">
