@@ -47,28 +47,28 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background font-sans font-light text-foreground antialiased;
   }
 
   h1,
   h2,
   h3,
   h4 {
-    @apply font-serif font-normal tracking-tight text-forest;
+    @apply font-sans font-extralight tracking-tight text-forest;
   }
 }
 
 @layer components {
   .type-eyebrow {
-    @apply font-sans text-[11px] font-medium uppercase tracking-[0.22em] text-gold-700;
+    @apply font-sans text-[11px] font-normal uppercase tracking-[0.22em] text-gold-700;
   }
 
   .type-subheading {
-    @apply mt-5 max-w-[42rem] font-sans text-lg leading-[1.65] text-forest/65 sm:text-xl;
+    @apply mt-5 max-w-[42rem] font-sans text-lg font-light leading-[1.65] text-forest/65 sm:text-xl;
   }
 
   .type-subheading-on-dark {
-    @apply mt-5 max-w-xl font-sans text-base leading-[1.65] text-ivory/85 sm:text-lg;
+    @apply mt-5 max-w-xl font-sans text-base font-light leading-[1.65] text-ivory/85 sm:text-lg;
   }
 }
 

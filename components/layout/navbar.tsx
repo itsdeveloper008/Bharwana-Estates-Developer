@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Phone, X } from "lucide-react";
+import { PhoneCall, X } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import {
   DropdownMenu,
@@ -222,7 +222,7 @@ export function Navbar() {
             <Link
               href={listPropertyHref}
               className={cn(
-                "group relative inline-flex items-center overflow-hidden bg-[#B89545] px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#082B1D]",
+                "group relative inline-flex items-center overflow-hidden rounded-xl bg-[#B89545] px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#082B1D]",
                 "shadow-[0_10px_24px_-12px_rgba(184,149,69,0.85)] transition-[transform,background-color,box-shadow] duration-300",
                 "hover:-translate-y-px hover:bg-[#c4a455] hover:shadow-[0_14px_28px_-12px_rgba(184,149,69,0.95)]",
                 "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#082B1D]",
@@ -251,13 +251,13 @@ export function Navbar() {
             >
               <span
                 className={cn(
-                  "flex h-9 w-9 items-center justify-center border transition-colors duration-300",
+                  "flex h-9 w-9 items-center justify-center rounded-xl border transition-colors duration-300",
                   overHero
                     ? "border-[#F5F1E8]/35 bg-[#F5F1E8]/10 group-hover:border-[#B89545]/60"
                     : "border-[#082B1D]/20 bg-[#082B1D]/[0.04] group-hover:border-[#B89545]/50",
                 )}
               >
-                <Phone className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-hover:-translate-y-px" strokeWidth={1.5} />
+                <PhoneCall className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-hover:-translate-y-px" strokeWidth={1.5} />
               </span>
               <span className="flex flex-col leading-tight">
                 <span
@@ -363,7 +363,7 @@ export function Navbar() {
                 overHero ? "text-[#F5F1E8] hover:text-[#B89545]" : "text-[#082B1D] hover:text-[#B89545]",
               )}
             >
-              <Phone className="h-5 w-5" strokeWidth={1.5} />
+              <PhoneCall className="h-5 w-5" strokeWidth={1.5} />
             </a>
             <button
               type="button"
@@ -492,7 +492,7 @@ export function Navbar() {
               <Link
                 href={listPropertyHref}
                 onClick={() => setOpen(false)}
-                className="flex w-full items-center justify-center bg-[#B89545] px-6 py-4 text-[12px] font-medium uppercase tracking-[0.16em] text-[#082B1D] transition-colors hover:bg-[#a8843c]"
+                className="flex w-full items-center justify-center rounded-xl bg-[#B89545] px-6 py-4 text-[12px] font-medium uppercase tracking-[0.16em] text-[#082B1D] transition-colors hover:bg-[#a8843c]"
               >
                 List a property
               </Link>
@@ -502,7 +502,7 @@ export function Navbar() {
                 onClick={() => setOpen(false)}
                 className="flex items-center justify-center gap-2.5 text-[#F5F1E8]/80 transition-colors hover:text-[#B89545]"
               >
-                <Phone className="h-4 w-4" strokeWidth={1.5} />
+                <PhoneCall className="h-4 w-4" strokeWidth={1.5} />
                 <span className="text-[13px] tracking-[0.04em]">Call {phoneDisplay}</span>
               </a>
 

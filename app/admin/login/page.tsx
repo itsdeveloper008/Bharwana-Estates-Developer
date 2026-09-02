@@ -21,8 +21,8 @@ export default function AdminLoginPage() {
         aria-hidden
       />
 
-      <div className="relative z-10 flex w-full max-w-md flex-col items-center">
-        <header className="mb-6 text-center">
+      <div className="relative z-10 flex w-full max-w-[26rem] flex-col items-center sm:max-w-[27.5rem]">
+        <header className="mb-6 w-full text-center">
           <Image
             src="/logo.png"
             alt="Bharwana Estates"
@@ -39,7 +39,7 @@ export default function AdminLoginPage() {
           </p>
         </header>
 
-        <div className="w-full rounded-2xl border border-white/10 bg-ivory px-8 py-8 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.45)] sm:px-10 sm:py-9">
+        <div className="w-full rounded-2xl border border-white/10 bg-ivory px-7 py-11 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.45)] sm:px-8 sm:py-14">
           <AdminLoginForm />
         </div>
       </div>

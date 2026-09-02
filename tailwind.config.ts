@@ -62,9 +62,9 @@ const config: Config = {
         ring: "hsl(var(--ring))",
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "Inter", "system-ui", "sans-serif"],
-        serif: ["var(--font-serif)", "Playfair Display", "Georgia", "serif"],
-        display: ["var(--font-sans)", "Inter", "system-ui", "sans-serif"],
+        sans: ["var(--font-sans)", "Montserrat", "system-ui", "sans-serif"],
+        serif: ["var(--font-sans)", "Montserrat", "system-ui", "sans-serif"],
+        display: ["var(--font-sans)", "Montserrat", "system-ui", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",

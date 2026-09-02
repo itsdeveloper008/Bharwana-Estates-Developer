@@ -152,9 +152,17 @@ function WhyBharwanaSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.55, delay: 0.2, ease }}
-              className="mt-10 text-[10px] uppercase tracking-[0.2em] text-[#082B1D]/40"
+              className="mt-10 flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] font-medium uppercase tracking-[0.18em] text-[#526057]"
             >
-              Private residences · Verified homes · Thoughtful service
+              <span>Private residences</span>
+              <span className="text-gold-700" aria-hidden>
+                ·
+              </span>
+              <span>Verified homes</span>
+              <span className="text-gold-700" aria-hidden>
+                ·
+              </span>
+              <span>Thoughtful service</span>
             </motion.p>
           </div>
 
@@ -275,9 +283,8 @@ export default function HomePage() {
             transition={{ duration: 0.7, ease: "easeOut" }}
             className="flex w-full flex-col items-center"
           >
-            <Image src="/logo.png" alt="Bharwana Estates Dealer" width={92} height={92} className="h-[92px] w-[92px] object-contain" />
-            <p className="mt-2 font-display text-sm tracking-crest text-gold">BHARWANA</p>
-            <h1 className="mt-3 max-w-3xl font-serif text-4xl text-ivory sm:text-5xl sm:leading-[1.08]">
+            <Image src="/logo.png" alt="Bharwana Estates Dealer" width={128} height={128} className="h-[128px] w-[128px] object-contain sm:h-[140px] sm:w-[140px]" />
+            <h1 className="mt-5 max-w-3xl font-serif text-4xl text-ivory sm:text-5xl sm:leading-[1.08]">
               Homes held with the gravity of a family name.
             </h1>
             <p className="type-subheading-on-dark">

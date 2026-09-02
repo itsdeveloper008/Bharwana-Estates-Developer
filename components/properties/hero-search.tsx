@@ -87,7 +87,7 @@ export function HeroSearch() {
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <div className="mx-auto mb-6 flex w-full max-w-2xl flex-wrap items-center justify-center gap-3 sm:gap-4">
+      <div className="mx-auto mb-8 flex w-full max-w-xl items-center justify-center gap-8 px-2 sm:max-w-2xl sm:justify-between sm:gap-12">
         <PillToggleGroup
           options={PURPOSE_OPTIONS}
           value={purpose}
