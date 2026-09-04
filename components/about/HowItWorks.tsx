@@ -41,7 +41,7 @@ export function HowItWorks() {
           transition={{ duration: 0.5 }}
           className="max-w-2xl"
         >
-          <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">The process</p>
+          <p className="type-eyebrow">The process</p>
           <h2 className="mt-3 font-serif text-4xl">How a home moves through Bharwana</h2>
           <div className="mt-4 h-px w-14 bg-gold/60" />
           <p className="type-subheading">

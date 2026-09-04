@@ -112,7 +112,7 @@ export default function AccountSettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-20">
-      <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Account</p>
+      <p className="type-eyebrow">Account</p>
       <h1 className="mt-3 font-serif text-4xl text-forest">Account Settings</h1>
       <p className="type-subheading mt-4">
         Manage your Bharwana profile. Deletion is permanent — see our{" "}

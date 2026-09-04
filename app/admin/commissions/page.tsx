@@ -66,7 +66,7 @@ export default function AdminCommissionsPage() {
 
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Finance</p>
+      <p className="type-eyebrow">Finance</p>
       <h1 className="mb-8 font-serif text-3xl">Commission report</h1>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">

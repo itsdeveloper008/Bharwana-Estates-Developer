@@ -25,7 +25,7 @@ export function SavedPropertiesPage() {
   if (!user) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-20 text-center sm:px-6">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Saved</p>
+        <p className="type-eyebrow">Saved</p>
         <h1 className="mt-3 font-serif text-4xl">Saved Residences</h1>
         <p className="type-subheading">
           Sign in to keep a private shortlist of homes you want to revisit.
@@ -40,7 +40,7 @@ export function SavedPropertiesPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <div className="mb-8">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Your list</p>
+        <p className="type-eyebrow">Your list</p>
         <h1 className="mt-2 font-serif text-4xl sm:text-5xl">Saved Residences</h1>
         <p className="mt-3 text-sm text-muted-foreground">
           {saved.length} {saved.length === 1 ? "residence" : "residences"} saved for later.

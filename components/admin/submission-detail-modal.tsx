@@ -127,7 +127,7 @@ export function SubmissionDetailModal({
         <div className="space-y-8">
           <div>
             <p className="font-serif text-3xl text-gold-700">{formatPrice(display.price)}</p>
-            <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-gold-700">
+            <p className="mt-2 type-eyebrow">
               {purposeLabel(display.purpose)} ·{" "}
               {subtypeLabel(display.category, display.subtype) || "Type"}
             </p>

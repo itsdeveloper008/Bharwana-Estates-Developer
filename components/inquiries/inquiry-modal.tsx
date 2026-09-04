@@ -183,7 +183,7 @@ export function InquiryModal({
             </DialogHeader>
             <div className="mt-2 space-y-4">
               <div className="border border-gold/50 bg-gold/10 p-5">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-gold-700">Recommended</p>
+                <p className="type-eyebrow">Recommended</p>
                 <h3 className="mt-2 font-serif text-xl text-forest">Buy through Bharwana Estates</h3>
                 <p className="mt-2 text-sm leading-relaxed text-forest/75">
                   We will manage the inquiry, coordinate the visit, and guide the conversation on your behalf.

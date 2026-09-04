@@ -64,7 +64,7 @@ export function FeaturedSection() {
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Featured</p>
+            <p className="type-eyebrow">Featured</p>
             <h2 className="mt-2 font-serif text-4xl text-forest">On the floor this season</h2>
           </div>
           <Link

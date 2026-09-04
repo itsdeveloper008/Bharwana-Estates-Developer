@@ -13,7 +13,7 @@ export function TrustAffiliation() {
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Affiliation</p>
+            <p className="type-eyebrow">Affiliation</p>
             <h2 className="mt-3 font-serif text-3xl sm:text-4xl">Part of Bharwana Estate Group</h2>
             <div className="mt-4 h-px w-14 bg-gold/60" />
             <p className="mt-5 max-w-md text-sm leading-relaxed text-forest/80 sm:text-base">
@@ -25,7 +25,7 @@ export function TrustAffiliation() {
               href="https://bharwanaestates.com/"
               target="_blank"
               rel="noreferrer"
-              className="mt-6 inline-block text-[11px] uppercase tracking-[0.18em] text-gold-700 transition-colors hover:text-forest"
+              className="mt-6 inline-block type-eyebrow transition-colors hover:text-forest"
             >
               Visit the Group →
             </a>
@@ -42,7 +42,7 @@ export function TrustAffiliation() {
               Our promise is simple: every residence earns its place, every conversation keeps its
               dignity, and every key is passed with quiet care.
             </p>
-            <footer className="mt-6 text-[11px] uppercase tracking-[0.2em] text-gold-700">
+            <footer className="mt-6 type-eyebrow">
               Our commitment
             </footer>
           </motion.blockquote>

@@ -61,7 +61,7 @@ export default function AdminDevelopersPage() {
 
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Partners</p>
+      <p className="type-eyebrow">Partners</p>
       <h1 className="mb-6 font-serif text-3xl">Dealers</h1>
 
       <div className="mb-6 flex flex-wrap gap-2">

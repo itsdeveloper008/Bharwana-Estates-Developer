@@ -15,7 +15,7 @@ export function OurStory() {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Our story</p>
+          <p className="type-eyebrow">Our story</p>
           <h2 className="mt-3 font-serif text-4xl">A house deserves a careful introduction.</h2>
           <div className="mt-4 h-px w-14 bg-gold/60" />
           <p className="type-subheading">
@@ -33,7 +33,7 @@ export function OurStory() {
               “Equal footing between buyer and owner is not a slogan. It is how every listing
               earns the floor.”
             </p>
-            <footer className="mt-3 text-[11px] uppercase tracking-[0.18em] text-gold-700">
+            <footer className="mt-3 type-eyebrow">
               Falak Sher · Chief Executive Officer
             </footer>
           </blockquote>

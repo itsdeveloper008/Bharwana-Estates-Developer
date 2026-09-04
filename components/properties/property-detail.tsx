@@ -44,11 +44,11 @@ function PropertyDetailInner({ property }: { property: Property }) {
         <div>
           <PropertyGallery images={property.images} title={property.title} />
           <div className="mt-10">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">The residence</p>
+            <p className="type-eyebrow">The residence</p>
             <p className="mt-4 max-w-2xl text-lg leading-relaxed text-forest/80">{property.description}</p>
           </div>
           <div className="mt-10">
-            <p className="mb-3 text-[11px] uppercase tracking-[0.2em] text-gold-700">Location</p>
+            <p className="mb-3 type-eyebrow">Location</p>
             <MiniMap property={property} />
           </div>
         </div>

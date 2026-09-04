@@ -142,7 +142,7 @@ export default function AdminDeletionRequestsPage() {
 
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Privacy</p>
+      <p className="type-eyebrow">Privacy</p>
       <h1 className="mb-2 font-serif text-2xl sm:text-3xl">Deletion & Retention</h1>
       <p className="mb-8 max-w-2xl text-sm text-forest/70">
         Review user deletion requests and run retention cleanup for stale rejected listings (

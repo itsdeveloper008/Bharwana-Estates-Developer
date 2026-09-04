@@ -85,7 +85,7 @@ export function TeamMemberCard({
         <h3 className="font-serif text-xl text-forest transition-colors group-hover:text-gold-700">
           {member.fullName}
         </h3>
-        <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-gold-700">{member.role}</p>
+        <p className="mt-1 type-eyebrow">{member.role}</p>
         <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{member.bio}</p>
         <p className="mt-3 text-[11px] uppercase tracking-[0.14em] text-forest/40 group-hover:text-gold-700">
           Full profile →

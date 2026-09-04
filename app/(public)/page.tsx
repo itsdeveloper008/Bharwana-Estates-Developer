@@ -50,7 +50,7 @@ function VisionMissionSection() {
           transition={{ duration: 0.55, ease }}
           className="mx-auto max-w-2xl text-center"
         >
-          <p className="text-[11px] uppercase tracking-[0.26em] text-[#B89545]">Who we are</p>
+          <p className="type-eyebrow">Who we are</p>
           <h2 className="mt-4 font-serif text-[2.25rem] leading-[1.12] text-[#082B1D] sm:text-4xl">
             Building trust, one address at a time.
           </h2>
@@ -64,7 +64,7 @@ function VisionMissionSection() {
             transition={{ duration: 0.5, ease }}
             className="border-t border-[#B89545]/50 pt-8"
           >
-            <p className="text-[11px] uppercase tracking-[0.22em] text-[#B89545]">Our vision</p>
+            <p className="type-eyebrow">Our vision</p>
             <h3 className="mt-4 font-serif text-2xl text-[#082B1D] sm:text-[1.75rem]">
               A house deserves a careful introduction.
             </h3>
@@ -86,7 +86,7 @@ function VisionMissionSection() {
             transition={{ duration: 0.5, delay: 0.08, ease }}
             className="border-t border-[#B89545]/50 pt-8"
           >
-            <p className="text-[11px] uppercase tracking-[0.22em] text-[#B89545]">Our mission</p>
+            <p className="type-eyebrow">Our mission</p>
             <h3 className="mt-4 font-serif text-2xl text-[#082B1D] sm:text-[1.75rem]">
               One floor. Honest introductions.
             </h3>
@@ -121,7 +121,7 @@ function WhyBharwanaSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.6 }}
               transition={{ duration: 0.55, ease }}
-              className="text-[11px] uppercase tracking-[0.26em] text-[#B89545]"
+              className="type-eyebrow"
             >
               Why Bharwana
             </motion.p>
@@ -255,7 +255,7 @@ function WhyBharwanaSection() {
           <p className="font-serif text-[1.75rem] italic font-normal leading-[1.3] text-[#082B1D] sm:text-[2.35rem] sm:leading-[1.28]">
             “A house deserves a careful introduction.”
           </p>
-          <footer className="mt-5 text-[10px] uppercase tracking-[0.28em] text-[#B89545]">
+          <footer className="mt-5 type-eyebrow">
             Bharwana Estates
           </footer>
         </motion.blockquote>

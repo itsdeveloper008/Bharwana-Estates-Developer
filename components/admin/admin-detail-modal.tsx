@@ -21,7 +21,7 @@ export function AdminDetailSection({
 }) {
   return (
     <section className={cn("space-y-3", className)}>
-      <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">{title}</p>
+      <p className="type-eyebrow">{title}</p>
       {children}
     </section>
   );

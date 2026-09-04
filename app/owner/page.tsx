@@ -28,7 +28,7 @@ export default function OwnerPage() {
     <div className="space-y-12">
       <section className="flex items-center justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">My properties</p>
+          <p className="type-eyebrow">My properties</p>
           <h2 className="font-serif text-3xl">Listings</h2>
         </div>
         <Button asChild>
@@ -74,7 +74,7 @@ export default function OwnerPage() {
       </div>
 
       <section>
-        <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">My inquiries</p>
+        <p className="type-eyebrow">My inquiries</p>
         <h2 className="font-serif text-3xl">Conversations</h2>
         <div className="mt-6 divide-y divide-forest/10 border-y border-forest/10">
           {myInquiries.map((inquiry) => {

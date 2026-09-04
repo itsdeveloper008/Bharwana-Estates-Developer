@@ -7,7 +7,7 @@ export const metadata = { title: "Sign in" };
 export default function LoginPage() {
   return (
     <>
-      <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Members</p>
+      <p className="type-eyebrow">Members</p>
       <h1 className="mt-2 font-serif text-4xl">Sign in</h1>
       <p className="type-subheading mb-8">
         Sign in with email, phone OTP, or Google to list homes or manage your listings.

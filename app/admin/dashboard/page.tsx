@@ -58,7 +58,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Overview</p>
+      <p className="type-eyebrow">Overview</p>
       <h1 className="font-serif text-3xl">Dashboard</h1>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

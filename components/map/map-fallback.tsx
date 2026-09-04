@@ -19,7 +19,7 @@ export function MapFallback({ message }: { message?: string }) {
             "Add NEXT_PUBLIC_MAPBOX_TOKEN to .env.local to render Mapbox pins. See .env.local.example. The listing grid still works from mock data."}
         </p>
         {!hasMapboxToken() && (
-          <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-gold">Frontend-only · no geocoding backend</p>
+          <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-gold-800">Frontend-only · no geocoding backend</p>
         )}
       </div>
     </div>

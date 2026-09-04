@@ -184,7 +184,7 @@ function FormSection({
             <Icon className="h-[18px] w-[18px] text-gold-700" strokeWidth={1.5} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">{title}</p>
+            <p className="type-eyebrow">{title}</p>
             <div className="mt-2.5 h-px w-28 bg-gradient-to-r from-gold/75 via-gold/35 to-transparent sm:w-36" />
           </div>
         </div>
@@ -1245,7 +1245,7 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
           <div className="space-y-5 rounded-2xl bg-gradient-to-br from-[#FBF6EA] via-[#F9F3E4] to-[#F4EBDA] p-7 shadow-[0_20px_55px_-30px_rgba(15,46,29,0.28)] ring-1 ring-gold/20 sm:p-10">
             {isAdmin && (
               <div className="space-y-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Publish</p>
+                <p className="type-eyebrow">Publish</p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {(
                     [

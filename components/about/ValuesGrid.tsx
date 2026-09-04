@@ -40,7 +40,7 @@ export function ValuesGrid() {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Why Bharwana</p>
+          <p className="type-eyebrow">Why Bharwana</p>
           <h2 className="mt-3 max-w-xl font-serif text-4xl">Values that hold the floor steady.</h2>
           <div className="mt-4 h-px w-14 bg-gold/60" />
         </motion.div>

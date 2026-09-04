@@ -17,7 +17,7 @@ type LegalPageProps = {
 export function LegalPage({ eyebrow, title, intro, updated, sections }: LegalPageProps) {
   return (
     <article className="mx-auto max-w-3xl px-4 py-20 sm:px-6 sm:py-24">
-      <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">{eyebrow}</p>
+      <p className="type-eyebrow">{eyebrow}</p>
       <h1 className="mt-4 font-serif text-4xl text-forest sm:text-5xl sm:leading-[1.1]">{title}</h1>
       <div className="mt-4 h-px w-14 bg-gold/60" />
       <p className="mt-6 text-sm leading-relaxed text-forest/80 sm:text-base">{intro}</p>

@@ -49,7 +49,7 @@ export default function AdminUsersPage() {
 
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Accounts</p>
+      <p className="type-eyebrow">Accounts</p>
       <h1 className="mb-8 font-serif text-2xl sm:text-3xl">Users</h1>
 
       {error && (

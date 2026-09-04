@@ -15,7 +15,7 @@ export function TeamGrid() {
           transition={{ duration: 0.5 }}
           className="mx-auto max-w-2xl text-center"
         >
-          <p className="text-[11px] uppercase tracking-[0.28em] text-gold-700">Our people</p>
+          <p className="type-eyebrow">Our people</p>
           <h2 className="mt-3 font-serif text-4xl sm:text-5xl">Meet the Team</h2>
           <div className="mx-auto mt-5 h-px w-16 bg-gold/60" />
           <p className="type-subheading mx-auto text-center">

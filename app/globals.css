@@ -63,7 +63,7 @@
 
 @layer components {
   .type-eyebrow {
-    @apply font-sans text-[11px] font-normal uppercase tracking-[0.22em] text-gold-700;
+    @apply font-sans text-[11px] font-medium uppercase tracking-[0.22em] text-gold-800;
   }
 
   .type-subheading {

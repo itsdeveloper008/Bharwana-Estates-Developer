@@ -24,7 +24,7 @@ export function TeamProfile({ memberId }: { memberId: string }) {
   if (!member) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-24 text-center sm:px-6">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Team</p>
+        <p className="type-eyebrow">Team</p>
         <h1 className="mt-3 font-serif text-4xl">Profile not found</h1>
         <Button asChild className="mt-8">
           <Link href="/team">Back to the team</Link>
@@ -137,7 +137,7 @@ export function TeamProfile({ memberId }: { memberId: string }) {
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
         <div className="grid gap-14 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)]">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">About</p>
+            <p className="type-eyebrow">About</p>
             <h2 className="mt-3 font-serif text-3xl sm:text-4xl">The full profile</h2>
             <div className="mt-4 h-px w-14 bg-gold/60" />
             <div className="mt-8 space-y-5 text-base leading-relaxed text-forest/80">
@@ -148,7 +148,7 @@ export function TeamProfile({ memberId }: { memberId: string }) {
 
             {member.highlights.length > 0 && (
               <div className="mt-12">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Highlights</p>
+                <p className="type-eyebrow">Highlights</p>
                 <ul className="mt-5 space-y-3">
                   {member.highlights.map((item) => (
                     <li key={item} className="border-l-2 border-gold/50 pl-4 text-sm text-forest/80">
@@ -162,7 +162,7 @@ export function TeamProfile({ memberId }: { memberId: string }) {
 
           <aside className="space-y-8">
             <div className="border border-forest/10 bg-cream/40 p-6">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-gold-700">Contact</p>
+              <p className="type-eyebrow">Contact</p>
               <dl className="mt-4 space-y-3 text-sm">
                 {member.email && (
                   <div>
@@ -197,7 +197,7 @@ export function TeamProfile({ memberId }: { memberId: string }) {
 
             {member.expertise.length > 0 && (
               <div className="border border-forest/10 bg-ivory p-6">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-gold-700">Expertise</p>
+                <p className="type-eyebrow">Expertise</p>
                 <ul className="mt-4 flex flex-wrap gap-2">
                   {member.expertise.map((item) => (
                     <li
@@ -213,7 +213,7 @@ export function TeamProfile({ memberId }: { memberId: string }) {
 
             {member.responsibilities.length > 0 && (
               <div className="border border-forest/10 bg-ivory p-6">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-gold-700">
+                <p className="type-eyebrow">
                   Responsibilities
                 </p>
                 <ul className="mt-4 space-y-3 text-sm text-forest/80">
@@ -233,7 +233,7 @@ export function TeamProfile({ memberId }: { memberId: string }) {
       {others.length > 0 && (
         <section className="border-t border-forest/10 bg-cream/40 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-gold-700">Also on the floor</p>
+            <p className="type-eyebrow">Also on the floor</p>
             <h2 className="mt-2 font-serif text-3xl">More of the team</h2>
             <div className="mt-8 grid gap-6 sm:grid-cols-3">
               {others.map((person) => (
@@ -255,7 +255,7 @@ export function TeamProfile({ memberId }: { memberId: string }) {
                     <p className="font-serif text-xl text-forest group-hover:text-gold-700">
                       {person.fullName}
                     </p>
-                    <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-gold-700">
+                    <p className="mt-1 type-eyebrow">
                       {person.role}
                     </p>
                   </div>

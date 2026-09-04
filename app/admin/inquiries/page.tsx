@@ -40,7 +40,7 @@ export default function AdminInquiriesPage() {
 
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Pipeline</p>
+      <p className="type-eyebrow">Pipeline</p>
       <h1 className="mb-8 font-serif text-2xl sm:text-3xl">Inquiries</h1>
 
       {inquiriesError && (

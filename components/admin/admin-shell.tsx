@@ -53,7 +53,7 @@ function AdminBrand() {
       />
       <div>
         <p className="font-display text-[11px] tracking-crest text-forest">BHARWANA</p>
-        <p className="text-[10px] uppercase tracking-[0.18em] text-gold-700">Admin</p>
+        <p className="type-eyebrow">Admin</p>
       </div>
     </Link>
   );

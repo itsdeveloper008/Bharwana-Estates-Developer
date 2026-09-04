@@ -23,7 +23,7 @@ export default function AdminPropertiesPage() {
     <div>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Inventory</p>
+          <p className="type-eyebrow">Inventory</p>
           <h1 className="font-serif text-3xl">Properties</h1>
         </div>
         <Button asChild>

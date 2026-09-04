@@ -83,7 +83,7 @@ function DealerDashboard() {
     <div className="space-y-8">
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Dealer desk</p>
+          <p className="type-eyebrow">Dealer desk</p>
           <h2 className="font-serif text-3xl">{developer?.companyName ?? "Your inventory"}</h2>
           {developer?.status === "PENDING_REVIEW" && (
             <p className="mt-2 text-sm text-amber-800">

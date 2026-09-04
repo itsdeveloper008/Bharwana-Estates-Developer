@@ -151,7 +151,7 @@ export function TeamAdminPanel() {
     <div>
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">People</p>
+          <p className="type-eyebrow">People</p>
           <h1 className="font-serif text-3xl">Team</h1>
         </div>
         <Button onClick={openCreate}>

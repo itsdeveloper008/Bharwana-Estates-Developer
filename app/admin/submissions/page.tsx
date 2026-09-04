@@ -94,7 +94,7 @@ export default function AdminSubmissionsPage() {
 
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-[0.2em] text-gold-700">Verification</p>
+      <p className="type-eyebrow">Verification</p>
       <h1 className="mb-6 font-serif text-2xl sm:text-3xl">Submissions</h1>
 
       <div className="mb-6 flex flex-wrap gap-2">
