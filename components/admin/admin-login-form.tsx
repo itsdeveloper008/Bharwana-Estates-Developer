@@ -24,6 +24,8 @@ export function AdminLoginForm() {
   const { login } = useAdminAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [emailUnlocked, setEmailUnlocked] = useState(false);
+  const [passwordUnlocked, setPasswordUnlocked] = useState(false);
 
   const form = useForm<AdminLoginValues>({
     resolver: zodResolver(adminLoginSchema),
@@ -32,6 +34,8 @@ export function AdminLoginForm() {
 
   useEffect(() => {
     form.reset({ email: "", password: "" });
+    setEmailUnlocked(false);
+    setPasswordUnlocked(false);
   }, [form]);
 
   async function onSubmit(values: AdminLoginValues) {
@@ -81,6 +85,8 @@ export function AdminLoginForm() {
                       autoCapitalize="none"
                       spellCheck={false}
                       placeholder=""
+                      readOnly={!emailUnlocked}
+                      onFocus={() => setEmailUnlocked(true)}
                       value={field.value ?? ""}
                       name={field.name}
                       onBlur={field.onBlur}
@@ -114,6 +120,8 @@ export function AdminLoginForm() {
                       type={showPassword ? "text" : "password"}
                       autoComplete="new-password"
                       placeholder=""
+                      readOnly={!passwordUnlocked}
+                      onFocus={() => setPasswordUnlocked(true)}
                       value={field.value ?? ""}
                       name={field.name}
                       onBlur={field.onBlur}
