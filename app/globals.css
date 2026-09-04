@@ -60,11 +60,11 @@
     @apply font-sans font-medium tracking-tight text-forest;
   }
 
-  /* Larger password masking dots (browser discs scale with font-size) */
+  /* Larger password masking dots — utilities on Input also enforce size */
   input[type="password"] {
-    font-size: 1.35rem;
-    letter-spacing: 0.22em;
-    line-height: 1.25rem;
+    font-size: 1.75rem !important;
+    letter-spacing: 0.3em !important;
+    line-height: 1.1 !important;
   }
 }
 

@@ -139,6 +139,7 @@ function PasswordField({
   fieldState: { error?: { message?: string } };
 }) {
   const [show, setShow] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
   return (
     <FormItem>
       <FormLabel>Password</FormLabel>
@@ -148,6 +149,8 @@ function PasswordField({
             type={show ? "text" : "password"}
             autoComplete="new-password"
             placeholder=""
+            readOnly={!unlocked}
+            onFocus={() => setUnlocked(true)}
             value={field.value ?? ""}
             name={field.name}
             onBlur={field.onBlur}
@@ -167,6 +170,46 @@ function PasswordField({
             {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  );
+}
+
+function EmailField({
+  field,
+  fieldState,
+  className,
+}: {
+  field: { value: string; onChange: (...args: unknown[]) => void; onBlur: () => void; name: string; ref: Ref<HTMLInputElement> };
+  fieldState: { error?: { message?: string } };
+  className?: string;
+}) {
+  const [unlocked, setUnlocked] = useState(false);
+  return (
+    <FormItem>
+      <FormLabel>Email</FormLabel>
+      <FormControl>
+        <Input
+          type="email"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          placeholder=""
+          readOnly={!unlocked}
+          onFocus={() => setUnlocked(true)}
+          value={field.value ?? ""}
+          name={field.name}
+          onBlur={field.onBlur}
+          onChange={field.onChange}
+          ref={field.ref}
+          className={cn(
+            "bg-white",
+            className,
+            fieldState.error && "border-destructive focus-visible:ring-destructive",
+          )}
+        />
       </FormControl>
       <FormMessage />
     </FormItem>
@@ -217,29 +260,7 @@ export function LoginForm() {
               control={form.control}
               name="email"
               render={({ field, fieldState }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      className={cn(
-                        "bg-white",
-                        fieldState.error && "border-destructive focus-visible:ring-destructive",
-                      )}
-                      type="email"
-                      placeholder=""
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="none"
-                      spellCheck={false}
-                      value={field.value ?? ""}
-                      name={field.name}
-                      onBlur={field.onBlur}
-                      onChange={field.onChange}
-                      ref={field.ref}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                <EmailField field={field} fieldState={fieldState} />
               )}
             />
             <FormField
@@ -387,29 +408,7 @@ export function RegisterForm() {
             control={form.control}
             name="email"
             render={({ field, fieldState }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input
-                    className={cn(
-                      "bg-white",
-                      fieldState.error && "border-destructive focus-visible:ring-destructive",
-                    )}
-                    type="email"
-                    placeholder=""
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    value={field.value ?? ""}
-                    name={field.name}
-                    onBlur={field.onBlur}
-                    onChange={field.onChange}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+              <EmailField field={field} fieldState={fieldState} />
             )}
           />
           <FormField

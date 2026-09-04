@@ -174,8 +174,9 @@ export function Footer() {
                   required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="Your email address"
+                  placeholder=""
                   className="h-12 w-full bg-transparent text-[15px] text-[#F4F0E6] outline-none placeholder:text-[#F4F0E6]/35"
+                  autoComplete="off"
                 />
                 <button
                   type="submit"
