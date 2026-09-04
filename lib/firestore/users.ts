@@ -134,7 +134,7 @@ export async function createUserDocWithRetry(
   throw lastError;
 }
 
-/** Removes the Firestore profile only — Firebase Auth account deletion needs Admin SDK / Cloud Function. */
+/** Removes the Firestore profile only. Prefer purgeUserOwnedData + Auth user.delete() for self-service. */
 export async function deleteUserDoc(uid: string): Promise<void> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");

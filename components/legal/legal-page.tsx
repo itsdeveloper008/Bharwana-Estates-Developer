@@ -66,6 +66,10 @@ export function LegalPage({ eyebrow, title, intro, updated, sections }: LegalPag
         <Link href="/disclaimer" className="text-gold-700 underline-offset-2 hover:underline">
           Disclaimer
         </Link>
+        ,{" "}
+        <Link href="/deletion-policy" className="text-gold-700 underline-offset-2 hover:underline">
+          Data Deletion
+        </Link>
         .
       </p>
     </article>

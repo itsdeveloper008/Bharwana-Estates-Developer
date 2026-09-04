@@ -121,15 +121,6 @@ export default function KineticTeamHybrid({
           ))}
         </div>
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.15 }}
-          className="mt-16 hidden text-center font-serif text-xl italic text-[#F5F1E8]/45 md:mt-20 md:block md:text-2xl"
-        >
-          Hover a name to preview. Click to open the full profile.
-        </motion.p>
       </div>
 
       {!isMobile && !reduced && (

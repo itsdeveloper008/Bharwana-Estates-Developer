@@ -314,14 +314,14 @@ export function PropertyTypePicker({
             className={cn(
               "inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
               category === activeTab && subtype === "ALL"
-                ? "border-forest bg-forest/10 text-forest"
+                ? "border-forest bg-forest text-ivory"
                 : "border-forest/15 text-forest/80 hover:border-forest/30",
             )}
           >
             <AllIcon
               className={cn(
                 "h-4 w-4 shrink-0",
-                category === activeTab && subtype === "ALL" ? "text-forest" : "text-forest/45",
+                category === activeTab && subtype === "ALL" ? "text-ivory" : "text-forest/45",
               )}
               strokeWidth={1.5}
             />
@@ -341,12 +341,12 @@ export function PropertyTypePicker({
                 className={cn(
                   "inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
                   selected
-                    ? "border-forest bg-forest/10 text-forest"
+                    ? "border-forest bg-forest text-ivory"
                     : "border-forest/15 text-forest/80 hover:border-forest/30",
                 )}
               >
                 <Icon
-                  className={cn("h-4 w-4 shrink-0", selected ? "text-forest" : "text-forest/45")}
+                  className={cn("h-4 w-4 shrink-0", selected ? "text-ivory" : "text-forest/45")}
                   strokeWidth={1.5}
                 />
                 {option.label}

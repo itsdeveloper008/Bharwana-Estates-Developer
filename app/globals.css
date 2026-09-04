@@ -50,11 +50,14 @@
     @apply bg-background font-sans font-light text-foreground antialiased;
   }
 
-  h1,
+  h1 {
+    @apply font-sans font-normal tracking-tight text-forest;
+  }
+
   h2,
   h3,
   h4 {
-    @apply font-sans font-extralight tracking-tight text-forest;
+    @apply font-sans font-medium tracking-tight text-forest;
   }
 }
 

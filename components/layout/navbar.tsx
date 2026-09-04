@@ -111,6 +111,7 @@ export function Navbar() {
                     { href: "/owner", label: "My Listings" },
                     { href: "/owner/add-property", label: "Add Property" },
                   ]),
+        { href: "/account", label: "Account Settings" },
       ]
     : [];
 
@@ -323,7 +324,9 @@ export function Navbar() {
                               { href: "/owner", label: "My Listings" },
                               { href: "/owner/add-property", label: "Add Property" },
                             ]
-                  ).map((link) => (
+                  )
+                    .concat([{ href: "/account", label: "Account Settings" }])
+                    .map((link) => (
                     <DropdownMenuItem key={link.href} asChild className="cursor-pointer rounded-lg focus:bg-cream focus:text-forest">
                       <Link href={link.href}>{link.label}</Link>
                     </DropdownMenuItem>

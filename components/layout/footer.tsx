@@ -23,6 +23,7 @@ const legalLinks = [
   { href: "/terms", label: "Terms & Conditions" },
   { href: "/cookies", label: "Cookie Policy" },
   { href: "/disclaimer", label: "Disclaimer" },
+  { href: "/deletion-policy", label: "Data Deletion" },
 ];
 
 const socials = [

@@ -44,5 +44,22 @@ service cloud.firestore {
       allow create: if true;
       allow read, update, delete: if isSignedIn();
     }
+
+    // Account deletion requests — signed-in users can create; admins process via app.
+    // TODO: restrict list/update/delete to admin custom claims before public scale.
+    match /deletionRequests/{id} {
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if isSignedIn();
+    }
+
+    // Optional dealer / commission collections (flagged on account deletion).
+    match /developers/{id} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /transactions/{id} {
+      allow read, write: if isSignedIn();
+    }
   }
 }

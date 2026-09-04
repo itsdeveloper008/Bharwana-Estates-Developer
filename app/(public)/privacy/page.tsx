@@ -47,7 +47,8 @@ export default function PrivacyPage() {
         {
           title: "Your rights",
           paragraphs: [
-            "Depending on applicable law, you may request access to, correction of, or deletion of your personal information, or withdraw consent for marketing communications. Contact us at info@bharwanaestate.com to make a request.",
+            "Depending on applicable law, you may request access to, correction of, or deletion of your personal information, or withdraw consent for marketing communications.",
+            "To delete your account and personal data, use Account Settings → Delete Account while signed in, or follow the steps on our Account & Data Deletion page. You may also email info@bharwanaestate.com from your registered address.",
           ],
         },
       ]}

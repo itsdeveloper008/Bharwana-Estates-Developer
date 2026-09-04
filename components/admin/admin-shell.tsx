@@ -14,6 +14,7 @@ import {
   Menu,
   MessageSquare,
   Percent,
+  ShieldAlert,
   Users,
   UsersRound,
   X,
@@ -37,6 +38,7 @@ const navItems = [
   { href: "/admin/inquiries", label: "Inquiries", icon: MessageSquare },
   { href: "/admin/team", label: "Team", icon: UsersRound },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/deletion-requests", label: "Deletion", icon: ShieldAlert },
 ];
 
 function AdminBrand() {

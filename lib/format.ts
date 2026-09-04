@@ -70,14 +70,18 @@ export function formatCommissionRate(rate: number) {
 }
 
 export function formatDate(iso: string) {
+  const date = new Date(iso);
+  if (!iso || Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
-  }).format(new Date(iso));
+  }).format(date);
 }
 
 export function formatDateTime(iso: string) {
+  const date = new Date(iso);
+  if (!iso || Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
@@ -85,5 +89,5 @@ export function formatDateTime(iso: string) {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }).format(new Date(iso));
+  }).format(date);
 }

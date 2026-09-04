@@ -92,6 +92,25 @@ async function resolvePropertyImages(propertyId: string, images: string[]): Prom
   );
 }
 
+function createdAtIso(value: unknown): string {
+  if (typeof value === "string" && value.trim()) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  }
+  if (value && typeof value === "object" && "toDate" in value) {
+    try {
+      return (value as { toDate: () => Date }).toDate().toISOString();
+    } catch {
+      // fall through
+    }
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  }
+  return new Date().toISOString();
+}
+
 function mapProperty(id: string, data: Record<string, unknown>): Property {
   return {
     id,
@@ -113,7 +132,7 @@ function mapProperty(id: string, data: Record<string, unknown>): Property {
     images: Array.isArray(data.images) ? (data.images as string[]) : [],
     ownerUserId: data.ownerUserId ? String(data.ownerUserId) : undefined,
     developerId: data.developerId ? String(data.developerId) : undefined,
-    createdAt: String(data.createdAt ?? new Date().toISOString()),
+    createdAt: createdAtIso(data.createdAt),
     rejectionReason: data.rejectionReason ? String(data.rejectionReason) : undefined,
   };
 }

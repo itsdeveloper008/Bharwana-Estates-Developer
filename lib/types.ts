@@ -60,6 +60,8 @@ export interface Developer {
   origin: DeveloperOrigin;
   /** Optional CNIC / business registration number */
   registrationNumber?: string;
+  /** Set when the linked dealer user account is deleted — profile kept for history */
+  accountDeleted?: boolean;
 }
 
 export interface Property {
@@ -112,6 +114,8 @@ export interface Transaction {
   commissionAmount: number;
   commissionStatus: CommissionStatus;
   closedAt: string;
+  /** Set when the linked dealer account is deleted — financial record retained */
+  dealerDeleted?: boolean;
 }
 
 export interface MapBounds {

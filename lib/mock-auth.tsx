@@ -10,11 +10,14 @@ import {
   type ReactNode,
 } from "react";
 import {
+  EmailAuthProvider,
   GoogleAuthProvider,
   RecaptchaVerifier,
   createUserWithEmailAndPassword,
   getRedirectResult,
   onAuthStateChanged,
+  reauthenticateWithCredential,
+  reauthenticateWithPopup,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signInWithPopup,
@@ -24,6 +27,7 @@ import {
   type User as FirebaseUser,
 } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
+import { createDeletionRequest, purgeUserOwnedData } from "@/lib/firestore/deletion";
 import { createUserDocWithRetry, getUserDoc, type UserDocInput } from "@/lib/firestore/users";
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import { users as seedUsers } from "@/lib/mock-data/users";
@@ -55,6 +59,12 @@ type PhoneLoginResult =
   | { ok: true; isNewUser: false; user: User }
   | { ok: true; isNewUser: true; draft: GoogleSignupDraft }
   | { ok: false; error: string };
+
+export type AccountAuthMethod = "password" | "google" | "phone";
+
+export type DeleteAccountResult =
+  | { ok: true }
+  | { ok: false; error: string; needsReauth?: boolean; authMethod?: AccountAuthMethod };
 
 interface MockAuthContextValue {
   user: User | null;
@@ -88,6 +98,12 @@ interface MockAuthContextValue {
   loginAs: (user: User) => void;
   loginAsRole: (role: UserRole) => void;
   logout: () => void;
+  deleteAccount: () => Promise<DeleteAccountResult>;
+  reauthenticateForDeletion: (input?: {
+    password?: string;
+  }) => Promise<{ ok: true } | { ok: false; error: string }>;
+  submitDeletionRequest: (note?: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  getAccountAuthMethod: () => AccountAuthMethod | null;
 }
 
 const MockAuthContext = createContext<MockAuthContextValue | undefined>(undefined);
@@ -731,6 +747,204 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     if (auth) void signOut(auth).catch(() => undefined);
   }, [persist]);
 
+  const getAccountAuthMethod = useCallback((): AccountAuthMethod | null => {
+    const auth = getFirebaseAuth();
+    const firebaseUser = auth?.currentUser;
+    if (!firebaseUser) return null;
+    const provider = firebaseUser.providerData[0]?.providerId;
+    if (provider === "google.com") return "google";
+    if (provider === "phone") return "phone";
+    if (provider === "password") return "password";
+    return firebaseUser.email ? "password" : null;
+  }, []);
+
+  const clearLocalAccountTraces = useCallback((uid: string, email: string) => {
+    try {
+      const registered = readRegistered().filter(
+        (account) => account.id !== uid && account.email.toLowerCase() !== email.toLowerCase(),
+      );
+      writeRegistered(registered);
+
+      const savedRaw = localStorage.getItem("bharwana_saved_properties");
+      if (savedRaw) {
+        const map = JSON.parse(savedRaw) as Record<string, string[]>;
+        if (map && typeof map === "object") {
+          delete map[uid];
+          localStorage.setItem("bharwana_saved_properties", JSON.stringify(map));
+        }
+      }
+
+      const developersRaw = localStorage.getItem("bharwana_developers_v1");
+      if (developersRaw) {
+        const developers = JSON.parse(developersRaw) as Array<Record<string, unknown>>;
+        if (Array.isArray(developers)) {
+          const next = developers.map((developer) =>
+            developer.dealerUserId === uid
+              ? { ...developer, accountDeleted: true, dealerUserId: undefined }
+              : developer,
+          );
+          const deletedDeveloperIds = new Set(
+            next.filter((d) => d.accountDeleted && !d.dealerUserId).map((d) => String(d.id)),
+          );
+          // Only mark developers we just flipped for this uid
+          const markedIds = new Set(
+            developers
+              .filter((d) => d.dealerUserId === uid)
+              .map((d) => String(d.id)),
+          );
+          localStorage.setItem("bharwana_developers_v1", JSON.stringify(next));
+
+          const txRaw = localStorage.getItem("bharwana_transactions_v1");
+          if (txRaw) {
+            const transactions = JSON.parse(txRaw) as Array<Record<string, unknown>>;
+            if (Array.isArray(transactions)) {
+              localStorage.setItem(
+                "bharwana_transactions_v1",
+                JSON.stringify(
+                  transactions.map((tx) =>
+                    markedIds.has(String(tx.developerId ?? "")) ||
+                    deletedDeveloperIds.has(String(tx.developerId ?? ""))
+                      ? { ...tx, dealerDeleted: true }
+                      : tx,
+                  ),
+                ),
+              );
+            }
+          }
+        }
+      }
+
+      const propertiesRaw = localStorage.getItem("bharwana_properties_v1");
+      if (propertiesRaw) {
+        const properties = JSON.parse(propertiesRaw) as Array<Record<string, unknown>>;
+        if (Array.isArray(properties)) {
+          localStorage.setItem(
+            "bharwana_properties_v1",
+            JSON.stringify(properties.filter((property) => property.ownerUserId !== uid)),
+          );
+        }
+      }
+    } catch {
+      // ignore local cleanup failures
+    }
+  }, []);
+
+  const deleteAccount = useCallback(async (): Promise<DeleteAccountResult> => {
+    if (!user) return { ok: false, error: "You must be signed in to delete your account." };
+
+    const auth = getFirebaseAuth();
+    const firebaseUser = auth?.currentUser;
+
+    try {
+      if (isFirebaseConfigured()) {
+        await purgeUserOwnedData(user.id);
+      }
+      clearLocalAccountTraces(user.id, user.email);
+
+      if (firebaseUser && firebaseUser.uid === user.id) {
+        await firebaseUser.delete();
+      }
+
+      persist(null);
+      writePendingGoogle(null);
+      return { ok: true };
+    } catch (error) {
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code: string }).code)
+          : "";
+      if (code === "auth/requires-recent-login") {
+        return {
+          ok: false,
+          error: "For security, please confirm your sign-in again before deleting your account.",
+          needsReauth: true,
+          authMethod: getAccountAuthMethod() ?? "password",
+        };
+      }
+      console.error(error);
+      return {
+        ok: false,
+        error: firestoreErrorMessage(error, "Could not delete your account. Try again or submit a request."),
+      };
+    }
+  }, [user, persist, clearLocalAccountTraces, getAccountAuthMethod]);
+
+  const reauthenticateForDeletion = useCallback(
+    async (input?: { password?: string }) => {
+      const auth = getFirebaseAuth();
+      const firebaseUser = auth?.currentUser;
+      if (!firebaseUser) {
+        return { ok: false as const, error: "You must be signed in to continue." };
+      }
+
+      const method = getAccountAuthMethod();
+      try {
+        if (method === "google") {
+          const provider = new GoogleAuthProvider();
+          await reauthenticateWithPopup(firebaseUser, provider);
+          return { ok: true as const };
+        }
+        if (method === "password") {
+          const password = input?.password?.trim() ?? "";
+          if (!password) return { ok: false as const, error: "Enter your password to continue." };
+          const email = firebaseUser.email;
+          if (!email) return { ok: false as const, error: "No email on this account." };
+          const credential = EmailAuthProvider.credential(email, password);
+          await reauthenticateWithCredential(firebaseUser, credential);
+          return { ok: true as const };
+        }
+        return {
+          ok: false as const,
+          error:
+            "Please sign out, sign back in with your phone number, then try deleting again — or submit a deletion request below.",
+        };
+      } catch (error) {
+        const code =
+          error && typeof error === "object" && "code" in error
+            ? String((error as { code: string }).code)
+            : "";
+        if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
+          return { ok: false as const, error: "That password is incorrect." };
+        }
+        if (code === "auth/popup-closed-by-user") {
+          return { ok: false as const, error: "Sign-in was cancelled." };
+        }
+        console.error(error);
+        return { ok: false as const, error: "Could not confirm your identity. Try again." };
+      }
+    },
+    [getAccountAuthMethod],
+  );
+
+  const submitDeletionRequest = useCallback(
+    async (note?: string) => {
+      if (!user) return { ok: false as const, error: "You must be signed in." };
+      try {
+        if (!isFirebaseConfigured()) {
+          return {
+            ok: false as const,
+            error: "Deletion requests need Firebase. Email info@bharwanaestate.com instead.",
+          };
+        }
+        await createDeletionRequest({
+          uid: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+          note,
+        });
+        return { ok: true as const };
+      } catch (error) {
+        console.error(error);
+        return {
+          ok: false as const,
+          error: firestoreErrorMessage(error, "Could not submit deletion request."),
+        };
+      }
+    },
+    [user],
+  );
+
   const value = useMemo(
     () => ({
       user,
@@ -745,8 +959,28 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       loginAs,
       loginAsRole,
       logout,
+      deleteAccount,
+      reauthenticateForDeletion,
+      submitDeletionRequest,
+      getAccountAuthMethod,
     }),
-    [user, isReady, login, loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, completeGoogleSignup, register, loginAs, loginAsRole, logout],
+    [
+      user,
+      isReady,
+      login,
+      loginWithGoogle,
+      sendPhoneOtp,
+      verifyPhoneOtp,
+      completeGoogleSignup,
+      register,
+      loginAs,
+      loginAsRole,
+      logout,
+      deleteAccount,
+      reauthenticateForDeletion,
+      submitDeletionRequest,
+      getAccountAuthMethod,
+    ],
   );
 
   return <MockAuthContext.Provider value={value}>{children}</MockAuthContext.Provider>;
