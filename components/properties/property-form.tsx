@@ -32,9 +32,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PublishAuthDialog } from "@/components/auth/publish-auth-dialog";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
+import { buildStatusChangePatch } from "@/lib/property-status";
 import {
   defaultSubtypeFor,
   LISTING_PURPOSES,
@@ -194,11 +194,20 @@ function FormSection({
   );
 }
 
-export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
+export function PropertyForm({
+  mode = "public",
+  editId = null,
+}: {
+  mode?: FormMode;
+  /** Existing listing id — Edit & Resubmit from My Listings */
+  editId?: string | null;
+}) {
   const isAdmin = mode === "admin";
   const router = useRouter();
   const { user } = useMockAuth();
-  const { addProperty, getDeveloperForUser, users, developers, addUser } = useMockStore();
+  const { addProperty, updateProperty, properties, getDeveloperForUser, users, developers, addUser } =
+    useMockStore();
+  const editingProperty = editId ? properties.find((item) => item.id === editId) : undefined;
   const [previews, setPreviews] = useState<string[]>([]);
   const objectUrlsRef = useRef<string[]>([]);
   const [photoError, setPhotoError] = useState(false);
@@ -206,7 +215,6 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
   const [submittedId, setSubmittedId] = useState<string | null>(null);
   const [submittedTitle, setSubmittedTitle] = useState("");
   const [submittedStatus, setSubmittedStatus] = useState<AdminPublishChoice>("PENDING_APPROVAL");
-  const [authOpen, setAuthOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [assignOwnerId, setAssignOwnerId] = useState("");
@@ -268,6 +276,28 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
 
   const listingType = form.watch("listingType") ?? "DIRECT_OWNER";
   const { isSubmitting, errors } = form.formState;
+
+  useEffect(() => {
+    if (!editingProperty) return;
+    form.reset({
+      title: editingProperty.title,
+      description: editingProperty.description,
+      listingType: editingProperty.listingType,
+      purpose: editingProperty.purpose ?? "SALE",
+      category: editingProperty.category ?? "HOME",
+      subtype: editingProperty.subtype ?? "HOUSE",
+      price: editingProperty.price,
+      areaSqft: editingProperty.areaSqft,
+      bedrooms: editingProperty.bedrooms,
+      bathrooms: editingProperty.bathrooms,
+      address: editingProperty.address,
+      city: editingProperty.city,
+      latitude: editingProperty.latitude,
+      longitude: editingProperty.longitude,
+    });
+    setPreviews(editingProperty.images ?? []);
+    setPhotoError(false);
+  }, [editingProperty?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isAdmin) return;
@@ -468,7 +498,6 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
       goToStep(2);
       return;
     }
-    const id = `p-${Date.now()}`;
     const images = previews;
 
     let listingTypeValue = values.listingType;
@@ -502,16 +531,36 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
     const status: PropertyStatus = isAdmin ? adminPublishStatus : "PENDING_APPROVAL";
 
     try {
-      await addProperty({
-        id,
-        ...values,
-        listingType: listingTypeValue,
-        developerId,
-        status,
-        images,
-        ownerUserId: resolvedOwnerId,
-        createdAt: new Date().toISOString(),
-      });
+      if (editingProperty && !isAdmin) {
+        const statusPatch = buildStatusChangePatch(editingProperty, {
+          status: "PENDING_APPROVAL",
+          clearRejectionReason: true,
+          by: user?.fullName ?? user?.email,
+        });
+        await updateProperty(editingProperty.id, {
+          ...values,
+          listingType: listingTypeValue,
+          developerId: developerId ?? editingProperty.developerId,
+          images,
+          ownerUserId: resolvedOwnerId ?? editingProperty.ownerUserId,
+          ...statusPatch,
+          rejectionReason: undefined,
+        });
+        setSubmittedId(editingProperty.id);
+      } else {
+        const id = `p-${Date.now()}`;
+        await addProperty({
+          id,
+          ...values,
+          listingType: listingTypeValue,
+          developerId,
+          status,
+          images,
+          ownerUserId: resolvedOwnerId,
+          createdAt: new Date().toISOString(),
+        });
+        setSubmittedId(id);
+      }
     } catch (error) {
       console.error("Listing submit failed", error);
       toast.error(
@@ -521,12 +570,15 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
       );
       return;
     }
-    setSubmittedId(id);
     setSubmittedTitle(values.title);
     setSubmittedStatus(status === "PUBLISHED" ? "PUBLISHED" : "PENDING_APPROVAL");
     setDone(true);
     toast.success(
-      status === "PUBLISHED" ? "Property published." : "Submitted for review.",
+      editingProperty && !isAdmin
+        ? "Resubmitted for review."
+        : status === "PUBLISHED"
+          ? "Property published."
+          : "Submitted for review.",
     );
   }
 
@@ -547,7 +599,8 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
       return;
     }
     if (!user) {
-      setAuthOpen(true);
+      toast.error("Please sign in to submit a listing.");
+      router.replace(`/login?returnTo=${encodeURIComponent("/owner/add-property")}`);
       return;
     }
     await commitPublish(values, user.id);
@@ -593,7 +646,13 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
             </>
           ) : (
             <>
-              <Button onClick={() => router.push("/owner")}>My listings</Button>
+              <Button
+                onClick={() =>
+                  router.push(user?.role === "DEALER" ? "/dealer" : "/owner")
+                }
+              >
+                My listings
+              </Button>
               <Button variant="outline" onClick={() => router.push("/properties")}>
                 Marketplace
               </Button>
@@ -1322,20 +1381,6 @@ export function PropertyForm({ mode = "public" }: { mode?: FormMode }) {
           </div>
         </form>
       </Form>
-
-      {!isAdmin && (
-        <PublishAuthDialog
-          open={authOpen}
-          onOpenChange={setAuthOpen}
-          onAuthenticated={(authed) => {
-            setAuthOpen(false);
-            void form.handleSubmit(
-              (values) => commitPublish(values, authed.id),
-              () => void revealFirstIssue(),
-            )();
-          }}
-        />
-      )}
     </div>
   );
 }

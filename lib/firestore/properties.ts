@@ -1,6 +1,7 @@
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -13,7 +14,7 @@ import {
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { getDb, getFirebaseStorage, isFirebaseConfigured } from "@/lib/firebase/client";
 import { FIRESTORE_WRITE_TIMEOUT_MS } from "@/lib/firestore/errors";
-import type { Property } from "@/lib/types";
+import type { Property, PropertyStatusHistoryEntry } from "@/lib/types";
 import { withTimeout } from "@/lib/utils";
 
 const COLLECTION = "properties";
@@ -134,6 +135,15 @@ function mapProperty(id: string, data: Record<string, unknown>): Property {
     developerId: data.developerId ? String(data.developerId) : undefined,
     createdAt: createdAtIso(data.createdAt),
     rejectionReason: data.rejectionReason ? String(data.rejectionReason) : undefined,
+    statusUpdatedAt: data.statusUpdatedAt ? createdAtIso(data.statusUpdatedAt) : undefined,
+    statusHistory: Array.isArray(data.statusHistory)
+      ? (data.statusHistory as PropertyStatusHistoryEntry[]).map((entry) => ({
+          status: entry.status,
+          reason: entry.reason ? String(entry.reason) : undefined,
+          at: createdAtIso(entry.at),
+          by: entry.by ? String(entry.by) : undefined,
+        }))
+      : undefined,
   };
 }
 
@@ -198,6 +208,10 @@ export async function upsertProperty(property: Property): Promise<Property> {
   const payload = toFirestorePayload(next);
   if (!existing.exists()) {
     payload.createdAt = serverTimestamp();
+  }
+  // merge:true omits undefined fields — explicitly clear rejection when absent
+  if (!next.rejectionReason) {
+    payload.rejectionReason = deleteField();
   }
   await withTimeout(
     setDoc(ref, payload, { merge: true }),

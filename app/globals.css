@@ -59,6 +59,13 @@
   h4 {
     @apply font-sans font-medium tracking-tight text-forest;
   }
+
+  /* Larger password masking dots (browser discs scale with font-size) */
+  input[type="password"] {
+    font-size: 1.35rem;
+    letter-spacing: 0.22em;
+    line-height: 1.25rem;
+  }
 }
 
 @layer components {

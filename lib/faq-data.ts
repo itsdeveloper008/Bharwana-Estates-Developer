@@ -49,7 +49,7 @@ export const faqCategories: FaqCategory[] = [
         id: "seller-account",
         question: "Do I need an account to submit a property?",
         answer:
-          "You may draft a listing as a guest on the add-property flow, but you must sign in before publishing. An account lets us attach the submission to you, notify you of approval or rejection, and keep your inventory in one place.",
+          "Yes. Sign in or create an account before you open Add Property — the listing form is only available to authenticated sellers. An account lets us attach the submission to you, notify you of approval or rejection, and keep your inventory in one place.",
       },
       {
         id: "seller-rejection",

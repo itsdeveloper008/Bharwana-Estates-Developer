@@ -134,11 +134,9 @@ export { ContinueWithGoogle };
 function PasswordField({
   field,
   fieldState,
-  autoComplete,
 }: {
   field: { value: string; onChange: (...args: unknown[]) => void; onBlur: () => void; name: string; ref: Ref<HTMLInputElement> };
   fieldState: { error?: { message?: string } };
-  autoComplete?: string;
 }) {
   const [show, setShow] = useState(false);
   return (
@@ -148,8 +146,8 @@ function PasswordField({
         <div className="relative">
           <Input
             type={show ? "text" : "password"}
-            autoComplete={autoComplete}
-            placeholder="••••••••"
+            autoComplete="new-password"
+            placeholder=""
             value={field.value ?? ""}
             name={field.name}
             onBlur={field.onBlur}
@@ -214,7 +212,7 @@ export function LoginForm() {
 
       {authMethod === "email" ? (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" autoComplete="off">
             <FormField
               control={form.control}
               name="email"
@@ -228,8 +226,11 @@ export function LoginForm() {
                         fieldState.error && "border-destructive focus-visible:ring-destructive",
                       )}
                       type="email"
-                      placeholder="you@email.com"
-                      autoComplete="username"
+                      placeholder=""
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
                       value={field.value ?? ""}
                       name={field.name}
                       onBlur={field.onBlur}
@@ -245,7 +246,7 @@ export function LoginForm() {
               control={form.control}
               name="password"
               render={({ field, fieldState }) => (
-                <PasswordField field={field} fieldState={fieldState} autoComplete="current-password" />
+                <PasswordField field={field} fieldState={fieldState} />
               )}
             />
             {error && (
@@ -287,7 +288,6 @@ export function RegisterForm() {
   const [authMethod, setAuthMethod] = useState<AuthMethod>("email");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -363,7 +363,7 @@ export function RegisterForm() {
 
       {authMethod === "email" ? (
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3" autoComplete="off">
           <FormField
             control={form.control}
             name="fullName"
@@ -396,7 +396,16 @@ export function RegisterForm() {
                       fieldState.error && "border-destructive focus-visible:ring-destructive",
                     )}
                     type="email"
-                    {...field}
+                    placeholder=""
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    value={field.value ?? ""}
+                    name={field.name}
+                    onBlur={field.onBlur}
+                    onChange={field.onChange}
+                    ref={field.ref}
                   />
                 </FormControl>
                 <FormMessage />
@@ -427,30 +436,7 @@ export function RegisterForm() {
             control={form.control}
             name="password"
             render={({ field, fieldState }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      className={cn(
-                        "bg-white pr-10",
-                        fieldState.error && "border-destructive focus-visible:ring-destructive",
-                      )}
-                      {...field}
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-forest/50 transition-colors duration-200 hover:text-forest"
-                      onClick={() => setShowPassword((value) => !value)}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+              <PasswordField field={field} fieldState={fieldState} />
             )}
           />
           <FormField

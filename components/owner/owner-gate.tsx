@@ -4,23 +4,19 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useMockAuth } from "@/lib/mock-auth";
 
-/**
- * Protects owner routes, except Add Property which guests may fill freely.
- * Auth is required at publish-time inside the form modal.
- */
+/** Protects owner routes — session required before Add Property or any owner desk page. */
 export function OwnerGate({ children }: { children: React.ReactNode }) {
   const { user, isReady } = useMockAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const allowGuest = pathname === "/owner/add-property";
 
   useEffect(() => {
     if (!isReady) return;
-    if (!user && !allowGuest) {
-      const returnTo = encodeURIComponent(pathname || "/owner");
+    if (!user) {
+      const returnTo = encodeURIComponent(pathname || "/owner/add-property");
       router.replace(`/login?returnTo=${returnTo}`);
     }
-  }, [isReady, user, router, pathname, allowGuest]);
+  }, [isReady, user, router, pathname]);
 
   if (!isReady) {
     return (
@@ -30,7 +26,7 @@ export function OwnerGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user && !allowGuest) {
+  if (!user) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
         Redirecting to sign in…

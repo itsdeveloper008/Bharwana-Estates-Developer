@@ -64,6 +64,14 @@ export interface Developer {
   accountDeleted?: boolean;
 }
 
+export type PropertyStatusHistoryEntry = {
+  status: PropertyStatus;
+  reason?: string;
+  at: string;
+  /** Display name of actor when known (e.g. admin) */
+  by?: string;
+};
+
 export interface Property {
   id: string;
   title: string;
@@ -88,8 +96,12 @@ export interface Property {
   ownerUserId?: string;
   developerId?: string;
   createdAt: string;
-  /** Set when status is REJECTED */
+  /** Set when status is REJECTED — latest reason for quick display */
   rejectionReason?: string;
+  /** When status last changed (reject / approve / resubmit) */
+  statusUpdatedAt?: string;
+  /** Trail of status changes for seller + admin context */
+  statusHistory?: PropertyStatusHistoryEntry[];
 }
 
 export interface Inquiry {

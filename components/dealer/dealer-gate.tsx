@@ -4,27 +4,23 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useMockAuth } from "@/lib/mock-auth";
 
-/**
- * Protects /dealer/* — session required, role must be DEALER.
- * Add Property allows guests (publish-gate at submit), same pattern as owner.
- */
+/** Protects /dealer/* — session required; role must be DEALER. */
 export function DealerGate({ children }: { children: React.ReactNode }) {
   const { user, isReady } = useMockAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const allowGuest = pathname === "/dealer/add-property";
 
   useEffect(() => {
     if (!isReady) return;
-    if (!user && !allowGuest) {
-      const returnTo = encodeURIComponent(pathname || "/dealer");
+    if (!user) {
+      const returnTo = encodeURIComponent(pathname || "/dealer/add-property");
       router.replace(`/login?returnTo=${returnTo}`);
       return;
     }
-    if (user && user.role !== "DEALER" && !allowGuest) {
+    if (user.role !== "DEALER") {
       router.replace("/");
     }
-  }, [isReady, user, router, pathname, allowGuest]);
+  }, [isReady, user, router, pathname]);
 
   if (!isReady) {
     return (
@@ -34,7 +30,7 @@ export function DealerGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user && !allowGuest) {
+  if (!user) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
         Redirecting to sign in…
@@ -42,7 +38,7 @@ export function DealerGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (user && user.role !== "DEALER" && !allowGuest) {
+  if (user.role !== "DEALER") {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
         Redirecting…

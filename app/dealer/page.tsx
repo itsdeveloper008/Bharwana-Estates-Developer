@@ -1,10 +1,14 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  SellerListingActions,
+  SellerRejectionNotice,
+} from "@/components/properties/seller-listing-status";
 import {
   Table,
   TableBody,
@@ -20,21 +24,14 @@ import {
   formatPrice,
   formatPriceFull,
   inquiryChannelLabel,
-  statusLabel,
 } from "@/lib/format";
 import { useMockAuth } from "@/lib/mock-auth";
+import { markListingsViewed } from "@/lib/listings-notifications";
 import { sumCommission, useMockStore } from "@/lib/mock-store";
-import type { CommissionStatus, PropertyStatus } from "@/lib/types";
+import type { CommissionStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type Tab = "listings" | "leads" | "commission";
-
-function statusBadgeVariant(status: PropertyStatus) {
-  if (status === "PENDING_APPROVAL") return "pending" as const;
-  if (status === "REJECTED") return "rejected" as const;
-  if (status === "PUBLISHED") return "verified" as const;
-  return "outline" as const;
-}
 
 function commissionBadgeClass(status: CommissionStatus) {
   if (status === "PENDING") return "border-amber-600/30 bg-amber-50 text-amber-900";
@@ -70,6 +67,10 @@ function DealerDashboard() {
   const pendingAmount = sumCommission(myTransactions, ["PENDING"]);
   const invoicedAmount = sumCommission(myTransactions, ["INVOICED"]);
   const paidAmount = sumCommission(myTransactions, ["PAID"]);
+
+  useEffect(() => {
+    if (user?.id && tab === "listings") markListingsViewed(user.id);
+  }, [user?.id, tab]);
 
   if (!user) return null;
 
@@ -120,7 +121,7 @@ function DealerDashboard() {
           {mine.map((property) => (
             <div
               key={property.id}
-              className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between"
             >
               <div className="flex min-w-0 items-start gap-4">
                 <div className="relative h-16 w-24 shrink-0 overflow-hidden bg-cream">
@@ -134,18 +135,13 @@ function DealerDashboard() {
                   <p className="text-sm text-muted-foreground">
                     {property.city} · {formatPrice(property.price)}
                   </p>
+                  <SellerRejectionNotice property={property} />
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={statusBadgeVariant(property.status)}>
-                  {statusLabel(property.status)}
-                </Badge>
-                {property.status === "PUBLISHED" || property.status === "RESERVED" ? (
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/property/${property.id}`}>View</Link>
-                  </Button>
-                ) : null}
-              </div>
+              <SellerListingActions
+                property={property}
+                editHref={`/dealer/add-property?edit=${property.id}`}
+              />
             </div>
           ))}
           {mine.length === 0 && (

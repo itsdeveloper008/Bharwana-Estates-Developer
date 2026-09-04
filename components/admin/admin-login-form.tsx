@@ -48,7 +48,13 @@ export function AdminLoginForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="text-left">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="text-left"
+        autoComplete="off"
+        data-lpignore="true"
+        data-1p-ignore
+      >
         <span className="inline-flex rounded-full bg-forest px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gold">
           Admin access
         </span>
@@ -70,8 +76,11 @@ export function AdminLoginForm() {
                     />
                     <Input
                       type="email"
-                      autoComplete="username"
-                      placeholder="you@company.com"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      placeholder=""
                       value={field.value ?? ""}
                       name={field.name}
                       onBlur={field.onBlur}
@@ -103,8 +112,8 @@ export function AdminLoginForm() {
                     />
                     <Input
                       type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      placeholder="Enter your password"
+                      autoComplete="new-password"
+                      placeholder=""
                       value={field.value ?? ""}
                       name={field.name}
                       onBlur={field.onBlur}

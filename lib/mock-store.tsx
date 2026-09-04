@@ -272,6 +272,9 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       const existing = current.find((property) => property.id === id);
       if (!existing) return current;
       merged = { ...existing, ...patch, id };
+      if ("rejectionReason" in patch && patch.rejectionReason === undefined) {
+        delete merged.rejectionReason;
+      }
       return current.map((property) => (property.id === id ? merged! : property));
     });
     if (!merged) return;

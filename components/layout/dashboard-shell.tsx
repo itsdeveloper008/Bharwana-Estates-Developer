@@ -56,12 +56,8 @@ export function DashboardShell({
           <div className="border-b border-forest/10 bg-cream/50">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
               <div>
-                <p className="type-eyebrow">
-                  {user ? copy.title : "New listing"}
-                </p>
-                <h1 className="font-serif text-2xl sm:text-3xl">
-                  {user?.fullName ?? "Place a residence"}
-                </h1>
+                <p className="type-eyebrow">{copy.title}</p>
+                <h1 className="font-serif text-2xl sm:text-3xl">{user?.fullName ?? copy.title}</h1>
               </div>
               {pathname !== "/" && (
                 <Button variant="ghost" asChild>

@@ -184,6 +184,22 @@ export function SubmissionDetailModal({
             </p>
           ) : null}
 
+          {display.statusHistory && display.statusHistory.length > 0 ? (
+            <AdminDetailSection title="Status history">
+              <ul className="space-y-2 text-sm text-forest/80">
+                {[...display.statusHistory].reverse().slice(0, 5).map((entry) => (
+                  <li key={`${entry.at}-${entry.status}-${entry.reason ?? ""}`}>
+                    <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                      {formatDate(entry.at)}
+                      {entry.by ? ` · ${entry.by}` : ""} · {entry.status.replaceAll("_", " ")}
+                    </span>
+                    {entry.reason ? <p className="mt-0.5">{entry.reason}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            </AdminDetailSection>
+          ) : null}
+
           <AdminDetailSection title="Map" className="hidden lg:block">
             <MiniMap property={display} />
           </AdminDetailSection>

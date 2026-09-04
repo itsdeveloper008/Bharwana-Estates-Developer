@@ -180,6 +180,8 @@ export function TeamMemberFormDialog({
                     <FormControl>
                       <Input
                         type="email"
+                        placeholder=""
+                        autoComplete="off"
                         className={fieldState.error ? "border-destructive bg-white" : "bg-white"}
                         {...field}
                       />

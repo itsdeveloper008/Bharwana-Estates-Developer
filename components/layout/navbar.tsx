@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { PhoneCall, X } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +15,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMockAuth } from "@/lib/mock-auth";
+import { useMockStore } from "@/lib/mock-store";
+import {
+  LISTINGS_VIEWED_EVENT,
+  getListingsLastViewedAt,
+  propertyHasUnreadStatusChange,
+} from "@/lib/listings-notifications";
 import { cn } from "@/lib/utils";
 
 const publicLinks = [
@@ -32,11 +38,36 @@ const ease = [0.22, 1, 0.36, 1] as const;
 export function Navbar() {
   const pathname = usePathname();
   const { user, logout, isReady } = useMockAuth();
+  const { properties, getDeveloperForUser } = useMockStore();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [viewedTick, setViewedTick] = useState(0);
   const menuId = useId();
 
-  const listPropertyHref = user?.role === "DEALER" ? "/dealer/add-property" : "/owner/add-property";
+  const listPropertyHref = user
+    ? user.role === "DEALER"
+      ? "/dealer/add-property"
+      : "/owner/add-property"
+    : `/login?returnTo=${encodeURIComponent("/owner/add-property")}`;
+
+  useEffect(() => {
+    const onViewed = () => setViewedTick((tick) => tick + 1);
+    window.addEventListener(LISTINGS_VIEWED_EVENT, onViewed);
+    return () => window.removeEventListener(LISTINGS_VIEWED_EVENT, onViewed);
+  }, []);
+
+  const hasListingUpdates = useMemo(() => {
+    if (!user) return false;
+    const developer = getDeveloperForUser(user.id);
+    const mine = properties.filter(
+      (property) =>
+        property.ownerUserId === user.id ||
+        (developer && property.developerId === developer.id),
+    );
+    const lastViewed = getListingsLastViewedAt(user.id);
+    void viewedTick;
+    return mine.some((property) => propertyHasUnreadStatusChange(property, lastViewed));
+  }, [user, properties, getDeveloperForUser, viewedTick]);
 
   const isHome = pathname === "/";
   const overHero = isHome && !scrolled;
@@ -280,7 +311,7 @@ export function Navbar() {
                     type="button"
                     aria-label="Account menu"
                     className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-full border text-[11px] font-medium tracking-[0.1em] transition-all duration-300",
+                      "relative flex h-10 w-10 items-center justify-center rounded-full border text-[11px] font-medium tracking-[0.1em] transition-all duration-300",
                       "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
                       overHero
                         ? "border-[#B89545]/80 bg-[#082B1D]/60 text-[#B89545] hover:border-[#B89545] hover:shadow-[0_0_0_3px_rgba(184,149,69,0.2)]"
@@ -288,6 +319,12 @@ export function Navbar() {
                     )}
                   >
                     {initials}
+                    {hasListingUpdates ? (
+                      <span
+                        className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-[#FBFAF6]"
+                        aria-hidden
+                      />
+                    ) : null}
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-60 rounded-xl border-forest/10 bg-ivory p-1.5 shadow-[0_20px_40px_-20px_rgba(8,43,29,0.35)]">
@@ -328,7 +365,12 @@ export function Navbar() {
                     .concat([{ href: "/account", label: "Account Settings" }])
                     .map((link) => (
                     <DropdownMenuItem key={link.href} asChild className="cursor-pointer rounded-lg focus:bg-cream focus:text-forest">
-                      <Link href={link.href}>{link.label}</Link>
+                      <Link href={link.href} className="flex w-full items-center justify-between gap-2">
+                        <span>{link.label}</span>
+                        {hasListingUpdates && link.label === "My Listings" ? (
+                          <span className="h-2 w-2 shrink-0 rounded-full bg-destructive" aria-label="Listing updates" />
+                        ) : null}
+                      </Link>
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator className="bg-forest/10" />
@@ -461,9 +503,12 @@ export function Navbar() {
                     <Link
                       href={link.href}
                       onClick={() => setOpen(false)}
-                      className="block py-2 font-serif text-[1.75rem] leading-tight tracking-tight text-[#F5F1E8]/80 transition-colors hover:text-[#B89545] sm:text-[2rem]"
+                      className="flex items-center gap-3 py-2 font-serif text-[1.75rem] leading-tight tracking-tight text-[#F5F1E8]/80 transition-colors hover:text-[#B89545] sm:text-[2rem]"
                     >
                       {link.label}
+                      {hasListingUpdates && link.label === "My Listings" ? (
+                        <span className="mt-1 h-2 w-2 rounded-full bg-destructive" aria-hidden />
+                      ) : null}
                     </Link>
                   </motion.li>
                 ))}

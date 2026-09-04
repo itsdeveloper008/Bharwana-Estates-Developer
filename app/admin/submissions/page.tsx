@@ -25,9 +25,11 @@ import {
 } from "@/components/ui/table";
 import { formatDate, formatPrice, listingBadge, statusLabel } from "@/lib/format";
 import { useMockStore } from "@/lib/mock-store";
+import { buildStatusChangePatch } from "@/lib/property-status";
 import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useAdminAuth } from "@/lib/admin-auth";
 
 type Tab = "PENDING_APPROVAL" | "PUBLISHED" | "REJECTED" | "ALL";
 
@@ -39,6 +41,7 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export default function AdminSubmissionsPage() {
+  const { admin } = useAdminAuth();
   const { properties, developers, users, updateProperty, deleteProperty } = useMockStore();
   const [tab, setTab] = useState<Tab>("PENDING_APPROVAL");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -76,16 +79,31 @@ export default function AdminSubmissionsPage() {
       toast.error("Approve the dealer account before publishing this listing.");
       return;
     }
-    await updateProperty(property.id, { status: "PUBLISHED", rejectionReason: undefined });
+    // TODO: email seller on approval once Cloud Functions / Trigger Email are set up.
+    await updateProperty(
+      property.id,
+      buildStatusChangePatch(property, {
+        status: "PUBLISHED",
+        by: admin?.fullName ?? admin?.email ?? "Admin",
+        clearRejectionReason: true,
+      }),
+    );
     toast.success("Property published");
     setSelectedId(null);
   }
 
   async function reject(property: Property) {
-    await updateProperty(property.id, {
-      status: "REJECTED",
-      rejectionReason: rejectReason.trim() || "Did not meet verification standards",
-    });
+    const reason = rejectReason.trim() || "Did not meet verification standards";
+    // TODO: email seller on rejection once Cloud Functions / Trigger Email are set up
+    // (Firestore trigger on status → REJECTED). Do not send email from the client.
+    await updateProperty(
+      property.id,
+      buildStatusChangePatch(property, {
+        status: "REJECTED",
+        reason,
+        by: admin?.fullName ?? admin?.email ?? "Admin",
+      }),
+    );
     toast.message("Property rejected");
     setRejectOpen(false);
     setRejectReason("");

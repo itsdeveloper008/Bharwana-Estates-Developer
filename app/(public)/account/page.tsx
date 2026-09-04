@@ -205,10 +205,11 @@ export default function AccountSettingsPage() {
               <Input
                 id="delete-email"
                 className="mt-1.5"
+                type="email"
                 autoComplete="off"
                 value={emailConfirm}
                 onChange={(event) => setEmailConfirm(event.target.value)}
-                placeholder={user.email}
+                placeholder=""
               />
             </div>
 
@@ -219,9 +220,10 @@ export default function AccountSettingsPage() {
                   id="delete-password"
                   type="password"
                   className="mt-1.5"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Your password"
+                  placeholder=""
                 />
               </div>
             )}

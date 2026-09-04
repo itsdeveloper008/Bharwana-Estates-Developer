@@ -110,7 +110,13 @@ export function PublishAuthDialog({
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input className="bg-white" type="email" {...field} />
+                      <Input
+                        className="bg-white"
+                        type="email"
+                        placeholder=""
+                        autoComplete="off"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -123,7 +129,13 @@ export function PublishAuthDialog({
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input className="bg-white" type="password" {...field} />
+                      <Input
+                        className="bg-white"
+                        type="password"
+                        placeholder=""
+                        autoComplete="new-password"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -158,7 +170,13 @@ export function PublishAuthDialog({
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input className="bg-white" type="email" {...field} />
+                      <Input
+                        className="bg-white"
+                        type="email"
+                        placeholder=""
+                        autoComplete="off"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -184,7 +202,13 @@ export function PublishAuthDialog({
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input className="bg-white" type="password" {...field} />
+                      <Input
+                        className="bg-white"
+                        type="password"
+                        placeholder=""
+                        autoComplete="new-password"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

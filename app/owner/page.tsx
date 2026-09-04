@@ -1,23 +1,26 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  SellerListingActions,
+  SellerRejectionNotice,
+} from "@/components/properties/seller-listing-status";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
-import { formatDate, formatPrice, inquiryChannelLabel, statusLabel } from "@/lib/format";
-import type { PropertyStatus } from "@/lib/types";
-
-function statusBadgeVariant(status: PropertyStatus) {
-  if (status === "PENDING_APPROVAL") return "pending" as const;
-  if (status === "REJECTED") return "rejected" as const;
-  if (status === "PUBLISHED") return "verified" as const;
-  return "outline" as const;
-}
+import { markListingsViewed } from "@/lib/listings-notifications";
+import { formatDate, formatPrice, inquiryChannelLabel } from "@/lib/format";
 
 export default function OwnerPage() {
   const { user } = useMockAuth();
   const { properties, inquiries } = useMockStore();
+
+  useEffect(() => {
+    if (user?.id) markListingsViewed(user.id);
+  }, [user?.id]);
+
   if (!user) return null;
 
   const mine = properties.filter((property) => property.ownerUserId === user.id);
@@ -39,7 +42,7 @@ export default function OwnerPage() {
         {mine.map((property) => (
           <div
             key={property.id}
-            className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between"
           >
             <div className="flex min-w-0 items-start gap-4">
               <div className="relative h-16 w-24 shrink-0 overflow-hidden bg-cream">
@@ -53,19 +56,13 @@ export default function OwnerPage() {
                 <p className="text-sm text-muted-foreground">
                   {property.city} · {formatPrice(property.price)}
                 </p>
-                {property.status === "REJECTED" && property.rejectionReason ? (
-                  <p className="mt-2 text-sm text-destructive">Reason: {property.rejectionReason}</p>
-                ) : null}
+                <SellerRejectionNotice property={property} />
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={statusBadgeVariant(property.status)}>{statusLabel(property.status)}</Badge>
-              {property.status === "PUBLISHED" || property.status === "RESERVED" ? (
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/property/${property.id}`}>View</Link>
-                </Button>
-              ) : null}
-            </div>
+            <SellerListingActions
+              property={property}
+              editHref={`/owner/add-property?edit=${property.id}`}
+            />
           </div>
         ))}
         {mine.length === 0 && (
