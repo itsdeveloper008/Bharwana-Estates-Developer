@@ -8,10 +8,7 @@ export default function LoginPage() {
   return (
     <>
       <p className="type-eyebrow">Members</p>
-      <h1 className="mt-2 font-serif text-4xl">Sign in</h1>
-      <p className="type-subheading mb-8">
-        Sign in with email, phone OTP, or Google to list homes or manage your listings.
-      </p>
+      <h1 className="mt-2 mb-8 font-serif text-4xl">Sign in</h1>
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
         <LoginForm />
       </Suspense>
