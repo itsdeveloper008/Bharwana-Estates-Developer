@@ -138,7 +138,7 @@ export function PhoneOtpSection({
         setRoleOpen(true);
         return;
       }
-      toast.success(variant === "register" ? "Account ready" : "Signed in with phone");
+      toast.success(variant === "register" ? "Account ready" : "Welcome back");
       onSuccess(result.user);
     } finally {
       setPending(false);

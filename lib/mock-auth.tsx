@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -407,6 +408,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [pendingGoogleSignup, setPendingGoogleSignup] = useState<GoogleSignupDraft | null>(null);
+  const authSyncGenerationRef = useRef(0);
 
   const persist = useCallback((next: User | null) => {
     setUser(next);
@@ -470,35 +472,55 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
       unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         if (cancelled) return;
+        const syncId = ++authSyncGenerationRef.current;
         void (async () => {
           try {
             if (!firebaseUser) {
+              if (cancelled || syncId !== authSyncGenerationRef.current) return;
+              setPendingGoogle(null);
               persist(null);
               return;
             }
 
-            const profile = await loadFirestoreUser(firebaseUser);
+            // Retry once — login/register may still be writing the Firestore profile.
+            let profile = await loadFirestoreUser(firebaseUser);
+            if (!profile) {
+              await delay(350);
+              profile = await loadFirestoreUser(firebaseUser);
+            }
+            if (cancelled || syncId !== authSyncGenerationRef.current) return;
+
+            if (!profile) {
+              const providers = firebaseUser.providerData.map((p) => p.providerId);
+              if (providers.includes("password")) {
+                profile = await repairMissingProfile(firebaseUser);
+                if (cancelled || syncId !== authSyncGenerationRef.current) return;
+                if (profile) {
+                  setPendingGoogle(null);
+                  persist(profile);
+                  return;
+                }
+              }
+            }
+
             if (profile) {
               setPendingGoogle(null);
               persist(profile);
               return;
             }
 
+            // Google / phone user with no profile yet — role completion, not a logged-in session.
             const draft = draftFromFirebaseUser(firebaseUser);
             const pending = readPendingGoogle();
             const samePending =
               pending?.id === firebaseUser.uid ||
               (pending?.phone && pending.phone === firebaseUser.phoneNumber);
-            if (samePending) {
-              persist(null);
-            } else {
-              setPendingGoogle(draft);
-              persist(null);
-            }
+            if (!samePending) setPendingGoogle(draft);
+            persist(null);
           } catch (error) {
             console.error("Auth state sync failed", error);
           } finally {
-            if (!cancelled) setIsReady(true);
+            if (!cancelled && syncId === authSyncGenerationRef.current) setIsReady(true);
           }
         })();
       });

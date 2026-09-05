@@ -63,7 +63,7 @@ function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) 
     }
     if (user && consumeGoogleReturn()) {
       handledReturn.current = true;
-      toast.success("Signed in with Google");
+      toast.dismiss();
       onSuccessRef.current(user);
     }
   }, [isReady, pendingGoogleSignup, user, consumeGoogleReturn]);
@@ -90,7 +90,7 @@ function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) 
         return;
       }
       if ("user" in result) {
-        toast.success("Signed in with Google");
+        toast.dismiss();
         onSuccess(result.user);
       }
       setPending(false);
@@ -273,7 +273,7 @@ export function LoginForm() {
       setError(result.error);
       return;
     }
-    toast.success("Signed in");
+    toast.dismiss();
     goAfterAuth(result.user.role);
   }
 

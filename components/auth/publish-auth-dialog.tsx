@@ -66,7 +66,7 @@ export function PublishAuthDialog({
       setError(result.error);
       return;
     }
-    toast.success("Signed in");
+    toast.dismiss();
     onAuthenticated(result.user);
   }
 
