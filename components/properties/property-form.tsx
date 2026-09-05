@@ -63,7 +63,18 @@ const WIZARD_STEPS = [
 
 const STEP_FIELDS: Record<number, (keyof PropertyFormValues)[]> = {
   0: ["purpose", "category", "subtype", "title", "description"],
-  1: ["listingType", "price", "bedrooms", "bathrooms", "areaSqft", "city", "address", "latitude", "longitude"],
+  1: [
+    "listingType",
+    "price",
+    "bedrooms",
+    "bathrooms",
+    "areaSqft",
+    "city",
+    "address",
+    "latitude",
+    "longitude",
+    "contactPhone",
+  ],
 };
 
 function WizardStepIndicator({ current }: { current: number }) {
@@ -271,6 +282,7 @@ export function PropertyForm({
       city: "Lahore",
       latitude: CITY_COORDS.Lahore.latitude,
       longitude: CITY_COORDS.Lahore.longitude,
+      contactPhone: "",
     },
   });
 
@@ -294,6 +306,7 @@ export function PropertyForm({
       city: editingProperty.city,
       latitude: editingProperty.latitude,
       longitude: editingProperty.longitude,
+      contactPhone: editingProperty.contactPhone ?? "",
     });
     setPreviews(editingProperty.images ?? []);
     setPhotoError(false);
@@ -307,6 +320,13 @@ export function PropertyForm({
   }, [user?.role, form, isAdmin]);
 
   useEffect(() => {
+    if (isAdmin || editingProperty) return;
+    if (user?.phone && !form.getValues("contactPhone")) {
+      form.setValue("contactPhone", user.phone);
+    }
+  }, [user?.phone, form, isAdmin, editingProperty]);
+
+  useEffect(() => {
     if (!isAdmin) return;
     setAssignError(null);
     if (listingType === "DIRECT_OWNER") {
@@ -318,6 +338,13 @@ export function PropertyForm({
       setShowNewOwner(false);
     }
   }, [listingType, isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (!assignOwnerId) return;
+    const owner = users.find((item) => item.id === assignOwnerId);
+    if (owner?.phone) form.setValue("contactPhone", owner.phone);
+  }, [assignOwnerId, users, form, isAdmin]);
 
   useEffect(() => {
     return () => {
@@ -346,6 +373,7 @@ export function PropertyForm({
       address: 1,
       latitude: 1,
       longitude: 1,
+      contactPhone: 1,
     };
     return map[field] ?? 0;
   }
@@ -461,16 +489,15 @@ export function PropertyForm({
       setAssignError("Enter the owner’s name.");
       return null;
     }
-    if (contact.length < 5) {
-      setAssignError("Enter a phone number or email.");
+    if (contact.length < 10 || contact.includes("@")) {
+      setAssignError("Enter a phone number (at least 10 digits) so Admin can reach the owner.");
       return null;
     }
-    const looksEmail = contact.includes("@");
     const owner: User = {
       id: `u-owner-${Date.now()}`,
       fullName: name,
-      email: looksEmail ? contact : `${name.toLowerCase().replace(/\s+/g, ".")}@owner.local`,
-      phone: looksEmail ? "" : contact,
+      email: `${name.toLowerCase().replace(/\s+/g, ".")}@owner.local`,
+      phone: contact,
       role: "HOUSE_OWNER",
     };
     await addUser(owner);
@@ -1000,7 +1027,7 @@ export function PropertyForm({
                         className={fieldFocus}
                       />
                       <Input
-                        placeholder="Phone or email"
+                        placeholder="Phone number"
                         value={newOwnerContact}
                         onChange={(event) => setNewOwnerContact(event.target.value)}
                         className={fieldFocus}
@@ -1188,6 +1215,29 @@ export function PropertyForm({
                 )}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="contactPhone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="mb-0.5">Contact phone</FormLabel>
+                  <FormControl>
+                    <Input
+                      className={fieldFocus}
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      placeholder="+92 300 1234567"
+                      {...field}
+                    />
+                  </FormControl>
+                  <p className="text-[11px] text-muted-foreground">
+                    Required so Admin can reach you about this listing.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <MapPicker
               latitude={form.watch("latitude")}
               longitude={form.watch("longitude")}

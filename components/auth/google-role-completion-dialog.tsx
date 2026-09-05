@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { RoleSelector } from "@/components/auth/role-selector";
@@ -36,16 +36,31 @@ export function GoogleRoleCompletionDialog({
   const { addDeveloper } = useMockStore();
   const [role, setRole] = useState<"BUYER" | "HOUSE_OWNER" | "DEALER">("BUYER");
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [agencyName, setAgencyName] = useState("");
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    if (!open || !draft) return;
+    setPhone(draft.phone || "");
+    setFullName("");
+    setAgencyName("");
+    setRegistrationNumber("");
+    setError(null);
+  }, [open, draft]);
 
   async function handleSubmit() {
     if (!draft) return;
     const resolvedName = requireFullName ? fullName.trim() : draft.fullName.trim();
     if (requireFullName && resolvedName.length < 2) {
       setError("Enter your full name.");
+      return;
+    }
+    const resolvedPhone = (phone.trim() || draft.phone.trim());
+    if (resolvedPhone.replace(/\D/g, "").length < 10) {
+      setError("A phone number is required so we can reach you about your listing");
       return;
     }
     if (role === "DEALER" && !agencyName.trim()) {
@@ -56,7 +71,11 @@ export function GoogleRoleCompletionDialog({
     setPending(true);
     try {
       const result = await completeGoogleSignup({
-        draft: { ...draft, fullName: resolvedName || draft.fullName },
+        draft: {
+          ...draft,
+          fullName: resolvedName || draft.fullName,
+          phone: resolvedPhone,
+        },
         role,
         agencyName: agencyName.trim() || undefined,
         registrationNumber: registrationNumber.trim() || undefined,
@@ -109,6 +128,22 @@ export function GoogleRoleCompletionDialog({
               />
             </div>
           )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="signup-phone">Phone</Label>
+            <Input
+              id="signup-phone"
+              className="bg-white"
+              type="tel"
+              inputMode="tel"
+              placeholder="+92 300 1234567"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Required so we can reach you about listings.
+            </p>
+          </div>
 
           <div>
             <Label className="mb-2 block">I am a</Label>

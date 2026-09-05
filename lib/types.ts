@@ -95,6 +95,8 @@ export interface Property {
   images: string[];
   ownerUserId?: string;
   developerId?: string;
+  /** Seller contact for Admin follow-up on this listing */
+  contactPhone?: string;
   createdAt: string;
   /** Set when status is REJECTED — latest reason for quick display */
   rejectionReason?: string;

@@ -44,8 +44,12 @@ export function Navbar() {
   const [viewedTick, setViewedTick] = useState(0);
   const menuId = useId();
 
-  const listPropertyHref = user
-    ? user.role === "DEALER"
+  /** Single auth source — Sign In and avatar must never contradict. */
+  const signedIn = isReady && Boolean(user);
+  const showSignIn = isReady && !user;
+
+  const listPropertyHref = signedIn
+    ? user!.role === "DEALER"
       ? "/dealer/add-property"
       : "/owner/add-property"
     : `/login?returnTo=${encodeURIComponent("/owner/add-property")}`;
@@ -120,7 +124,7 @@ export function Navbar() {
         .toUpperCase()
     : "";
 
-  const accountLinks = user
+  const accountLinks = signedIn && user
     ? [
         { href: "/saved", label: "Saved Residences" },
         ...(user.role === "HOUSE_OWNER"
@@ -137,7 +141,10 @@ export function Navbar() {
             : user.role === "SALES_REP"
               ? [{ href: "/sales", label: "Pipeline" }]
               : user.role === "ADMIN"
-                ? [{ href: "/admin", label: "Admin" }]
+                ? [
+                    { href: "/owner", label: "My Listings" },
+                    { href: "/admin", label: "Admin" },
+                  ]
                 : [
                     { href: "/owner", label: "My Listings" },
                     { href: "/owner/add-property", label: "Add Property" },
@@ -236,7 +243,7 @@ export function Navbar() {
 
           {/* Actions — desktop */}
           <div className="hidden items-center gap-4 lg:flex xl:gap-5">
-            {user ? null : (
+            {showSignIn ? (
               <Link
                 href="/login"
                 className={cn(
@@ -249,7 +256,7 @@ export function Navbar() {
                 Sign in
                 <span className="absolute bottom-1 left-0 h-px w-0 bg-[#B89545] transition-all duration-300 group-hover:w-full" />
               </Link>
-            )}
+            ) : null}
 
             <Link
               href={listPropertyHref}
@@ -304,7 +311,7 @@ export function Navbar() {
               </span>
             </a>
 
-            {isReady && user ? (
+            {signedIn && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -333,37 +340,7 @@ export function Navbar() {
                     <p className="mt-0.5 text-xs text-muted-foreground">{user.email}</p>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-forest/10" />
-                  {(user.role === "HOUSE_OWNER"
-                    ? [
-                        { href: "/saved", label: "Saved Residences" },
-                        { href: "/owner", label: "My Listings" },
-                        { href: "/owner/add-property", label: "Add Property" },
-                      ]
-                    : user.role === "DEALER"
-                      ? [
-                          { href: "/saved", label: "Saved Residences" },
-                          { href: "/dealer", label: "My Listings" },
-                          { href: "/dealer/add-property", label: "Add Property" },
-                          { href: "/dealer?tab=commission", label: "Commission" },
-                        ]
-                      : user.role === "SALES_REP"
-                        ? [
-                            { href: "/saved", label: "Saved Residences" },
-                            { href: "/sales", label: "Pipeline" },
-                          ]
-                        : user.role === "ADMIN"
-                          ? [
-                              { href: "/saved", label: "Saved Residences" },
-                              { href: "/admin", label: "Admin" },
-                            ]
-                          : [
-                              { href: "/saved", label: "Saved Residences" },
-                              { href: "/owner", label: "My Listings" },
-                              { href: "/owner/add-property", label: "Add Property" },
-                            ]
-                  )
-                    .concat([{ href: "/account", label: "Account Settings" }])
-                    .map((link) => (
+                  {accountLinks.map((link) => (
                     <DropdownMenuItem key={link.href} asChild className="cursor-pointer rounded-lg focus:bg-cream focus:text-forest">
                       <Link href={link.href} className="flex w-full items-center justify-between gap-2">
                         <span>{link.label}</span>
@@ -387,7 +364,7 @@ export function Navbar() {
 
           {/* Mobile controls */}
           <div className="flex items-center gap-2 sm:gap-3 lg:hidden">
-            {!user ? (
+            {showSignIn ? (
               <Link
                 href="/login"
                 className={cn(
@@ -492,7 +469,7 @@ export function Navbar() {
                   );
                 })}
 
-                {user &&
+                {signedIn &&
                   accountLinks.map((link, index) => (
                   <motion.li
                     key={link.href}
@@ -513,7 +490,7 @@ export function Navbar() {
                   </motion.li>
                 ))}
 
-                {!user ? (
+                {showSignIn ? (
                   <motion.li
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -554,7 +531,7 @@ export function Navbar() {
                 <span className="text-[13px] tracking-[0.04em]">Call {phoneDisplay}</span>
               </a>
 
-              {user && (
+              {signedIn && user ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -565,7 +542,7 @@ export function Navbar() {
                 >
                   Sign out · {user.fullName.split(" ")[0]}
                 </button>
-              )}
+              ) : null}
             </motion.div>
           </motion.div>
         )}

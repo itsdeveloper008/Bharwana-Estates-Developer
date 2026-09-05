@@ -20,7 +20,7 @@ import {
   reauthenticateWithPopup,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
-  signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile,
   type ConfirmationResult,
@@ -39,6 +39,7 @@ const SESSION_KEY = "bharwana_user_session";
 const USERS_KEY = "bharwana_registered_users";
 const PENDING_GOOGLE_KEY = "bharwana_pending_google_signup";
 const PENDING_REGISTER_KEY = "bharwana_pending_register_profile";
+const GOOGLE_RETURN_KEY = "bharwana_google_auth_return";
 
 export type GoogleSignupDraft = {
   id: string;
@@ -53,6 +54,7 @@ type StoredAccount = User & { password: string };
 type GoogleLoginResult =
   | { ok: true; isNewUser: false; user: User }
   | { ok: true; isNewUser: true; draft: GoogleSignupDraft }
+  | { ok: true; redirecting: true }
   | { ok: false; error: string };
 
 type PhoneLoginResult =
@@ -70,8 +72,10 @@ interface MockAuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isReady: boolean;
+  pendingGoogleSignup: GoogleSignupDraft | null;
   login: (email: string, password: string) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   loginWithGoogle: () => Promise<GoogleLoginResult>;
+  consumeGoogleReturn: () => boolean;
   sendPhoneOtp: (
     phone: string,
     verifier: RecaptchaVerifier,
@@ -232,9 +236,9 @@ function googleAuthErrorMessage(code: string) {
   switch (code) {
     case "auth/popup-closed-by-user":
     case "auth/cancelled-popup-request":
-      return "Google sign-in was cancelled. Keep the popup open and choose an account.";
+      return "Google sign-in did not finish. If a popup closed on its own, allow popups for this site or try again.";
     case "auth/popup-blocked":
-      return "Your browser blocked the Google popup. Allow popups for bharwanaestates.com, then try again.";
+      return "Your browser blocked the Google sign-in window. Allow popups for bharwanaestates.com, then try again.";
     case "auth/unauthorized-domain":
       return "This domain is not authorized for Google sign-in. In Firebase → Authentication → Settings, add bharwanaestates.com and www.bharwanaestates.com.";
     case "auth/operation-not-allowed":
@@ -299,11 +303,17 @@ function draftFromFirebaseUser(firebaseUser: FirebaseUser): GoogleSignupDraft {
 export function MockAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [pendingGoogleSignup, setPendingGoogleSignup] = useState<GoogleSignupDraft | null>(null);
 
   const persist = useCallback((next: User | null) => {
     setUser(next);
     if (next) localStorage.setItem(SESSION_KEY, JSON.stringify(next));
     else localStorage.removeItem(SESSION_KEY);
+  }, []);
+
+  const setPendingGoogle = useCallback((draft: GoogleSignupDraft | null) => {
+    writePendingGoogle(draft);
+    setPendingGoogleSignup(draft);
   }, []);
 
   useEffect(() => {
@@ -319,6 +329,13 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         }
       } catch {
         localStorage.removeItem(SESSION_KEY);
+      }
+
+      try {
+        const pending = readPendingGoogle();
+        if (!cancelled && pending) setPendingGoogleSignup(pending);
+      } catch {
+        // ignore
       }
 
       if (!isFirebaseConfigured()) {
@@ -339,9 +356,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           const profile = await loadFirestoreUser(redirected.user);
           if (profile) {
             persist(profile);
-            writePendingGoogle(null);
+            setPendingGoogle(null);
           } else {
-            writePendingGoogle(draftFromFirebaseUser(redirected.user));
+            setPendingGoogle(draftFromFirebaseUser(redirected.user));
           }
         }
       } catch (error) {
@@ -359,7 +376,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
             const profile = await loadFirestoreUser(firebaseUser);
             if (profile) {
-              writePendingGoogle(null);
+              setPendingGoogle(null);
               persist(profile);
               return;
             }
@@ -372,7 +389,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             if (samePending) {
               persist(null);
             } else {
-              writePendingGoogle(draft);
+              setPendingGoogle(draft);
               persist(null);
             }
           } catch (error) {
@@ -393,7 +410,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       unsubscribe?.();
     };
-  }, [persist]);
+  }, [persist, setPendingGoogle]);
 
   const loginAs = useCallback(
     (next: User) => {
@@ -492,29 +509,35 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     provider.setCustomParameters({ prompt: "select_account" });
 
     try {
-      const result = await signInWithPopup(auth, provider);
-      const email = (result.user.email ?? "").trim().toLowerCase();
-      if (!email) return { ok: false as const, error: "Google account did not return an email." };
-
-      const profile = await loadFirestoreUser(result.user);
-      if (profile) {
-        persist(profile);
-        writePendingGoogle(null);
-        return { ok: true as const, isNewUser: false as const, user: profile };
+      // Full-page redirect avoids popup blockers / extensions closing the Google window.
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(
+          GOOGLE_RETURN_KEY,
+          `${window.location.pathname}${window.location.search}`,
+        );
       }
-
-      const draft = draftFromFirebaseUser(result.user);
-      writePendingGoogle(draft);
-      return { ok: true as const, isNewUser: true as const, draft };
+      await signInWithRedirect(auth, provider);
+      return { ok: true as const, redirecting: true as const };
     } catch (error) {
       const code =
         error && typeof error === "object" && "code" in error
           ? String((error as { code?: string }).code)
           : "";
-      console.error("Google sign-in failed", error);
+      console.error("Google sign-in failed", { code, error });
       return { ok: false as const, error: googleAuthErrorMessage(code) };
     }
-  }, [persist]);
+  }, []);
+
+  const consumeGoogleReturn = useCallback(() => {
+    try {
+      const raw = sessionStorage.getItem(GOOGLE_RETURN_KEY);
+      if (raw === null) return false;
+      sessionStorage.removeItem(GOOGLE_RETURN_KEY);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
 
   const sendPhoneOtp = useCallback(
     async (phone: string, verifier: RecaptchaVerifier) => {
@@ -565,12 +588,12 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         const profile = await loadFirestoreUser(result.user);
         if (profile) {
           persist(profile);
-          writePendingGoogle(null);
+          setPendingGoogle(null);
           return { ok: true as const, isNewUser: false as const, user: profile };
         }
 
         const draft = draftFromFirebaseUser(result.user);
-        writePendingGoogle(draft);
+        setPendingGoogle(draft);
         return { ok: true as const, isNewUser: true as const, draft };
       } catch (error) {
         const code =
@@ -585,7 +608,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         return { ok: false as const, error: phoneAuthErrorMessage(code, rawMessage) };
       }
     },
-    [persist],
+    [persist, setPendingGoogle],
   );
 
   const completeGoogleSignup = useCallback(
@@ -609,7 +632,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             registrationNumber: input.registrationNumber,
           });
           persist(profile);
-          writePendingGoogle(null);
+          setPendingGoogle(null);
           return { ok: true as const, user: profile };
         } catch (error) {
           console.error("Google signup profile save failed", error);
@@ -636,10 +659,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       writeRegistered([...registered, account]);
       const publicUser = toPublicUser(account);
       persist(publicUser);
-      writePendingGoogle(null);
+      setPendingGoogle(null);
       return { ok: true as const, user: publicUser };
     },
-    [persist],
+    [persist, setPendingGoogle],
   );
 
   const register = useCallback(
@@ -742,10 +765,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     persist(null);
-    writePendingGoogle(null);
+    setPendingGoogle(null);
     const auth = getFirebaseAuth();
     if (auth) void signOut(auth).catch(() => undefined);
-  }, [persist]);
+  }, [persist, setPendingGoogle]);
 
   const getAccountAuthMethod = useCallback((): AccountAuthMethod | null => {
     const auth = getFirebaseAuth();
@@ -846,7 +869,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
 
       persist(null);
-      writePendingGoogle(null);
+      setPendingGoogle(null);
       return { ok: true };
     } catch (error) {
       const code =
@@ -867,7 +890,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         error: firestoreErrorMessage(error, "Could not delete your account. Try again or submit a request."),
       };
     }
-  }, [user, persist, clearLocalAccountTraces, getAccountAuthMethod]);
+  }, [user, persist, clearLocalAccountTraces, getAccountAuthMethod, setPendingGoogle]);
 
   const reauthenticateForDeletion = useCallback(
     async (input?: { password?: string }) => {
@@ -950,8 +973,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       user,
       isAuthenticated: Boolean(user),
       isReady,
+      pendingGoogleSignup,
       login,
       loginWithGoogle,
+      consumeGoogleReturn,
       sendPhoneOtp,
       verifyPhoneOtp,
       completeGoogleSignup,
@@ -967,8 +992,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     [
       user,
       isReady,
+      pendingGoogleSignup,
       login,
       loginWithGoogle,
+      consumeGoogleReturn,
       sendPhoneOtp,
       verifyPhoneOtp,
       completeGoogleSignup,

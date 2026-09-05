@@ -225,6 +225,7 @@ export default function AdminSubmissionsPage() {
         onOpenChange={(open) => !open && setSelectedId(null)}
         submitterName={selectedOwner?.fullName ?? "Unknown"}
         submitterEmail={selectedOwner?.email}
+        submitterPhone={selected?.contactPhone || selectedOwner?.phone}
         dealerBlocksApproval={selected ? dealerBlocksApproval(selected) : false}
         onApprove={() => selected && void approve(selected)}
         onReject={() => {

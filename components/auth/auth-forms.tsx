@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type Ref } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
@@ -43,32 +43,60 @@ function OrDivider() {
 }
 
 function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) {
-  const { loginWithGoogle } = useMockAuth();
+  const { loginWithGoogle, user, isReady, pendingGoogleSignup, consumeGoogleReturn } = useMockAuth();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [roleOpen, setRoleOpen] = useState(false);
   const [draft, setDraft] = useState<GoogleSignupDraft | null>(null);
+  const handledReturn = useRef(false);
+  const onSuccessRef = useRef(onSuccess);
+  onSuccessRef.current = onSuccess;
+
+  useEffect(() => {
+    if (!isReady || handledReturn.current) return;
+    if (pendingGoogleSignup) {
+      handledReturn.current = true;
+      consumeGoogleReturn();
+      setDraft(pendingGoogleSignup);
+      setRoleOpen(true);
+      return;
+    }
+    if (user && consumeGoogleReturn()) {
+      handledReturn.current = true;
+      toast.success("Signed in with Google");
+      onSuccessRef.current(user);
+    }
+  }, [isReady, pendingGoogleSignup, user, consumeGoogleReturn]);
 
   async function handleClick() {
+    if (pending) return;
     setError(null);
     setPending(true);
     try {
       const result = await loginWithGoogle();
       if (!result.ok) {
         setError(result.error);
+        setPending(false);
         return;
       }
-      if (result.isNewUser) {
+      if ("redirecting" in result && result.redirecting) {
+        // Full-page navigate to Google — keep disabled until unload.
+        return;
+      }
+      if ("isNewUser" in result && result.isNewUser) {
         setDraft(result.draft);
         setRoleOpen(true);
+        setPending(false);
         return;
       }
-      toast.success("Signed in with Google");
-      onSuccess(result.user);
+      if ("user" in result) {
+        toast.success("Signed in with Google");
+        onSuccess(result.user);
+      }
+      setPending(false);
     } catch (err) {
       console.error("Google continue failed", err);
       setError("Could not sign in with Google. Try again.");
-    } finally {
       setPending(false);
     }
   }
@@ -92,9 +120,9 @@ function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) 
         open={roleOpen}
         onOpenChange={setRoleOpen}
         draft={draft}
-        onComplete={(user) => {
+        onComplete={(completed) => {
           setRoleOpen(false);
-          onSuccess(user);
+          onSuccess(completed);
         }}
       />
     </>

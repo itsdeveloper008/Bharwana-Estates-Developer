@@ -28,6 +28,7 @@ export function SubmissionDetailModal({
   onOpenChange,
   submitterName,
   submitterEmail,
+  submitterPhone,
   dealerBlocksApproval,
   onApprove,
   onReject,
@@ -38,6 +39,7 @@ export function SubmissionDetailModal({
   onOpenChange: (open: boolean) => void;
   submitterName: string;
   submitterEmail?: string;
+  submitterPhone?: string;
   dealerBlocksApproval: boolean;
   onApprove: () => void;
   onReject: () => void;
@@ -171,6 +173,15 @@ export function SubmissionDetailModal({
                   </a>
                 ) : (
                   submitterName || <AdminDetailPlaceholder />
+                )}
+              </AdminDetailField>
+              <AdminDetailField label="Phone">
+                {submitterPhone ? (
+                  <a href={`tel:${submitterPhone.replace(/\s+/g, "")}`} className="text-forest underline-offset-2 hover:underline">
+                    {submitterPhone}
+                  </a>
+                ) : (
+                  <AdminDetailPlaceholder />
                 )}
               </AdminDetailField>
               <AdminDetailField label="City">{display.city}</AdminDetailField>

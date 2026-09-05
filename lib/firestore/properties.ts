@@ -133,6 +133,7 @@ function mapProperty(id: string, data: Record<string, unknown>): Property {
     images: Array.isArray(data.images) ? (data.images as string[]) : [],
     ownerUserId: data.ownerUserId ? String(data.ownerUserId) : undefined,
     developerId: data.developerId ? String(data.developerId) : undefined,
+    contactPhone: data.contactPhone ? String(data.contactPhone) : undefined,
     createdAt: createdAtIso(data.createdAt),
     rejectionReason: data.rejectionReason ? String(data.rejectionReason) : undefined,
     statusUpdatedAt: data.statusUpdatedAt ? createdAtIso(data.statusUpdatedAt) : undefined,
