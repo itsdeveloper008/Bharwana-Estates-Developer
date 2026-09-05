@@ -409,6 +409,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [pendingGoogleSignup, setPendingGoogleSignup] = useState<GoogleSignupDraft | null>(null);
   const authSyncGenerationRef = useRef(0);
+  const userRef = useRef<User | null>(null);
+  userRef.current = user;
 
   const persist = useCallback((next: User | null) => {
     setUser(next);
@@ -421,21 +423,21 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     setPendingGoogleSignup(draft);
   }, []);
 
+  /** Persist a confirmed session and invalidate any in-flight auth sync that could wipe it. */
+  const commitSession = useCallback(
+    (profile: User) => {
+      authSyncGenerationRef.current += 1;
+      setPendingGoogle(null);
+      persist(profile);
+    },
+    [persist, setPendingGoogle],
+  );
+
   useEffect(() => {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
 
     async function boot() {
-      try {
-        const raw = localStorage.getItem(SESSION_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as User;
-          if (parsed?.id && parsed?.email) setUser(parsed);
-        }
-      } catch {
-        localStorage.removeItem(SESSION_KEY);
-      }
-
       try {
         const pending = readPendingGoogle();
         if (!cancelled && pending) setPendingGoogleSignup(pending);
@@ -444,6 +446,16 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (!isFirebaseConfigured()) {
+        // Mock/local mode only — restore cached session.
+        try {
+          const raw = localStorage.getItem(SESSION_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw) as User;
+            if (parsed?.id && parsed?.email) setUser(parsed);
+          }
+        } catch {
+          localStorage.removeItem(SESSION_KEY);
+        }
         logFirebaseConfigDiagnostics("auth");
         if (!cancelled) setIsReady(true);
         return;
@@ -454,6 +466,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setIsReady(true);
         return;
       }
+
+      // Do NOT hydrate from localStorage before Firebase confirms — that caused
+      // /login to redirect to /properties with a stale session, then wipe to SIGN IN.
 
       try {
         const redirected = await getRedirectResult(auth);
@@ -500,6 +515,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
                   persist(profile);
                   return;
                 }
+                // Never wipe a password session here — login() may have just committed it.
+                if (userRef.current?.id === firebaseUser.uid) return;
+                console.error("Password user has Firebase auth but no Firestore profile");
+                return;
               }
             }
 
@@ -516,6 +535,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
               pending?.id === firebaseUser.uid ||
               (pending?.phone && pending.phone === firebaseUser.phoneNumber);
             if (!samePending) setPendingGoogle(draft);
+            // Don't clear an already-committed session for this uid (login race).
+            if (userRef.current?.id === firebaseUser.uid) return;
             persist(null);
           } catch (error) {
             console.error("Auth state sync failed", error);
@@ -581,7 +602,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
                   "Your account exists but your profile could not be loaded. Try again in a moment or contact support.",
               };
             }
-            persist(profile);
+            commitSession(profile);
             writePendingRegister(null);
             return { ok: true as const, user: profile };
           } catch (error) {
@@ -603,19 +624,19 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           return { ok: false as const, error: "Invalid email or password" };
         }
         const publicUser = toPublicUser(fromRegister);
-        persist(publicUser);
+        commitSession(publicUser);
         return { ok: true as const, user: publicUser };
       }
 
       const seed = seedUsers.find((item) => item.email.toLowerCase() === normalized);
       if (seed && SEED_PASSWORDS[seed.email] === password) {
-        persist(seed);
+        commitSession(seed);
         return { ok: true as const, user: seed };
       }
 
       return { ok: false as const, error: "Invalid email or password" };
     },
-    [persist],
+    [commitSession],
   );
 
   const loginWithGoogle = useCallback(async () => {
@@ -636,8 +657,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
       const profile = await loadFirestoreUser(firebaseUser);
       if (profile) {
-        persist(profile);
-        setPendingGoogle(null);
+        commitSession(profile);
         return { ok: true as const, isNewUser: false as const, user: profile };
       }
 
@@ -692,7 +712,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
       return { ok: false as const, error: googleAuthErrorMessage(code) };
     }
-  }, [persist, setPendingGoogle]);
+  }, [commitSession, setPendingGoogle]);
 
   const consumeGoogleReturn = useCallback(() => {
     try {
@@ -868,7 +888,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
               createUserDocWithRetry(credential.user.uid, profileInput),
             ]);
 
-            persist(profile);
+            commitSession(profile);
             writePendingRegister(null);
             return { ok: true as const, user: profile };
           } catch (error) {
@@ -923,13 +943,14 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       };
       writeRegistered([...registered, account]);
       const publicUser = toPublicUser(account);
-      persist(publicUser);
+      commitSession(publicUser);
       return { ok: true as const, user: publicUser };
     },
-    [persist],
+    [commitSession],
   );
 
   const logout = useCallback(() => {
+    authSyncGenerationRef.current += 1;
     persist(null);
     setPendingGoogle(null);
     const auth = getFirebaseAuth();
