@@ -20,7 +20,10 @@ const nextConfig = {
     ],
   },
   async rewrites() {
-    // Keep auth helper proxy for any leftover Firebase auth iframe usage.
+    // Proxy Firebase Auth helper scripts through the custom domain.
+    // NOTE: Google redirect continueUri on bharwanaestates.com still requires this
+    // domain to be attached to Firebase Hosting for project bharwana-estate-developer
+    // (not another Firebase project). Until then, Google sign-in uses popup.
     return [
       {
         source: "/__/auth/:path*",

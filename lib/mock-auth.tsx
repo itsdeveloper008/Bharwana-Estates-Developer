@@ -20,6 +20,7 @@ import {
   reauthenticateWithPopup,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
+  signInWithPopup,
   signInWithRedirect,
   signOut,
   updateProfile,
@@ -204,6 +205,8 @@ function phoneAuthErrorMessage(code: string, rawMessage = "") {
       return "SMS limit reached. Try again later or use email sign-in.";
     case "auth/operation-not-allowed":
       return "Phone sign-in is disabled for this Firebase project. Enable Phone under Authentication → Sign-in method.";
+    case "auth/network-request-failed":
+      return "Could not reach Firebase Auth. Disable ad blockers for this site, try another network or browser, and stay on https://bharwanaestates.com.";
     default:
       return code ? `Could not verify phone (${code}).` : "Could not verify phone. Try again.";
   }
@@ -227,6 +230,10 @@ function emailAuthErrorMessage(code: string) {
       return "This account has been disabled.";
     case "auth/operation-not-allowed":
       return "Email sign-in is disabled for this Firebase project.";
+    case "auth/network-request-failed":
+      return "Could not reach Firebase Auth. Disable ad blockers for this site, try another network or browser, and make sure you are on https://bharwanaestates.com (not www).";
+    case "auth/unauthorized-domain":
+      return "This domain is not authorized for sign-in. In Firebase → Authentication → Settings → Authorized domains, add bharwanaestates.com.";
     default:
       return code ? `Could not complete sign-in (${code}).` : "Could not complete sign-in. Try again.";
   }
@@ -236,9 +243,9 @@ function googleAuthErrorMessage(code: string) {
   switch (code) {
     case "auth/popup-closed-by-user":
     case "auth/cancelled-popup-request":
-      return "Google sign-in did not finish. If a popup closed on its own, allow popups for this site or try again.";
+      return "Google sign-in did not finish. Keep the Google window open, choose an account, and allow popups for this site.";
     case "auth/popup-blocked":
-      return "Your browser blocked the Google sign-in window. Allow popups for bharwanaestates.com, then try again.";
+      return "Your browser blocked the Google popup. Allow popups for bharwanaestates.com, then try again.";
     case "auth/unauthorized-domain":
       return "This domain is not authorized for Google sign-in. In Firebase → Authentication → Settings, add bharwanaestates.com and www.bharwanaestates.com.";
     case "auth/operation-not-allowed":
@@ -246,7 +253,10 @@ function googleAuthErrorMessage(code: string) {
     case "auth/account-exists-with-different-credential":
       return "An account already exists with this email using a different sign-in method.";
     case "auth/network-request-failed":
-      return "Network error during Google sign-in. Check your connection and try again.";
+      return "Could not reach Google/Firebase Auth. Disable ad blockers, try another browser/network, and stay on https://bharwanaestates.com.";
+    case "auth/invalid-continue-uri":
+    case "auth/unauthorized-continue-uri":
+      return "Google sign-in cannot return to this domain yet. In Firebase Hosting, make sure bharwanaestates.com is attached to project bharwana-estate-developer (not another Firebase project).";
     default:
       return code
         ? `Could not sign in with Google (${code}).`
@@ -509,24 +519,54 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     provider.setCustomParameters({ prompt: "select_account" });
 
     try {
-      // Full-page redirect avoids popup blockers / extensions closing the Google window.
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(
-          GOOGLE_RETURN_KEY,
-          `${window.location.pathname}${window.location.search}`,
-        );
+      // Prefer popup: continue URI stays on *.firebaseapp.com auth handler.
+      // Redirect to the custom domain fails while bharwanaestates.com is claimed by
+      // a different Firebase Hosting project (INVALID_CONTINUE_URI).
+      const result = await signInWithPopup(auth, provider);
+      const email = (result.user.email ?? "").trim().toLowerCase();
+      if (!email) return { ok: false as const, error: "Google account did not return an email." };
+
+      const profile = await loadFirestoreUser(result.user);
+      if (profile) {
+        persist(profile);
+        setPendingGoogle(null);
+        return { ok: true as const, isNewUser: false as const, user: profile };
       }
-      await signInWithRedirect(auth, provider);
-      return { ok: true as const, redirecting: true as const };
+
+      const draft = draftFromFirebaseUser(result.user);
+      setPendingGoogle(draft);
+      return { ok: true as const, isNewUser: true as const, draft };
     } catch (error) {
       const code =
         error && typeof error === "object" && "code" in error
           ? String((error as { code?: string }).code)
           : "";
       console.error("Google sign-in failed", { code, error });
+
+      // Popup blocked → last-resort redirect (may still fail until Hosting owns the domain).
+      if (code === "auth/popup-blocked") {
+        try {
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem(
+              GOOGLE_RETURN_KEY,
+              `${window.location.pathname}${window.location.search}`,
+            );
+          }
+          await signInWithRedirect(auth, provider);
+          return { ok: true as const, redirecting: true as const };
+        } catch (redirectError) {
+          const redirectCode =
+            redirectError && typeof redirectError === "object" && "code" in redirectError
+              ? String((redirectError as { code?: string }).code)
+              : code;
+          console.error("Google redirect fallback failed", { code: redirectCode, redirectError });
+          return { ok: false as const, error: googleAuthErrorMessage(redirectCode || code) };
+        }
+      }
+
       return { ok: false as const, error: googleAuthErrorMessage(code) };
     }
-  }, []);
+  }, [persist, setPendingGoogle]);
 
   const consumeGoogleReturn = useCallback(() => {
     try {
