@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { AuthFormEntrance, AuthVisualPanel } from "@/components/auth/auth-shell";
+import { Suspense } from "react";
+import { AuthFormEntrance, AuthGuestGate, AuthVisualPanel } from "@/components/auth/auth-shell";
 import { FirebaseConfigBanner } from "@/components/firebase/firebase-config-banner";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +15,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </Link>
         <AuthFormEntrance>
           <FirebaseConfigBanner context="auth" />
-          {children}
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Checking your session…</p>}>
+            <AuthGuestGate>{children}</AuthGuestGate>
+          </Suspense>
         </AuthFormEntrance>
       </div>
     </div>

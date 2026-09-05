@@ -2,10 +2,27 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import { useMockAuth } from "@/lib/mock-auth";
+import type { UserRole } from "@/lib/types";
 
 const TAGLINES = ["A key, passed quietly.", "Every address, considered.", "Quiet introductions only."];
+
+const roleHome: Record<UserRole, string> = {
+  BUYER: "/properties",
+  HOUSE_OWNER: "/owner",
+  DEALER: "/dealer",
+  SALES_REP: "/sales",
+  ADMIN: "/admin",
+};
+
+function safeReturnTo(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
 
 export function AuthVisualPanel() {
   const [index, setIndex] = useState(0);
@@ -65,6 +82,33 @@ export function AuthFormEntrance({ children }: { children: ReactNode }) {
       {children}
     </motion.div>
   );
+}
+
+/** Keeps signed-in users off /login and /register; clears leftover auth toasts. */
+export function AuthGuestGate({ children }: { children: ReactNode }) {
+  const { user, isReady } = useMockAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    toast.dismiss();
+  }, []);
+
+  useEffect(() => {
+    if (!isReady || !user) return;
+    const returnTo = safeReturnTo(searchParams.get("returnTo"));
+    router.replace(returnTo ?? roleHome[user.role] ?? "/");
+  }, [isReady, user, router, searchParams]);
+
+  if (!isReady) {
+    return <p className="text-sm text-muted-foreground">Checking your session…</p>;
+  }
+
+  if (user) {
+    return <p className="text-sm text-muted-foreground">Redirecting…</p>;
+  }
+
+  return <>{children}</>;
 }
 
 export function AuthCrossLink({ href, children }: { href: string; children: ReactNode }) {
