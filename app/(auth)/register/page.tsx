@@ -7,10 +7,7 @@ export default function RegisterPage() {
   return (
     <>
       <p className="type-eyebrow">Join</p>
-      <h1 className="mt-1.5 font-serif text-3xl sm:text-4xl">Create an account</h1>
-      <p className="type-subheading mb-4 sm:mb-6">
-        Register with email, phone OTP, or Google as a buyer, house owner, or dealer.
-      </p>
+      <h1 className="mt-1.5 mb-4 font-serif text-3xl sm:text-4xl sm:mb-6">Create an account</h1>
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
         <RegisterForm />
       </Suspense>
