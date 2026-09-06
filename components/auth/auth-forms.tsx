@@ -18,7 +18,7 @@ import { useMockAuth } from "@/lib/mock-auth";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { registerSchema, userLoginSchema, type RegisterFormValues, type UserLoginValues } from "@/lib/schemas";
-import { DEFAULT_DEALER_COMMISSION_RATE, type User, type UserRole } from "@/lib/types";
+import { DEFAULT_DEALER_COMMISSION_RATE, type User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function safeReturnTo(raw: string | null): string | null {
