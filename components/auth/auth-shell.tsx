@@ -7,17 +7,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useMockAuth } from "@/lib/mock-auth";
-import type { UserRole } from "@/lib/types";
 
 const TAGLINES = ["A key, passed quietly.", "Every address, considered.", "Quiet introductions only."];
-
-const roleHome: Record<UserRole, string> = {
-  BUYER: "/properties",
-  HOUSE_OWNER: "/owner",
-  DEALER: "/dealer",
-  SALES_REP: "/sales",
-  ADMIN: "/admin",
-};
 
 function safeReturnTo(raw: string | null): string | null {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
@@ -97,7 +88,7 @@ export function AuthGuestGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isReady || !user) return;
     const returnTo = safeReturnTo(searchParams.get("returnTo"));
-    router.replace(returnTo ?? roleHome[user.role] ?? "/");
+    router.replace(returnTo ?? "/");
   }, [isReady, user, router, searchParams]);
 
   if (!isReady) {

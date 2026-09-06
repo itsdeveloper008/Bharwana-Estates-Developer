@@ -21,13 +21,15 @@ import { registerSchema, userLoginSchema, type RegisterFormValues, type UserLogi
 import { DEFAULT_DEALER_COMMISSION_RATE, type User, type UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const roleHome: Record<UserRole, string> = {
-  BUYER: "/properties",
-  HOUSE_OWNER: "/owner",
-  DEALER: "/dealer",
-  SALES_REP: "/sales",
-  ADMIN: "/admin",
-};
+function safeReturnTo(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
+/** After sign-in/register: honor returnTo, otherwise land on the home page. */
+function pathAfterAuth(returnTo: string | null): string {
+  return returnTo ?? "/";
+}
 
 function OrDivider() {
   return (
@@ -127,11 +129,6 @@ function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) 
       />
     </>
   );
-}
-
-function safeReturnTo(raw: string | null): string | null {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
-  return raw;
 }
 
 function GoogleMark({ className }: { className?: string }) {
@@ -261,9 +258,8 @@ export function LoginForm() {
     form.reset({ email: "", password: "" });
   }, [form]);
 
-  function goAfterAuth(role: UserRole) {
-    const returnTo = safeReturnTo(searchParams.get("returnTo"));
-    router.push(returnTo ?? roleHome[role]);
+  function goAfterAuth() {
+    router.push(pathAfterAuth(safeReturnTo(searchParams.get("returnTo"))));
   }
 
   async function onSubmit(values: UserLoginValues) {
@@ -274,7 +270,7 @@ export function LoginForm() {
       return;
     }
     toast.dismiss();
-    goAfterAuth(result.user.role);
+    goAfterAuth();
   }
 
   return (
@@ -319,12 +315,12 @@ export function LoginForm() {
         <PhoneOtpSection
           variant="login"
           recaptchaId="phone-auth-recaptcha-login"
-          onSuccess={(authed) => goAfterAuth(authed.role)}
+          onSuccess={() => goAfterAuth()}
         />
       )}
 
       <OrDivider />
-      <ContinueWithGoogle onSuccess={(authed) => goAfterAuth(authed.role)} />
+      <ContinueWithGoogle onSuccess={() => goAfterAuth()} />
     </div>
   );
 }
@@ -354,9 +350,8 @@ export function RegisterForm() {
 
   const selectedRole = useWatch({ control: form.control, name: "role" });
 
-  function goAfterAuth(role: UserRole) {
-    const returnTo = safeReturnTo(searchParams.get("returnTo"));
-    router.push(returnTo ?? roleHome[role]);
+  function goAfterAuth() {
+    router.push(pathAfterAuth(safeReturnTo(searchParams.get("returnTo"))));
   }
 
   async function onSubmit(values: RegisterFormValues) {
@@ -395,7 +390,7 @@ export function RegisterForm() {
           ? "Dealer account created. Pending review."
           : "Account created successfully.",
       );
-      goAfterAuth(values.role);
+      goAfterAuth();
     } finally {
       setSubmitting(false);
     }
@@ -559,7 +554,7 @@ export function RegisterForm() {
           <PhoneOtpSection
             variant="register"
             recaptchaId="phone-auth-recaptcha-register"
-            onSuccess={(authed) => goAfterAuth(authed.role)}
+            onSuccess={() => goAfterAuth()}
           />
           <p className="text-center text-sm text-muted-foreground">
             Already on the floor? <AuthCrossLink href={loginHref}>Sign in</AuthCrossLink>
@@ -568,7 +563,7 @@ export function RegisterForm() {
       )}
 
       <OrDivider />
-      <ContinueWithGoogle onSuccess={(authed) => goAfterAuth(authed.role)} />
+      <ContinueWithGoogle onSuccess={() => goAfterAuth()} />
     </div>
   );
 }
