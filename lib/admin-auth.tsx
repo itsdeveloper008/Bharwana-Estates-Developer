@@ -73,12 +73,6 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState<AdminSession | null>(null);
   const [isReady, setIsReady] = useState(false);
 
-  const clearUnauthorizedFirebaseSession = useCallback(async () => {
-    const auth = getFirebaseAuth();
-    if (!auth?.currentUser) return;
-    await signOut(auth).catch(() => undefined);
-  }, []);
-
   useEffect(() => {
     try {
       localStorage.removeItem("bharwana_admin_session");
@@ -110,16 +104,11 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
           }
 
           const session = await resolveAdminSession(firebaseUser);
-          if (!session) {
-            await clearUnauthorizedFirebaseSession();
-            if (!cancelled) setAdmin(null);
-            return;
-          }
-
+          // Non-admin users share this Firebase Auth instance with the main site.
+          // Never sign them out here — that wiped buyer/owner sessions right after login.
           if (!cancelled) setAdmin(session);
         } catch (error) {
           console.error("Admin auth state sync failed", error);
-          await clearUnauthorizedFirebaseSession();
           if (!cancelled) setAdmin(null);
         } finally {
           if (!cancelled) setIsReady(true);
@@ -131,7 +120,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       unsubscribe();
     };
-  }, [clearUnauthorizedFirebaseSession]);
+  }, []);
 
   const login = useCallback(
     async (email: string, password: string) => {
