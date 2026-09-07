@@ -12,7 +12,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { getDb, getFirebaseStorage, isFirebaseConfigured } from "@/lib/firebase/client";
+import { getDb, getFirebaseAuth, getFirebaseStorage, isFirebaseConfigured } from "@/lib/firebase/client";
 import { FIRESTORE_WRITE_TIMEOUT_MS } from "@/lib/firestore/errors";
 import type { Property, PropertyStatusHistoryEntry } from "@/lib/types";
 import { withTimeout } from "@/lib/utils";
@@ -66,9 +66,15 @@ async function resolvePropertyImages(propertyId: string, images: string[]): Prom
   const needsUpload = images.some((image) => !isRemoteImageUrl(image));
   if (!needsUpload) return images;
 
-  const storage = getFirebaseStorage();
+      const storage = getFirebaseStorage();
   if (!storage || !isFirebaseConfigured()) {
     throw new Error("Firebase Storage is not configured for photo uploads");
+  }
+
+  const auth = getFirebaseAuth();
+  const uid = auth?.currentUser?.uid;
+  if (!uid) {
+    throw new Error("Sign in required to upload listing photos");
   }
 
   return Promise.all(
@@ -78,7 +84,7 @@ async function resolvePropertyImages(propertyId: string, images: string[]): Prom
       if (!response.ok) throw new Error("Could not read a listing photo for upload");
       const raw = await response.blob();
       const blob = await compressImageBlob(raw);
-      const storageRef = ref(storage, `team/listings/${propertyId}/${index}.jpg`);
+      const storageRef = ref(storage, `listings/${uid}/${propertyId}/${index}.jpg`);
       await withTimeout(
         uploadBytes(storageRef, blob, { contentType: "image/jpeg" }),
         FIRESTORE_WRITE_TIMEOUT_MS,

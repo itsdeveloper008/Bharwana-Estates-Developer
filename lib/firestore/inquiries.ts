@@ -15,9 +15,6 @@ import { withTimeout } from "@/lib/utils";
 
 const COLLECTION = "inquiries";
 
-// TODO: Configure Firestore security rules before production.
-// Open read/write is fine for local demos only — lock down inquiries to authenticated admins/sales.
-
 function mapInquiry(id: string, data: Record<string, unknown>): Inquiry {
   const createdAt = data.createdAt;
   let createdIso = new Date().toISOString();
@@ -108,7 +105,6 @@ export async function createContactMessage(input: {
 }): Promise<void> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");
-  // TODO: Configure Firestore security rules before production.
   await addDoc(collection(db, "contactMessages"), {
     ...input,
     createdAt: serverTimestamp(),
@@ -118,7 +114,6 @@ export async function createContactMessage(input: {
 export async function createNewsletterSignup(email: string): Promise<void> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");
-  // TODO: Configure Firestore security rules before production.
   await addDoc(collection(db, "newsletterSignups"), {
     email,
     createdAt: serverTimestamp(),

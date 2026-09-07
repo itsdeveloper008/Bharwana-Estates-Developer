@@ -4,62 +4,152 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
+
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    // User profiles — keyed by Firebase Auth UID.
-    // TODO: restrict admin delete/list to custom claims before public scale.
-    match /users/{userId} {
-      allow read: if isSignedIn();
-      // Self-registration uses own UID; admin may create profile stubs for assigned owners.
-      allow create: if isSignedIn();
-      allow update: if isOwner(userId) || isSignedIn();
-      allow delete: if isSignedIn();
+    function userExists() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    // Listings — public read; authenticated writes (owner scoping enforced in app layer).
-    // TODO: tighten create to request.resource.data.ownerUserId == request.auth.uid
-    // and admin moderation via custom claims.
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    /** Admin via users.role or admins/{uid} allow-list (Admin SDK managed). */
+    function isAdmin() {
+      return isSignedIn() && (
+        (userExists() && userRole() == 'ADMIN')
+        || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isPublicRole(role) {
+      return role in ['BUYER', 'HOUSE_OWNER', 'DEALER'];
+    }
+
+    function isValidUserRole(role) {
+      return role in ['BUYER', 'HOUSE_OWNER', 'DEALER', 'SALES_REP', 'ADMIN'];
+    }
+
+    // —— User profiles (Firebase Auth UID) ——
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+
+      // Self-register: own UID only, never ADMIN/SALES_REP via client signup.
+      allow create: if isSignedIn()
+        && (
+          (
+            request.auth.uid == userId
+            && isPublicRole(request.resource.data.role)
+          )
+          || (
+            isAdmin()
+            && isValidUserRole(request.resource.data.role)
+          )
+        );
+
+      // Owners cannot escalate role; admins can manage any profile.
+      allow update: if isAdmin()
+        || (
+          isOwner(userId)
+          && request.resource.data.role == resource.data.role
+        );
+
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // Admin allow-list docs — readable by that uid for auth checks; writes via Admin SDK only.
+    match /admins/{adminId} {
+      allow read: if isSignedIn() && request.auth.uid == adminId;
+      allow write: if false;
+    }
+
+    // —— Listings ——
     match /properties/{propertyId} {
       allow read: if true;
-      allow write: if isSignedIn();
+
+      allow create: if isAdmin()
+        || (
+          isSignedIn()
+          && request.resource.data.ownerUserId == request.auth.uid
+          && request.resource.data.status in ['DRAFT', 'PENDING_APPROVAL']
+        );
+
+      allow update: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.ownerUserId == request.auth.uid
+          && request.resource.data.ownerUserId == resource.data.ownerUserId
+          && request.resource.data.status in ['DRAFT', 'PENDING_APPROVAL']
+        );
+
+      allow delete: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.ownerUserId == request.auth.uid
+        );
     }
 
+    // —— Inquiries ——
     match /inquiries/{id} {
-      allow read, write: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.buyerId == request.auth.uid;
+
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.buyerId == request.auth.uid);
+
+      allow update, delete: if isAdmin();
     }
 
+    // —— Team (public read, admin write) ——
     match /teamMembers/{id} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isAdmin();
     }
 
+    // —— Public lead forms (create only; no public read) ——
     match /contactMessages/{id} {
       allow create: if true;
-      allow read, update, delete: if isSignedIn();
+      allow read, update, delete: if isAdmin();
     }
 
     match /newsletterSignups/{id} {
-      allow create: if true;
-      allow read, update, delete: if isSignedIn();
+      allow create: if true
+        && request.resource.data.keys().hasOnly(['email', 'createdAt']);
+      allow read, update, delete: if isAdmin();
     }
 
-    // Account deletion requests — signed-in users can create; admins process via app.
-    // TODO: restrict list/update/delete to admin custom claims before public scale.
+    // —— Account deletion ——
     match /deletionRequests/{id} {
-      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
-      allow read, update, delete: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
 
-    // Optional dealer / commission collections (flagged on account deletion).
+    // —— Dealers (local store today; lock Firestore if used) ——
     match /developers/{id} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create: if isAdmin()
+        || (
+          isSignedIn()
+          && request.resource.data.dealerUserId == request.auth.uid
+        );
+      allow update: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.dealerUserId == request.auth.uid
+          && request.resource.data.dealerUserId == resource.data.dealerUserId
+        );
+      allow delete: if isAdmin();
     }
 
     match /transactions/{id} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isAdmin();
     }
   }
 }

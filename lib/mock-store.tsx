@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
+import { useAdminAuth } from "@/lib/admin-auth";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import {
@@ -109,6 +110,7 @@ function mergeById<T extends { id: string }>(seed: T[], stored: T[] | null): T[]
 }
 
 export function MockStoreProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated: isAdminSession } = useAdminAuth();
   const [properties, setProperties] = useState<Property[]>(seedPropertiesList);
   const [developers, setDevelopers] = useState<Developer[]>(seedDevelopers);
   const [transactions, setTransactions] = useState<Transaction[]>(seedTransactions);
@@ -157,9 +159,10 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, [properties, developers, transactions, users, hydrated, usingFirestoreProperties, usingFirestoreUsers]);
 
   useEffect(() => {
-    if (!isFirebaseConfigured()) {
+    if (!isFirebaseConfigured() || !isAdminSession) {
       setUsingFirestoreInquiries(false);
       setInquiriesLoading(false);
+      if (!isAdminSession) setInquiryState(seedInquiries);
       return;
     }
 
@@ -180,7 +183,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     );
 
     return () => unsub?.();
-  }, []);
+  }, [isAdminSession]);
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
@@ -230,7 +233,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!isFirebaseConfigured()) {
+    if (!isFirebaseConfigured() || !isAdminSession) {
       setUsingFirestoreUsers(false);
       return;
     }
@@ -247,7 +250,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     );
 
     return () => unsub?.();
-  }, []);
+  }, [isAdminSession]);
 
   const addProperty = useCallback(async (property: Property) => {
     setProperties((current) => [property, ...current.filter((item) => item.id !== property.id)]);

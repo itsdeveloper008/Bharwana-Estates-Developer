@@ -1,14 +1,48 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // DEV ONLY — tighten before production.
-    match /team/{allPaths=**} {
-      allow read: if true;
-      allow write: if true;
+    function isSignedIn() {
+      return request.auth != null;
     }
-    match /properties/{allPaths=**} {
+
+    function isAdmin() {
+      return isSignedIn()
+        && (
+          (
+            firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+            && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
+          )
+          || firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
+        );
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*')
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Listing photos — path includes uploader uid (set by client).
+    match /listings/{userId}/{propertyId}/{fileName} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isSignedIn()
+        && request.auth.uid == userId
+        && isImage();
+      allow delete: if isSignedIn()
+        && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Team headshots — admin only.
+    match /team/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage();
+      allow delete: if isAdmin();
+    }
+
+    // Legacy listing path under team/listings — read OK; no new public writes.
+    match /team/listings/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage();
+      allow delete: if isAdmin();
     }
   }
 }
