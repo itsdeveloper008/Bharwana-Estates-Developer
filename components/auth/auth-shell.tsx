@@ -3,61 +3,51 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState, type ReactNode } from "react";
+import { motion } from "framer-motion";
+import { useEffect, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useMockAuth } from "@/lib/mock-auth";
-
-const TAGLINES = ["A key, passed quietly.", "Every address, considered.", "Quiet introductions only."];
+import { cn } from "@/lib/utils";
 
 function safeReturnTo(raw: string | null): string | null {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
   return raw;
 }
 
-export function AuthVisualPanel() {
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setIndex((current) => (current + 1) % TAGLINES.length);
-    }, 7000);
-    return () => window.clearInterval(id);
-  }, []);
+/** Full-bleed crest panels flanking the centered auth form. */
+export function AuthSidePanel({ side }: { side: "left" | "right" }) {
+  const isLeft = side === "left";
 
   return (
-    <div className="relative hidden overflow-hidden bg-forest lg:block">
+    <div className="relative hidden overflow-hidden bg-ivory lg:block" aria-hidden>
       <motion.div
-        className="absolute inset-0"
-        animate={{ scale: [1, 1.08, 1], x: ["0%", "-2%", "0%"], y: ["0%", "1.5%", "0%"] }}
-        transition={{ duration: 28, ease: "linear", repeat: Infinity }}
+        className={cn(
+          "absolute inset-y-0 flex w-[min(100%,30rem)] items-center",
+          isLeft ? "left-0 justify-start" : "right-0 justify-end",
+        )}
+        initial={{ opacity: 0, x: isLeft ? -28 : 28 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.65, ease: "easeOut" }}
       >
-        <Image
-          src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80"
-          alt=""
-          fill
-          className="object-cover opacity-55"
-          priority
-        />
-      </motion.div>
-      <div className="absolute inset-0 bg-gradient-to-t from-forest via-forest/55 to-forest/15" />
-      <div className="absolute bottom-8 left-10 right-10 text-ivory">
-        <p className="font-display text-sm tracking-crest text-gold">BHARWANA</p>
-        <div className="relative mt-2 min-h-[2.75rem]">
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={TAGLINES[index]}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.45, ease: "easeOut" }}
-              className="font-serif text-3xl drop-shadow-[0_2px_12px_rgba(0,0,0,0.35)]"
-            >
-              {TAGLINES[index]}
-            </motion.p>
-          </AnimatePresence>
+        <div
+          className={cn(
+            "relative h-full max-h-[36rem] w-full",
+            isLeft ? "-translate-x-[8%]" : "translate-x-[8%]",
+          )}
+        >
+          <Image
+            src="/lion-bharwana.png"
+            alt=""
+            fill
+            priority
+            sizes="(min-width: 1024px) 32vw, 0px"
+            className={cn(
+              "object-contain opacity-90",
+              isLeft ? "object-left -scale-x-100" : "object-right",
+            )}
+          />
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
