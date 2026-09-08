@@ -74,7 +74,7 @@ export default function AdminDeletionRequestsPage() {
       await purgeUserOwnedData(request.uid);
       await updateDeletionRequestStatus(request.id, "PROCESSED");
       toast.success(
-        `Firestore data for ${request.email} removed. Firebase Auth account removal still needs a Cloud Function (Admin SDK) — noted as a future backend pass.`,
+        `Firestore data for ${request.email} removed. Auth account removal still needs Admin SDK / Cloud Function — finish in Firebase Console or the next backend pass within the 30-day window.`,
       );
     } catch (err) {
       console.error(err);

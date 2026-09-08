@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { DealerGate } from "@/components/dealer/dealer-gate";
 import { Navbar } from "@/components/layout/navbar";
+import { WhatsAppFloat } from "@/components/layout/whatsapp-float";
 import { OwnerGate } from "@/components/owner/owner-gate";
 import { Button } from "@/components/ui/button";
 import { useMockAuth } from "@/lib/mock-auth";
@@ -71,6 +72,7 @@ export function DashboardShell({
           </div>
           <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">{children}</div>
         </Gate>
+        <WhatsAppFloat />
       </div>
     );
   }
@@ -90,6 +92,7 @@ export function DashboardShell({
             Frontend-only mock session. No credentials are stored on a server.
           </p>
         </div>
+        <WhatsAppFloat />
       </div>
     );
   }
@@ -114,6 +117,7 @@ export function DashboardShell({
         </div>
       </div>
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">{children}</div>
+      <WhatsAppFloat />
     </div>
   );
 }

@@ -82,25 +82,43 @@ function FooterLink({ href, label }: { href: string; label: string }) {
   );
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function Footer() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   async function onSubscribe(event: React.FormEvent) {
     event.preventDefault();
     const value = email.trim();
-    if (!value || submitting) return;
+    setSuccessMessage(null);
+
+    if (!value) {
+      setFormError("Enter your email address.");
+      return;
+    }
+    if (!EMAIL_RE.test(value)) {
+      setFormError("Enter a valid email address.");
+      return;
+    }
+    if (submitting) return;
+
+    setFormError(null);
     setSubmitting(true);
     try {
-      if (isFirebaseConfigured()) {
-        // TODO: Configure Firestore security rules before production.
-        await createNewsletterSignup(value);
+      if (!isFirebaseConfigured()) {
+        throw new Error("Firebase is not configured");
       }
-      toast.success("You are on the list for new listings.");
+      await createNewsletterSignup(value);
       setEmail("");
+      setSuccessMessage("You’re on the list for new listings.");
+      toast.success("You’re on the list for new listings.");
     } catch (error) {
       console.error(error);
-      toast.error("Could not save signup. Check Firebase config.");
+      setFormError("Could not save signup. Please try again.");
+      toast.error("Could not save signup. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -163,7 +181,7 @@ export function Footer() {
               Receive new property listings and selected estate updates.
             </p>
 
-            <form onSubmit={onSubscribe} className="mt-8">
+            <form onSubmit={onSubscribe} className="mt-8" noValidate>
               <label htmlFor="footer-email" className="sr-only">
                 Email address
               </label>
@@ -173,16 +191,22 @@ export function Footer() {
                   type="email"
                   required
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder=""
-                  className="h-12 w-full bg-transparent text-[15px] text-[#F4F0E6] outline-none placeholder:text-[#F4F0E6]/35"
-                  autoComplete="off"
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    if (formError) setFormError(null);
+                    if (successMessage) setSuccessMessage(null);
+                  }}
+                  placeholder="Your email address"
+                  className="h-12 min-w-0 flex-1 bg-transparent text-[15px] text-[#F4F0E6] caret-[#C2A35A] outline-none placeholder:text-[#F4F0E6]/45 [&:-webkit-autofill]:[-webkit-text-fill-color:#F4F0E6] [&:-webkit-autofill]:[transition:background-color_9999s_ease-in-out_0s]"
+                  autoComplete="email"
+                  aria-invalid={Boolean(formError)}
+                  aria-describedby={formError ? "footer-email-error" : successMessage ? "footer-email-success" : undefined}
                 />
                 <button
                   type="submit"
                   disabled={submitting}
                   aria-label="Subscribe to updates"
-                  className="group mb-1 flex h-[52px] w-[52px] shrink-0 items-center justify-center bg-[#C2A35A] text-[#06291C] transition-colors duration-300 hover:bg-[#d0b36a] disabled:opacity-60"
+                  className="group mb-1 flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-[#C2A35A] text-[#06291C] transition-colors duration-300 hover:bg-[#d0b36a] disabled:opacity-60"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -196,6 +220,15 @@ export function Footer() {
                   </svg>
                 </button>
               </div>
+              {formError ? (
+                <p id="footer-email-error" className="mt-3 text-[13px] text-[#E8B4B4]" role="alert">
+                  {formError}
+                </p>
+              ) : successMessage ? (
+                <p id="footer-email-success" className="mt-3 text-[13px] text-[#C2A35A]" role="status">
+                  {successMessage}
+                </p>
+              ) : null}
             </form>
           </motion.div>
         </div>

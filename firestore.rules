@@ -101,7 +101,10 @@ service cloud.firestore {
       allow read: if isAdmin()
         || (isSignedIn() && resource.data.buyerId == request.auth.uid);
 
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin();
+
+      allow delete: if isAdmin()
+        || (isSignedIn() && resource.data.buyerId == request.auth.uid);
     }
 
     // —— Team (public read, admin write) ——
@@ -118,7 +121,13 @@ service cloud.firestore {
 
     match /newsletterSignups/{id} {
       allow create: if true
-        && request.resource.data.keys().hasOnly(['email', 'createdAt']);
+        && request.resource.data.email is string
+        && request.resource.data.email.size() > 3
+        && (
+          request.resource.data.keys().hasOnly(['email', 'subscribedAt'])
+          || request.resource.data.keys().hasOnly(['email', 'createdAt'])
+          || request.resource.data.keys().hasOnly(['email', 'subscribedAt', 'createdAt'])
+        );
       allow read, update, delete: if isAdmin();
     }
 
@@ -149,7 +158,26 @@ service cloud.firestore {
     }
 
     match /transactions/{id} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.developerId is string
+          && exists(/databases/$(database)/documents/developers/$(resource.data.developerId))
+          && get(/databases/$(database)/documents/developers/$(resource.data.developerId)).data.dealerUserId
+            == request.auth.uid
+        );
+      allow create, delete: if isAdmin();
+      // Dealer self-deletion may flag commission rows before developer unlink.
+      allow update: if isAdmin()
+        || (
+          isSignedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dealerDeleted'])
+          && request.resource.data.dealerDeleted == true
+          && resource.data.developerId is string
+          && exists(/databases/$(database)/documents/developers/$(resource.data.developerId))
+          && get(/databases/$(database)/documents/developers/$(resource.data.developerId)).data.dealerUserId
+            == request.auth.uid
+        );
     }
   }
 }

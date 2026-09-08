@@ -5,8 +5,10 @@ import {
   doc,
   getDocs,
   onSnapshot,
+  query,
   serverTimestamp,
   updateDoc,
+  where,
   type Unsubscribe,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
@@ -76,35 +78,32 @@ export async function purgeUserOwnedData(uid: string): Promise<void> {
   if (!db) throw new Error("Firebase is not configured");
 
   const [propertySnap, inquirySnap, developerSnap, transactionSnap] = await Promise.all([
-    getDocs(collection(db, "properties")),
-    getDocs(collection(db, "inquiries")),
-    getDocs(collection(db, "developers")).catch(() => null),
+    getDocs(query(collection(db, "properties"), where("ownerUserId", "==", uid))),
+    getDocs(query(collection(db, "inquiries"), where("buyerId", "==", uid))),
+    getDocs(query(collection(db, "developers"), where("dealerUserId", "==", uid))).catch(() => null),
     getDocs(collection(db, "transactions")).catch(() => null),
   ]);
 
-  const propertyDeletes = propertySnap.docs
-    .filter((item) => String(item.data().ownerUserId ?? "") === uid)
-    .map((item) => deleteDoc(item.ref));
+  const developerIds =
+    developerSnap?.docs.map((item) => item.id) ?? [];
 
-  const inquiryDeletes = inquirySnap.docs
-    .filter((item) => String(item.data().buyerId ?? "") === uid)
-    .map((item) => deleteDoc(item.ref));
-
-  const developerIds: string[] = [];
-  const developerUpdates =
-    developerSnap?.docs
-      .filter((item) => String(item.data().dealerUserId ?? "") === uid)
-      .map((item) => {
-        developerIds.push(item.id);
-        return updateDoc(item.ref, { accountDeleted: true, dealerUserId: null });
-      }) ?? [];
-
+  // Flag commissions while dealerUserId still matches (rules require ownership).
   const transactionUpdates =
     transactionSnap?.docs
       .filter((item) => developerIds.includes(String(item.data().developerId ?? "")))
       .map((item) => updateDoc(item.ref, { dealerDeleted: true })) ?? [];
 
-  await Promise.all([...propertyDeletes, ...inquiryDeletes, ...developerUpdates, ...transactionUpdates]);
+  await Promise.all(transactionUpdates);
+
+  const developerUpdates =
+    developerSnap?.docs.map((item) =>
+      updateDoc(item.ref, { accountDeleted: true, dealerUserId: null }),
+    ) ?? [];
+
+  const propertyDeletes = propertySnap.docs.map((item) => deleteDoc(item.ref));
+  const inquiryDeletes = inquirySnap.docs.map((item) => deleteDoc(item.ref));
+
+  await Promise.all([...propertyDeletes, ...inquiryDeletes, ...developerUpdates]);
   await deleteUserDoc(uid);
 }
 

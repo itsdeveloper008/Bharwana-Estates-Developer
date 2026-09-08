@@ -39,10 +39,11 @@ export default function AccountSettingsPage() {
   const [busy, setBusy] = useState(false);
   const [requestNote, setRequestNote] = useState("");
   const [requestBusy, setRequestBusy] = useState(false);
+  const [requestSubmitted, setRequestSubmitted] = useState(false);
 
   useEffect(() => {
     if (!isReady) return;
-    if (!user) router.replace("/login?next=/account");
+    if (!user) router.replace("/login?returnTo=/account");
   }, [isReady, user, router]);
 
   if (!isReady || !user) {
@@ -105,6 +106,7 @@ export default function AccountSettingsPage() {
       }
       toast.success("Deletion request submitted. We aim to complete it within 30 days.");
       setRequestNote("");
+      setRequestSubmitted(true);
     } finally {
       setRequestBusy(false);
     }
@@ -184,6 +186,11 @@ export default function AccountSettingsPage() {
         <Button className="mt-4 rounded-xl bg-forest text-ivory hover:bg-forest-800" disabled={requestBusy} onClick={handleRequest}>
           {requestBusy ? "Submitting…" : "Submit deletion request"}
         </Button>
+        {requestSubmitted ? (
+          <p className="mt-4 text-sm text-forest" role="status">
+            Your request has been received. We aim to complete it within 30 days.
+          </p>
+        ) : null}
       </section>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

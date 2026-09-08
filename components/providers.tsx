@@ -29,7 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                 <DismissStaleToasts />
                 {children}
                 <SaveIntentHandler />
-                <Toaster position="bottom-right" />
+                <Toaster position="bottom-right" offset={96} />
               </TooltipProvider>
             </FavoritesProvider>
           </TeamStoreProvider>

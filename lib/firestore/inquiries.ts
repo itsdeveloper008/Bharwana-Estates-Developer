@@ -111,13 +111,59 @@ export async function createContactMessage(input: {
   });
 }
 
+export type NewsletterSignup = {
+  id: string;
+  email: string;
+  subscribedAt: string;
+};
+
+function newsletterSubscribedAt(data: Record<string, unknown>): string {
+  const value = data.subscribedAt ?? data.createdAt;
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && "toDate" in value) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  return new Date(0).toISOString();
+}
+
 export async function createNewsletterSignup(email: string): Promise<void> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");
+  const normalized = email.trim().toLowerCase();
   await addDoc(collection(db, "newsletterSignups"), {
-    email,
+    email: normalized,
+    subscribedAt: serverTimestamp(),
     createdAt: serverTimestamp(),
   });
+}
+
+export function subscribeNewsletterSignups(
+  onData: (signups: NewsletterSignup[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe | null {
+  const db = getDb();
+  if (!db) return null;
+
+  return onSnapshot(
+    collection(db, "newsletterSignups"),
+    (snap) => {
+      const list = snap.docs
+        .map((item) => ({
+          id: item.id,
+          email: String(item.data().email ?? ""),
+          subscribedAt: newsletterSubscribedAt(item.data()),
+        }))
+        .sort((a, b) => b.subscribedAt.localeCompare(a.subscribedAt));
+      onData(list);
+    },
+    (error) => onError?.(error),
+  );
+}
+
+export async function deleteNewsletterSignup(id: string): Promise<void> {
+  const db = getDb();
+  if (!db) throw new Error("Firebase is not configured");
+  await deleteDoc(doc(db, "newsletterSignups", id));
 }
 
 export function inquiriesBackendReady() {
