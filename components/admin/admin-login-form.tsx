@@ -118,7 +118,9 @@ export function AdminLoginForm() {
                     />
                     <Input
                       type={showPassword ? "text" : "password"}
-                      autoComplete="new-password"
+                      autoComplete="current-password"
+                      data-1p-ignore="true"
+                      data-lpignore="true"
                       placeholder=""
                       readOnly={!passwordUnlocked}
                       onFocus={() => setPasswordUnlocked(true)}

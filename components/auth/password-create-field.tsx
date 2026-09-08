@@ -36,7 +36,11 @@ export function PasswordCreateField({
         <div className="relative">
           <Input
             type={show ? "text" : "password"}
-            autoComplete="new-password"
+            autoComplete="off"
+            data-1p-ignore="true"
+            data-lpignore="true"
+            data-bwignore="true"
+            data-form-type="other"
             placeholder=""
             readOnly={!unlocked}
             value={value}

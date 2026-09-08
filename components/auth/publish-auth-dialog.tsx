@@ -136,7 +136,9 @@ export function PublishAuthDialog({
                         className="bg-white"
                         type="password"
                         placeholder=""
-                        autoComplete="new-password"
+                        autoComplete="current-password"
+                        data-1p-ignore="true"
+                        data-lpignore="true"
                         {...field}
                       />
                     </FormControl>
