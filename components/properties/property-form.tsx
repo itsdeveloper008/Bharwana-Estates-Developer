@@ -35,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
+import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import { formatPakistanMobileE164, toPakistanMobileLocal } from "@/lib/phone-format";
 import { buildStatusChangePatch } from "@/lib/property-status";
 import {
@@ -441,6 +442,7 @@ export function PropertyForm({
       "areaSqft",
       "city",
       "address",
+      "contactPhone",
       "latitude",
       "longitude",
     ] as const;
@@ -593,9 +595,10 @@ export function PropertyForm({
     } catch (error) {
       console.error("Listing submit failed", error);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Could not submit listing. Check your photos and connection, then try again.",
+        firestoreErrorMessage(
+          error,
+          "Could not submit listing. Check your photos and connection, then try again.",
+        ),
       );
       return;
     }

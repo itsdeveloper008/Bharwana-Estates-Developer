@@ -255,18 +255,18 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const addProperty = useCallback(async (property: Property) => {
     setProperties((current) => [property, ...current.filter((item) => item.id !== property.id)]);
 
-    void (async () => {
-      try {
-        const saved = await upsertProperty(property);
-        setProperties((current) =>
-          current.map((item) => (item.id === property.id ? saved : item)),
-        );
-      } catch (error) {
-        console.error(error);
-        setProperties((current) => current.filter((item) => item.id !== property.id));
-        toast.error(firestoreErrorMessage(error, "Could not save property to Firestore."));
-      }
-    })();
+    if (!isFirebaseConfigured()) return;
+
+    try {
+      const saved = await upsertProperty(property);
+      setProperties((current) =>
+        current.map((item) => (item.id === property.id ? saved : item)),
+      );
+    } catch (error) {
+      console.error(error);
+      setProperties((current) => current.filter((item) => item.id !== property.id));
+      throw error;
+    }
   }, []);
 
   const updateProperty = useCallback(async (id: string, patch: Partial<Property>) => {

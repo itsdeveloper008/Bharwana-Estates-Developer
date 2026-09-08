@@ -1,6 +1,9 @@
 /** Shared timeout for client-side Firestore / Storage writes (avoids infinite "Sending…"). */
 export const FIRESTORE_WRITE_TIMEOUT_MS = 20_000;
 
+/** Listing photos can be several MB compressed — allow longer than a plain doc write. */
+export const PHOTO_UPLOAD_TIMEOUT_MS = 90_000;
+
 export function firestoreErrorMessage(error: unknown, fallback: string) {
   if (error && typeof error === "object" && "code" in error) {
     const code = String((error as { code?: string }).code);
