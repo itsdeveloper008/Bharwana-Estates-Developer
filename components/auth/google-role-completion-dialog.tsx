@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { RoleSelector } from "@/components/auth/role-selector";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,11 @@ import { Label } from "@/components/ui/label";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
+import {
+  formatPakistanMobileE164,
+  isValidPakistanMobileLocal,
+  toPakistanMobileLocal,
+} from "@/lib/phone-format";
 import { DEFAULT_DEALER_COMMISSION_RATE, type User } from "@/lib/types";
 
 export function GoogleRoleCompletionDialog({
@@ -44,7 +50,7 @@ export function GoogleRoleCompletionDialog({
 
   useEffect(() => {
     if (!open || !draft) return;
-    setPhone(draft.phone || "");
+    setPhone(toPakistanMobileLocal(draft.phone || ""));
     setFullName("");
     setAgencyName("");
     setRegistrationNumber("");
@@ -58,9 +64,9 @@ export function GoogleRoleCompletionDialog({
       setError("Enter your full name.");
       return;
     }
-    const resolvedPhone = (phone.trim() || draft.phone.trim());
-    if (resolvedPhone.replace(/\D/g, "").length < 10) {
-      setError("A phone number is required so we can reach you about your listing");
+    const localPhone = toPakistanMobileLocal(phone || draft.phone || "");
+    if (!isValidPakistanMobileLocal(localPhone)) {
+      setError("Enter a valid 10-digit mobile number");
       return;
     }
     if (role === "DEALER" && !agencyName.trim()) {
@@ -74,7 +80,7 @@ export function GoogleRoleCompletionDialog({
         draft: {
           ...draft,
           fullName: resolvedName || draft.fullName,
-          phone: resolvedPhone,
+          phone: formatPakistanMobileE164(localPhone),
         },
         role,
         agencyName: agencyName.trim() || undefined,
@@ -131,14 +137,11 @@ export function GoogleRoleCompletionDialog({
 
           <div className="space-y-1.5">
             <Label htmlFor="signup-phone">Phone</Label>
-            <Input
+            <PakistanPhoneInput
               id="signup-phone"
-              className="bg-white"
-              type="tel"
-              inputMode="tel"
-              placeholder="+92 300 1234567"
               value={phone}
-              onChange={(event) => setPhone(event.target.value)}
+              onChange={setPhone}
+              hasError={Boolean(error?.toLowerCase().includes("mobile") || error?.toLowerCase().includes("phone"))}
             />
             <p className="text-[11px] text-muted-foreground">
               Required so we can reach you about listings.

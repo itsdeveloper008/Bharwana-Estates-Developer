@@ -5,6 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { ContinueWithGoogle } from "@/components/auth/auth-forms";
+import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
+import { PasswordCreateField } from "@/components/auth/password-create-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +18,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useMockAuth } from "@/lib/mock-auth";
+import { formatPakistanMobileE164 } from "@/lib/phone-format";
 import {
   registerSchema,
   userLoginSchema,
@@ -75,7 +78,7 @@ export function PublishAuthDialog({
     const result = await register({
       fullName: values.fullName,
       email: values.email,
-      phone: values.phone,
+      phone: formatPakistanMobileE164(values.phone),
       password: values.password,
       role: "HOUSE_OWNER",
     });
@@ -185,11 +188,18 @@ export function PublishAuthDialog({
               <FormField
                 control={registerForm.control}
                 name="phone"
-                render={({ field }) => (
+                render={({ field, fieldState }) => (
                   <FormItem>
                     <FormLabel>Phone</FormLabel>
                     <FormControl>
-                      <Input className="bg-white" placeholder="+92 3…" {...field} />
+                      <PakistanPhoneInput
+                        name={field.name}
+                        ref={field.ref}
+                        value={field.value}
+                        onBlur={field.onBlur}
+                        onChange={field.onChange}
+                        hasError={Boolean(fieldState.error)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -198,20 +208,8 @@ export function PublishAuthDialog({
               <FormField
                 control={registerForm.control}
                 name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        className="bg-white"
-                        type="password"
-                        placeholder=""
-                        autoComplete="new-password"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                render={({ field, fieldState }) => (
+                  <PasswordCreateField field={field} fieldState={fieldState} />
                 )}
               />
               {error && <p className="text-sm text-destructive">{error}</p>}

@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
+import { formatPakistanMobileE164, toPakistanMobileLocal } from "@/lib/phone-format";
 import { buildStatusChangePatch } from "@/lib/property-status";
 import {
   defaultSubtypeFor,
@@ -306,7 +308,7 @@ export function PropertyForm({
       city: editingProperty.city,
       latitude: editingProperty.latitude,
       longitude: editingProperty.longitude,
-      contactPhone: editingProperty.contactPhone ?? "",
+      contactPhone: toPakistanMobileLocal(editingProperty.contactPhone ?? ""),
     });
     setPreviews(editingProperty.images ?? []);
     setPhotoError(false);
@@ -322,7 +324,7 @@ export function PropertyForm({
   useEffect(() => {
     if (isAdmin || editingProperty) return;
     if (user?.phone && !form.getValues("contactPhone")) {
-      form.setValue("contactPhone", user.phone);
+      form.setValue("contactPhone", toPakistanMobileLocal(user.phone));
     }
   }, [user?.phone, form, isAdmin, editingProperty]);
 
@@ -343,7 +345,7 @@ export function PropertyForm({
     if (!isAdmin) return;
     if (!assignOwnerId) return;
     const owner = users.find((item) => item.id === assignOwnerId);
-    if (owner?.phone) form.setValue("contactPhone", owner.phone);
+    if (owner?.phone) form.setValue("contactPhone", toPakistanMobileLocal(owner.phone));
   }, [assignOwnerId, users, form, isAdmin]);
 
   useEffect(() => {
@@ -610,19 +612,23 @@ export function PropertyForm({
   }
 
   async function publish(values: PropertyFormValues) {
+    const normalized: PropertyFormValues = {
+      ...values,
+      contactPhone: formatPakistanMobileE164(values.contactPhone),
+    };
     if (previews.length < 1) {
       setPhotoError(true);
       goToStep(2);
       return;
     }
     if (isAdmin) {
-      const assignIssue = validateAdminAssignment(values);
+      const assignIssue = validateAdminAssignment(normalized);
       if (assignIssue) {
         setAssignError(assignIssue);
         goToStep(1);
         return;
       }
-      await commitPublish(values, assignOwnerId || undefined);
+      await commitPublish(normalized, assignOwnerId || undefined);
       return;
     }
     if (!user) {
@@ -630,7 +636,7 @@ export function PropertyForm({
       router.replace(`/login?returnTo=${encodeURIComponent("/owner/add-property")}`);
       return;
     }
-    await commitPublish(values, user.id);
+    await commitPublish(normalized, user.id);
   }
 
   if (done) {
@@ -1218,17 +1224,19 @@ export function PropertyForm({
             <FormField
               control={form.control}
               name="contactPhone"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel className="mb-0.5">Contact phone</FormLabel>
                   <FormControl>
-                    <Input
+                    <PakistanPhoneInput
+                      name={field.name}
+                      ref={field.ref}
+                      value={field.value}
+                      onBlur={field.onBlur}
+                      onChange={field.onChange}
+                      hasError={Boolean(fieldState.error)}
                       className={fieldFocus}
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="tel"
-                      placeholder="+92 300 1234567"
-                      {...field}
+                      autoComplete="tel-national"
                     />
                   </FormControl>
                   <p className="text-[11px] text-muted-foreground">

@@ -1,9 +1,19 @@
 import { z } from "zod";
+import { isValidPakistanMobileLocal } from "@/lib/phone-format";
+import { passwordMeetsPolicy } from "@/lib/password-policy";
+
+export const pakistanMobileLocalSchema = z
+  .string()
+  .refine(isValidPakistanMobileLocal, "Enter a valid 10-digit mobile number");
+
+export const passwordCreateSchema = z
+  .string()
+  .refine(passwordMeetsPolicy, "Password does not meet all requirements");
 
 export const inquiryFormSchema = z.object({
   fullName: z.string().min(2, "Please enter your name"),
   email: z.string().email("Enter a valid email"),
-  phone: z.string().min(10, "Enter a valid phone number"),
+  phone: pakistanMobileLocalSchema,
   message: z.string().min(12, "A short note helps the team prepare"),
   visitDate: z.string().optional(),
 });
@@ -28,9 +38,7 @@ export const propertyFormSchema = z.object({
   city: z.string().min(2, "Select a city"),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
-  contactPhone: z
-    .string()
-    .min(10, "A phone number is required so we can reach you about your listing"),
+  contactPhone: pakistanMobileLocalSchema,
 });
 
 export type PropertyFormValues = z.infer<typeof propertyFormSchema>;
@@ -47,10 +55,8 @@ export const registerSchema = z
   .object({
     fullName: z.string().min(2, "Enter your name"),
     email: z.string().email("Enter a valid email"),
-    phone: z
-      .string()
-      .min(10, "A phone number is required so we can reach you about your listing"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    phone: pakistanMobileLocalSchema,
+    password: passwordCreateSchema,
     role: z.enum(["BUYER", "HOUSE_OWNER", "DEALER"]),
     agencyName: z.string().optional(),
     registrationNumber: z.string().optional(),
@@ -76,15 +82,16 @@ export const registerSchema = z
 
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 
+/** Sign-in only — do not enforce create-password complexity on existing credentials. */
 export const userLoginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export type UserLoginValues = z.infer<typeof userLoginSchema>;
 
 export const phoneOtpRequestSchema = z.object({
-  phone: z.string().min(10, "Enter a valid phone number"),
+  phone: pakistanMobileLocalSchema,
 });
 
 export const phoneOtpVerifySchema = z.object({
@@ -96,7 +103,7 @@ export type PhoneOtpVerifyValues = z.infer<typeof phoneOtpVerifySchema>;
 
 export const adminLoginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export type AdminLoginValues = z.infer<typeof adminLoginSchema>;

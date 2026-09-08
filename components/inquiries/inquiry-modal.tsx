@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, Handshake, Mail, Phone, Scale, ShieldCheck, UserRound } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -21,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
+import { formatPakistanMobileE164, toPakistanMobileLocal } from "@/lib/phone-format";
 import { inquiryFormSchema, type InquiryFormValues } from "@/lib/schemas";
 import type { InquiryChannel, Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -59,7 +61,7 @@ export function InquiryModal({
     defaultValues: {
       fullName: user?.fullName ?? "",
       email: user?.email ?? "",
-      phone: user?.phone ?? "",
+      phone: toPakistanMobileLocal(user?.phone ?? ""),
       message: isOwnerListing
         ? `I would like Bharwana to assist with ${property.title}.`
         : `Please arrange a site visit for ${property.title}.`,
@@ -91,7 +93,7 @@ export function InquiryModal({
     form.reset({
       fullName: user.fullName,
       email: user.email,
-      phone: user.phone,
+      phone: toPakistanMobileLocal(user.phone),
       message: isOwnerListing
         ? `I would like Bharwana to assist with ${property.title}.`
         : `Please arrange a site visit for ${property.title}.`,
@@ -138,12 +140,13 @@ export function InquiryModal({
     }
     setStep("success");
     toast.success("Inquiry received.");
+    const phoneE164 = formatPakistanMobileE164(values.phone);
     void addInquiry({
       propertyId: property.id,
       buyerId: user.id,
       status: "NEW",
       channel,
-      notes: `${values.fullName} · ${values.phone}${values.visitDate ? ` · visit ${values.visitDate}` : ""} · ${values.email} · ${values.message}`,
+      notes: `${values.fullName} · ${phoneE164}${values.visitDate ? ` · visit ${values.visitDate}` : ""} · ${values.email} · ${values.message}`,
     });
   }
 
@@ -296,11 +299,18 @@ export function InquiryModal({
                   <FormField
                     control={form.control}
                     name="phone"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
                         <FormLabel>Phone</FormLabel>
                         <FormControl>
-                          <Input className="bg-white" {...field} />
+                          <PakistanPhoneInput
+                            name={field.name}
+                            ref={field.ref}
+                            value={field.value}
+                            onBlur={field.onBlur}
+                            onChange={field.onChange}
+                            hasError={Boolean(fieldState.error)}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

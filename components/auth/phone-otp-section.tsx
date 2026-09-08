@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { useMockAuth } from "@/lib/mock-auth";
-import { normalizePhoneE164 } from "@/lib/phone-format";
+import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
+import { formatPakistanMobileE164 } from "@/lib/phone-format";
 import {
   phoneOtpRequestSchema,
   phoneOtpVerifySchema,
@@ -80,14 +81,6 @@ export function PhoneOtpSection({
     return recaptchaRef.current;
   }
 
-  function toE164(localPhone: string) {
-    const digits = localPhone.replace(/\D/g, "");
-    if (localPhone.trim().startsWith("+")) {
-      return normalizePhoneE164(localPhone);
-    }
-    return normalizePhoneE164(digits.startsWith("92") ? `+${digits}` : `+92${digits.replace(/^0/, "")}`);
-  }
-
   async function handleSendOtp(values: PhoneOtpRequestValues) {
     if (!isFirebaseConfigured()) {
       setError("Phone sign-in needs Firebase on this deploy.");
@@ -98,7 +91,7 @@ export function PhoneOtpSection({
     try {
       await resetRecaptcha();
       const verifier = await getRecaptchaVerifier();
-      const e164 = toE164(values.phone);
+      const e164 = formatPakistanMobileE164(values.phone);
       const result = await sendPhoneOtp(e164, verifier);
       if (!result.ok) {
         setError(result.error);
@@ -177,22 +170,14 @@ export function PhoneOtpSection({
                   <FormItem>
                     <FormLabel>Mobile number</FormLabel>
                     <FormControl>
-                      <div className="flex">
-                        <span className="inline-flex items-center rounded-l-xl border border-r-0 border-forest/15 bg-cream/70 px-3 text-sm font-medium text-forest">
-                          +92
-                        </span>
-                        <Input
-                          className={cn(
-                            "rounded-l-none bg-white",
-                            fieldState.error && "border-destructive focus-visible:ring-destructive",
-                          )}
-                          type="tel"
-                          inputMode="tel"
-                          autoComplete="tel-national"
-                          placeholder="300 1234567"
-                          {...field}
-                        />
-                      </div>
+                      <PakistanPhoneInput
+                        name={field.name}
+                        ref={field.ref}
+                        value={field.value}
+                        onBlur={field.onBlur}
+                        onChange={field.onChange}
+                        hasError={Boolean(fieldState.error)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

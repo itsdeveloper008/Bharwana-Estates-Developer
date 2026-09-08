@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { AuthCrossLink } from "@/components/auth/auth-shell";
 import { AuthMethodToggle, type AuthMethod } from "@/components/auth/auth-method-toggle";
 import { GoogleRoleCompletionDialog } from "@/components/auth/google-role-completion-dialog";
+import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
+import { PasswordCreateField } from "@/components/auth/password-create-field";
 import { PhoneOtpSection } from "@/components/auth/phone-otp-section";
 import { RoleSelector } from "@/components/auth/role-selector";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useMockAuth } from "@/lib/mock-auth";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
+import { formatPakistanMobileE164 } from "@/lib/phone-format";
 import { useMockStore } from "@/lib/mock-store";
 import { registerSchema, userLoginSchema, type RegisterFormValues, type UserLoginValues } from "@/lib/schemas";
 import { DEFAULT_DEALER_COMMISSION_RATE, type User } from "@/lib/types";
@@ -361,7 +364,7 @@ export function RegisterForm() {
       const result = await register({
         fullName: values.fullName,
         email: values.email,
-        phone: values.phone,
+        phone: formatPakistanMobileE164(values.phone),
         password: values.password,
         role: values.role,
         agencyName: values.role === "DEALER" ? values.agencyName : undefined,
@@ -441,13 +444,13 @@ export function RegisterForm() {
               <FormItem>
                 <FormLabel>Phone</FormLabel>
                 <FormControl>
-                  <Input
-                    className={cn(
-                      "bg-white",
-                      fieldState.error && "border-destructive focus-visible:ring-destructive",
-                    )}
-                    placeholder="+92 3…"
-                    {...field}
+                  <PakistanPhoneInput
+                    name={field.name}
+                    ref={field.ref}
+                    value={field.value}
+                    onBlur={field.onBlur}
+                    onChange={field.onChange}
+                    hasError={Boolean(fieldState.error)}
                   />
                 </FormControl>
                 <FormMessage />
@@ -458,7 +461,7 @@ export function RegisterForm() {
             control={form.control}
             name="password"
             render={({ field, fieldState }) => (
-              <PasswordField field={field} fieldState={fieldState} />
+              <PasswordCreateField field={field} fieldState={fieldState} />
             )}
           />
           <FormField
