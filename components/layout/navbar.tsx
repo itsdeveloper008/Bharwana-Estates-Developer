@@ -241,7 +241,7 @@ export function Navbar() {
             })}
           </nav>
 
-          {/* Actions — desktop */}
+          {/* Actions — desktop: List CTA → divider → Call us → Sign in */}
           <div className="ml-auto hidden items-center gap-3 lg:flex xl:gap-4">
             <Link
               href={listPropertyHref}
@@ -255,6 +255,14 @@ export function Navbar() {
               <span className="relative z-10">List a property</span>
               <span className="pointer-events-none absolute inset-0 translate-x-[-120%] bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-[120%]" />
             </Link>
+
+            <div
+              className={cn(
+                "mx-0.5 hidden h-8 w-px xl:block",
+                overHero ? "bg-[#F5F1E8]/25" : "bg-[#082B1D]/15",
+              )}
+              aria-hidden
+            />
 
             <a
               href={phoneHref}
@@ -292,13 +300,14 @@ export function Navbar() {
               <Link
                 href="/login"
                 className={cn(
-                  "inline-flex items-center justify-center rounded-xl border px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
+                  "group relative py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
                   overHero
-                    ? "border-[#F5F1E8]/45 text-[#F5F1E8] hover:border-[#B89545] hover:text-[#B89545]"
-                    : "border-[#082B1D]/20 text-[#06291C] hover:border-[#B89545] hover:text-[#082B1D]",
+                    ? "text-[#F5F1E8]/95 hover:text-[#F5F1E8]"
+                    : "text-[#06291C] hover:text-[#082B1D]",
                 )}
               >
                 Sign in
+                <span className="absolute bottom-1 left-0 h-px w-0 bg-[#B89545] transition-all duration-300 group-hover:w-full" />
               </Link>
             ) : null}
 
@@ -480,22 +489,6 @@ export function Navbar() {
                     </Link>
                   </motion.li>
                 ))}
-
-                {showSignIn ? (
-                  <motion.li
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.28, ease }}
-                  >
-                    <Link
-                      href="/login"
-                      onClick={() => setOpen(false)}
-                      className="block py-2 font-serif text-[2rem] leading-tight tracking-tight text-[#F5F1E8] transition-colors hover:text-[#B89545] sm:text-[2.5rem]"
-                    >
-                      Sign in
-                    </Link>
-                  </motion.li>
-                ) : null}
               </ul>
             </nav>
 
@@ -521,6 +514,16 @@ export function Navbar() {
                 <PhoneCall className="h-4 w-4" strokeWidth={1.5} />
                 <span className="text-[13px] tracking-[0.04em]">Call {phoneDisplay}</span>
               </a>
+
+              {showSignIn ? (
+                <Link
+                  href="/login"
+                  onClick={() => setOpen(false)}
+                  className="flex w-full items-center justify-center border border-[#F5F1E8]/35 px-6 py-3.5 text-[12px] font-medium uppercase tracking-[0.16em] text-[#F5F1E8] transition-colors hover:border-[#B89545] hover:text-[#B89545]"
+                >
+                  Sign in
+                </Link>
+              ) : null}
 
               {signedIn && user ? (
                 <button
