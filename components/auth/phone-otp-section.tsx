@@ -7,13 +7,13 @@ import { RecaptchaVerifier, type ConfirmationResult } from "firebase/auth";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { GoogleRoleCompletionDialog } from "@/components/auth/google-role-completion-dialog";
+import { OtpDigitInputs } from "@/components/auth/otp-digit-inputs";
+import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { useMockAuth } from "@/lib/mock-auth";
-import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { formatPakistanMobileE164 } from "@/lib/phone-format";
 import {
   phoneOtpRequestSchema,
@@ -22,9 +22,10 @@ import {
   type PhoneOtpVerifyValues,
 } from "@/lib/schemas";
 import type { User } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
 type Step = "phone" | "otp";
+
+const RESEND_SECONDS = 60;
 
 export function PhoneOtpSection({
   onSuccess,
@@ -38,6 +39,7 @@ export function PhoneOtpSection({
   const { sendPhoneOtp, verifyPhoneOtp } = useMockAuth();
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const completingRef = useRef(false);
 
   const [step, setStep] = useState<Step>("phone");
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +47,8 @@ export function PhoneOtpSection({
   const [roleOpen, setRoleOpen] = useState(false);
   const [draft, setDraft] = useState<GoogleSignupDraft | null>(null);
   const [sentPhone, setSentPhone] = useState("");
+  const [localPhone, setLocalPhone] = useState("");
+  const [secondsLeft, setSecondsLeft] = useState(0);
 
   const phoneForm = useForm<PhoneOtpRequestValues>({
     resolver: zodResolver(phoneOtpRequestSchema),
@@ -63,8 +67,20 @@ export function PhoneOtpSection({
     };
   }, []);
 
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const id = window.setInterval(() => {
+      setSecondsLeft((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [secondsLeft]);
+
   async function resetRecaptcha() {
-    recaptchaRef.current?.clear();
+    try {
+      recaptchaRef.current?.clear();
+    } catch {
+      // ignore stale widget clear errors
+    }
     recaptchaRef.current = null;
   }
 
@@ -75,41 +91,60 @@ export function PhoneOtpSection({
     if (!recaptchaRef.current) {
       recaptchaRef.current = new RecaptchaVerifier(auth, recaptchaId, {
         size: "invisible",
+        callback: () => undefined,
+        "expired-callback": () => {
+          void resetRecaptcha();
+        },
       });
       await recaptchaRef.current.render();
     }
     return recaptchaRef.current;
   }
 
-  async function handleSendOtp(values: PhoneOtpRequestValues) {
+  async function sendCode(localDigits: string) {
     if (!isFirebaseConfigured()) {
       setError("Phone sign-in needs Firebase on this deploy.");
-      return;
+      return false;
     }
     setError(null);
     setPending(true);
     try {
       await resetRecaptcha();
       const verifier = await getRecaptchaVerifier();
-      const e164 = formatPakistanMobileE164(values.phone);
+      const e164 = formatPakistanMobileE164(localDigits);
+      console.info("[phone-otp] sending", e164);
       const result = await sendPhoneOtp(e164, verifier);
       if (!result.ok) {
+        console.error("[phone-otp] send failed", result.error);
         setError(result.error);
         await resetRecaptcha();
-        return;
+        return false;
       }
       confirmationRef.current = result.confirmation;
       setSentPhone(e164);
+      setLocalPhone(localDigits);
       setStep("otp");
+      setSecondsLeft(RESEND_SECONDS);
       otpForm.reset({ otp: "" });
       toast.success("Verification code sent.");
+      return true;
     } catch (err) {
-      console.error(err);
+      console.error("[phone-otp] send exception", err);
       setError("Could not send code. Refresh the page and try again.");
       await resetRecaptcha();
+      return false;
     } finally {
       setPending(false);
     }
+  }
+
+  async function handleSendOtp(values: PhoneOtpRequestValues) {
+    await sendCode(values.phone);
+  }
+
+  async function handleResend() {
+    if (secondsLeft > 0 || !localPhone || pending) return;
+    await sendCode(localPhone);
   }
 
   async function handleVerifyOtp(values: PhoneOtpVerifyValues) {
@@ -121,8 +156,10 @@ export function PhoneOtpSection({
     setError(null);
     setPending(true);
     try {
+      console.info("[phone-otp] verifying");
       const result = await verifyPhoneOtp(confirmation, values.otp);
       if (!result.ok) {
+        console.error("[phone-otp] verify failed", result.error);
         setError(result.error);
         return;
       }
@@ -133,6 +170,9 @@ export function PhoneOtpSection({
       }
       toast.success(variant === "register" ? "Account ready" : "Welcome back");
       onSuccess(result.user);
+    } catch (err) {
+      console.error("[phone-otp] verify exception", err);
+      setError("Could not verify the code. Try again or resend a new code.");
     } finally {
       setPending(false);
     }
@@ -142,6 +182,7 @@ export function PhoneOtpSection({
     setStep("phone");
     setError(null);
     confirmationRef.current = null;
+    setSecondsLeft(0);
     otpForm.reset({ otp: "" });
     await resetRecaptcha();
   }
@@ -213,16 +254,11 @@ export function PhoneOtpSection({
                   <FormItem>
                     <FormLabel>Verification code</FormLabel>
                     <FormControl>
-                      <Input
-                        className={cn(
-                          "bg-white text-center text-lg tracking-[0.35em]",
-                          fieldState.error && "border-destructive focus-visible:ring-destructive",
-                        )}
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        placeholder="123456"
-                        maxLength={6}
-                        {...field}
+                      <OtpDigitInputs
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={pending}
+                        hasError={Boolean(fieldState.error)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -234,7 +270,7 @@ export function PhoneOtpSection({
                   {error}
                 </p>
               )}
-              <Button type="submit" className="w-full" disabled={pending}>
+              <Button type="submit" className="w-full" disabled={pending || otpForm.watch("otp").length !== 6}>
                 {pending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -244,9 +280,26 @@ export function PhoneOtpSection({
                   verifyLabel
                 )}
               </Button>
-              <Button type="button" variant="ghost" className="w-full" onClick={() => void handleChangeNumber()}>
-                Use a different number
-              </Button>
+              <div className="flex flex-col gap-2">
+                {secondsLeft > 0 ? (
+                  <p className="text-center text-xs text-muted-foreground">
+                    Resend code in {secondsLeft}s
+                  </p>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={pending}
+                    onClick={() => void handleResend()}
+                  >
+                    Resend OTP
+                  </Button>
+                )}
+                <Button type="button" variant="ghost" className="w-full" onClick={() => void handleChangeNumber()}>
+                  Use a different number
+                </Button>
+              </div>
             </form>
           </Form>
         )}
@@ -255,10 +308,16 @@ export function PhoneOtpSection({
 
       <GoogleRoleCompletionDialog
         open={roleOpen}
-        onOpenChange={setRoleOpen}
+        onOpenChange={(open) => {
+          if (!open && completingRef.current) return;
+          setRoleOpen(open);
+        }}
         draft={draft}
         requireFullName
+        phoneVerified
         onComplete={(user) => {
+          if (completingRef.current) return;
+          completingRef.current = true;
           setRoleOpen(false);
           onSuccess(user);
         }}

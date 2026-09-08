@@ -31,12 +31,15 @@ export function GoogleRoleCompletionDialog({
   draft,
   onComplete,
   requireFullName = false,
+  phoneVerified = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   draft: GoogleSignupDraft | null;
   onComplete: (user: User) => void;
   requireFullName?: boolean;
+  /** When true (phone OTP already verified), hide the phone field. */
+  phoneVerified?: boolean;
 }) {
   const { completeGoogleSignup } = useMockAuth();
   const { addDeveloper } = useMockStore();
@@ -48,6 +51,9 @@ export function GoogleRoleCompletionDialog({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const hidePhoneField =
+    phoneVerified || isValidPakistanMobileLocal(toPakistanMobileLocal(draft?.phone ?? ""));
+
   useEffect(() => {
     if (!open || !draft) return;
     setPhone(toPakistanMobileLocal(draft.phone || ""));
@@ -55,6 +61,7 @@ export function GoogleRoleCompletionDialog({
     setAgencyName("");
     setRegistrationNumber("");
     setError(null);
+    setRole("BUYER");
   }, [open, draft]);
 
   async function handleSubmit() {
@@ -94,7 +101,7 @@ export function GoogleRoleCompletionDialog({
         await addDeveloper({
           id: `d-${Date.now()}`,
           companyName: agencyName.trim(),
-          contactPerson: draft.fullName,
+          contactPerson: resolvedName || draft.fullName,
           commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
           dealerUserId: result.user.id,
           status: "PENDING_REVIEW",
@@ -112,10 +119,10 @@ export function GoogleRoleCompletionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto bg-ivory sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto border-forest/10 bg-ivory sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-serif text-2xl">Choose your role</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="font-serif text-2xl text-forest">Choose your role</DialogTitle>
+          <DialogDescription className="text-forest/70">
             Welcome{draft?.fullName ? `, ${draft.fullName.split(" ")[0]}` : ""}. Tell us how you&apos;ll use
             Bharwana before we finish setting up your account.
           </DialogDescription>
@@ -135,18 +142,22 @@ export function GoogleRoleCompletionDialog({
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="signup-phone">Phone</Label>
-            <PakistanPhoneInput
-              id="signup-phone"
-              value={phone}
-              onChange={setPhone}
-              hasError={Boolean(error?.toLowerCase().includes("mobile") || error?.toLowerCase().includes("phone"))}
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Required so we can reach you about listings.
-            </p>
-          </div>
+          {!hidePhoneField ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="signup-phone">Phone</Label>
+              <PakistanPhoneInput
+                id="signup-phone"
+                value={phone}
+                onChange={setPhone}
+                hasError={Boolean(
+                  error?.toLowerCase().includes("mobile") || error?.toLowerCase().includes("phone"),
+                )}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Required so we can reach you about listings.
+              </p>
+            </div>
+          ) : null}
 
           <div>
             <Label className="mb-2 block">I am a</Label>

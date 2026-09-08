@@ -24,7 +24,7 @@ export const PakistanPhoneInput = forwardRef<HTMLInputElement, PakistanPhoneInpu
     return (
       <div
         className={cn(
-          "flex h-9 w-full overflow-hidden rounded-xl border border-input bg-white shadow-sm transition-colors focus-within:ring-1 focus-within:ring-ring",
+          "flex h-10 w-full overflow-hidden rounded-xl border border-input bg-white shadow-sm transition-colors focus-within:ring-1 focus-within:ring-ring",
           hasError && "border-destructive focus-within:ring-destructive",
           disabled && "cursor-not-allowed opacity-50",
           className,

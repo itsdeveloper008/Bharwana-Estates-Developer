@@ -13,9 +13,11 @@ import {
 import {
   EmailAuthProvider,
   GoogleAuthProvider,
+  PhoneAuthProvider,
   RecaptchaVerifier,
   createUserWithEmailAndPassword,
   getRedirectResult,
+  linkWithCredential,
   onAuthStateChanged,
   reauthenticateWithCredential,
   reauthenticateWithPopup,
@@ -25,13 +27,19 @@ import {
   signInWithPopup,
   signInWithRedirect,
   signOut,
+  updatePhoneNumber,
   updateProfile,
   type ConfirmationResult,
   type User as FirebaseUser,
 } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
 import { createDeletionRequest, purgeUserOwnedData } from "@/lib/firestore/deletion";
-import { createUserDocWithRetry, getUserDoc, type UserDocInput } from "@/lib/firestore/users";
+import {
+  createUserDocWithRetry,
+  getUserDoc,
+  updateUserPhone,
+  type UserDocInput,
+} from "@/lib/firestore/users";
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import { users as seedUsers } from "@/lib/mock-data/users";
 import { isValidPhoneE164, normalizePhoneE164 } from "@/lib/phone-format";
@@ -179,6 +187,17 @@ interface MockAuthContextValue {
     confirmation: ConfirmationResult,
     code: string,
   ) => Promise<PhoneLoginResult>;
+  /** Send OTP to a new number while signed in (does not switch sessions). */
+  sendChangePhoneOtp: (
+    phone: string,
+    verifier: RecaptchaVerifier,
+  ) => Promise<{ ok: true; verificationId: string; phone: string } | { ok: false; error: string }>;
+  /** Confirm OTP and update Auth + Firestore phone on the current user. */
+  confirmChangePhone: (input: {
+    verificationId: string;
+    code: string;
+    phone: string;
+  }) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   completeGoogleSignup: (input: {
     draft: GoogleSignupDraft;
     role: UserRole;
@@ -301,6 +320,14 @@ function phoneAuthErrorMessage(code: string, rawMessage = "") {
       return "Phone sign-in is disabled for this Firebase project. Enable Phone under Authentication → Sign-in method.";
     case "auth/network-request-failed":
       return "Could not reach Firebase Auth. Disable ad blockers for this site, try another network or browser, and stay on https://bharwanaestates.com.";
+    case "auth/credential-already-in-use":
+    case "auth/account-exists-with-different-credential":
+    case "auth/phone-number-already-exists":
+      return "This number is already in use by another account.";
+    case "auth/provider-already-linked":
+      return "A phone number is already linked to this account. Try updating again.";
+    case "auth/requires-recent-login":
+      return "For security, sign out and sign back in, then try changing your phone number again.";
     default:
       return code ? `Could not verify phone (${code}).` : "Could not verify phone. Try again.";
   }
@@ -520,6 +547,16 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
                 console.error("Password user has Firebase auth but no Firestore profile");
                 return;
               }
+
+              // Phone OTP flow owns its role dialog (PhoneOtpSection). Do not set
+              // pendingGoogle here or ContinueWithGoogle opens a duplicate modal.
+              const isPhoneOnly =
+                providers.includes("phone") && !providers.includes("google.com");
+              if (isPhoneOnly) {
+                if (userRef.current?.id === firebaseUser.uid) return;
+                persist(null);
+                return;
+              }
             }
 
             if (profile) {
@@ -528,7 +565,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
               return;
             }
 
-            // Google / phone user with no profile yet — role completion, not a logged-in session.
+            // Google user with no profile yet — role completion, not a logged-in session.
             const draft = draftFromFirebaseUser(firebaseUser);
             const pending = readPendingGoogle();
             const samePending =
@@ -773,13 +810,13 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         const result = await confirmation.confirm(trimmed);
         const profile = await loadFirestoreUser(result.user);
         if (profile) {
-          persist(profile);
-          setPendingGoogle(null);
+          commitSession(profile);
           return { ok: true as const, isNewUser: false as const, user: profile };
         }
 
         const draft = draftFromFirebaseUser(result.user);
-        setPendingGoogle(draft);
+        // Do not set pendingGoogle here — PhoneOtpSection owns the role dialog.
+        // Setting both causes a duplicate "Choose your role" modal with ContinueWithGoogle.
         return { ok: true as const, isNewUser: true as const, draft };
       } catch (error) {
         const code =
@@ -794,7 +831,129 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         return { ok: false as const, error: phoneAuthErrorMessage(code, rawMessage) };
       }
     },
-    [persist, setPendingGoogle],
+    [commitSession],
+  );
+
+  const sendChangePhoneOtp = useCallback(
+    async (phone: string, verifier: RecaptchaVerifier) => {
+      if (!user) {
+        return { ok: false as const, error: "You must be signed in to change your phone number." };
+      }
+      if (!isFirebaseConfigured()) {
+        return {
+          ok: false as const,
+          error: "Phone updates need Firebase on this deploy.",
+        };
+      }
+      const auth = getFirebaseAuth();
+      const firebaseUser = auth?.currentUser;
+      if (!auth || !firebaseUser || firebaseUser.uid !== user.id) {
+        return {
+          ok: false as const,
+          error: "Session expired. Sign in again, then try changing your phone number.",
+        };
+      }
+
+      const normalized = normalizePhoneE164(phone);
+      if (!isValidPhoneE164(normalized)) {
+        return { ok: false as const, error: "Enter a valid phone number (e.g. +92 300 1234567)." };
+      }
+      if (firebaseUser.phoneNumber === normalized || user.phone === normalized) {
+        return { ok: false as const, error: "That is already your current phone number." };
+      }
+
+      try {
+        const provider = new PhoneAuthProvider(auth);
+        const verificationId = await provider.verifyPhoneNumber(normalized, verifier);
+        return { ok: true as const, verificationId, phone: normalized };
+      } catch (error) {
+        const code =
+          error && typeof error === "object" && "code" in error
+            ? String((error as { code?: string }).code)
+            : "";
+        console.error("Change phone OTP send failed", error);
+        const rawMessage =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "";
+        return { ok: false as const, error: phoneAuthErrorMessage(code, rawMessage) };
+      }
+    },
+    [user],
+  );
+
+  const confirmChangePhone = useCallback(
+    async (input: { verificationId: string; code: string; phone: string }) => {
+      if (!user) {
+        return { ok: false as const, error: "You must be signed in to change your phone number." };
+      }
+      const trimmed = input.code.trim();
+      if (trimmed.length !== 6) {
+        return { ok: false as const, error: "Enter the 6-digit code." };
+      }
+
+      const auth = getFirebaseAuth();
+      const firebaseUser = auth?.currentUser;
+      if (!auth || !firebaseUser || firebaseUser.uid !== user.id) {
+        return {
+          ok: false as const,
+          error: "Session expired. Sign in again, then try changing your phone number.",
+        };
+      }
+
+      const normalized = normalizePhoneE164(input.phone);
+      if (!isValidPhoneE164(normalized)) {
+        return { ok: false as const, error: "Enter a valid phone number (e.g. +92 300 1234567)." };
+      }
+
+      try {
+        const credential = PhoneAuthProvider.credential(input.verificationId, trimmed);
+        if (firebaseUser.phoneNumber) {
+          await updatePhoneNumber(firebaseUser, credential);
+        } else {
+          await linkWithCredential(firebaseUser, credential);
+        }
+
+        try {
+          await updateUserPhone(user.id, normalized);
+        } catch (firestoreError) {
+          console.error("Auth phone updated but Firestore sync failed", firestoreError);
+          return {
+            ok: false as const,
+            error:
+              "Phone was verified in Auth, but we could not save it to your profile. Refresh and try again.",
+          };
+        }
+
+        const nextUser: User = { ...user, phone: normalized };
+        commitSession(nextUser);
+
+        try {
+          const registered = readRegistered();
+          const index = registered.findIndex((item) => item.id === user.id);
+          if (index >= 0) {
+            registered[index] = { ...registered[index], phone: normalized };
+            writeRegistered(registered);
+          }
+        } catch {
+          // local mirror is best-effort
+        }
+
+        return { ok: true as const, user: nextUser };
+      } catch (error) {
+        const code =
+          error && typeof error === "object" && "code" in error
+            ? String((error as { code?: string }).code)
+            : "";
+        console.error("Change phone confirm failed", error);
+        const rawMessage =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "";
+        return { ok: false as const, error: phoneAuthErrorMessage(code, rawMessage) };
+      }
+    },
+    [user, commitSession],
   );
 
   const completeGoogleSignup = useCallback(
@@ -817,8 +976,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             agencyName: input.agencyName,
             registrationNumber: input.registrationNumber,
           });
-          persist(profile);
-          setPendingGoogle(null);
+          commitSession(profile);
           return { ok: true as const, user: profile };
         } catch (error) {
           console.error("Google signup profile save failed", error);
@@ -844,11 +1002,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       };
       writeRegistered([...registered, account]);
       const publicUser = toPublicUser(account);
-      persist(publicUser);
-      setPendingGoogle(null);
+      commitSession(publicUser);
       return { ok: true as const, user: publicUser };
     },
-    [persist, setPendingGoogle],
+    [commitSession],
   );
 
   const register = useCallback(
@@ -1200,6 +1357,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       consumeGoogleReturn,
       sendPhoneOtp,
       verifyPhoneOtp,
+      sendChangePhoneOtp,
+      confirmChangePhone,
       completeGoogleSignup,
       register,
       loginAs,
@@ -1219,6 +1378,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       consumeGoogleReturn,
       sendPhoneOtp,
       verifyPhoneOtp,
+      sendChangePhoneOtp,
+      confirmChangePhone,
       completeGoogleSignup,
       register,
       loginAs,

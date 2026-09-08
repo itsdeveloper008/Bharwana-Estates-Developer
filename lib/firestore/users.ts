@@ -136,6 +136,20 @@ export async function createUserDocWithRetry(
   throw lastError;
 }
 
+/** Keeps Firestore phone in sync after Auth phone update / link. */
+export async function updateUserPhone(uid: string, phone: string): Promise<void> {
+  const db = getDb();
+  if (!db) throw new Error("Firebase is not configured");
+  await withTimeout(
+    updateDoc(doc(db, COLLECTION, uid), {
+      phone: phone.trim(),
+      updatedAt: serverTimestamp(),
+    }),
+    FIRESTORE_WRITE_TIMEOUT_MS,
+    "User phone update",
+  );
+}
+
 /** Removes the Firestore profile only. Prefer purgeUserOwnedData + Auth user.delete() for self-service. */
 export async function deleteUserDoc(uid: string): Promise<void> {
   const db = getDb();

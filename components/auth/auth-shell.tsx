@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useEffect, type ReactNode } from "react";
+import { pathAfterAuth } from "@/lib/auth-redirect";
 import { useMockAuth } from "@/lib/mock-auth";
 import { cn } from "@/lib/utils";
 
@@ -73,7 +74,7 @@ export function AuthGuestGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isReady || !user) return;
     const returnTo = safeReturnTo(searchParams.get("returnTo"));
-    router.replace(returnTo ?? "/");
+    router.replace(pathAfterAuth(returnTo, user.role));
   }, [isReady, user, router, searchParams]);
 
   if (!isReady) {

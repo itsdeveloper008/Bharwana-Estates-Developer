@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useRef, useState, type Ref } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
@@ -16,6 +17,7 @@ import { RoleSelector } from "@/components/auth/role-selector";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { pathAfterAuth } from "@/lib/auth-redirect";
 import { useMockAuth } from "@/lib/mock-auth";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { formatPakistanMobileE164 } from "@/lib/phone-format";
@@ -27,11 +29,6 @@ import { cn } from "@/lib/utils";
 function safeReturnTo(raw: string | null): string | null {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
   return raw;
-}
-
-/** After sign-in/register: honor returnTo, otherwise land on the home page. */
-function pathAfterAuth(returnTo: string | null): string {
-  return returnTo ?? "/";
 }
 
 function OrDivider() {
@@ -189,8 +186,7 @@ function PasswordField({
             onChange={field.onChange}
             ref={field.ref}
             className={cn(
-              "bg-white pr-10 placeholder:tracking-normal placeholder:text-[15px]",
-              value.length > 0 && "tracking-[0.3em]",
+              "bg-white pr-10",
               fieldState.error && "border-destructive focus-visible:ring-destructive",
             )}
           />
@@ -274,8 +270,8 @@ export function LoginForm() {
     return () => window.clearTimeout(timer);
   }, [form]);
 
-  function goAfterAuth() {
-    router.push(pathAfterAuth(safeReturnTo(searchParams.get("returnTo"))));
+  function goAfterAuth(nextUser?: User) {
+    router.push(pathAfterAuth(safeReturnTo(searchParams.get("returnTo")), nextUser?.role));
   }
 
   async function onSubmit(values: UserLoginValues) {
@@ -289,7 +285,7 @@ export function LoginForm() {
         return;
       }
       toast.success("Signed in.");
-      goAfterAuth();
+      goAfterAuth(result.user);
     } catch (err) {
       console.error("[login] unexpected failure", err);
       setError("Could not sign in. Check your connection and try again.");
@@ -324,6 +320,14 @@ export function LoginForm() {
                 <PasswordField field={field} fieldState={fieldState} />
               )}
             />
+            <div className="-mt-1 flex justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-xs text-forest/70 underline-offset-2 transition-colors hover:text-gold-700 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             {error && (
               <p className="text-sm text-destructive" role="alert">
                 {error}
@@ -345,12 +349,12 @@ export function LoginForm() {
         <PhoneOtpSection
           variant="login"
           recaptchaId="phone-auth-recaptcha-login"
-          onSuccess={() => goAfterAuth()}
+          onSuccess={(user) => goAfterAuth(user)}
         />
       )}
 
       <OrDivider />
-      <ContinueWithGoogle onSuccess={() => goAfterAuth()} />
+      <ContinueWithGoogle onSuccess={(user) => goAfterAuth(user)} />
     </div>
   );
 }
@@ -381,8 +385,8 @@ export function RegisterForm() {
 
   const selectedRole = useWatch({ control: form.control, name: "role" });
 
-  function goAfterAuth() {
-    router.push(pathAfterAuth(safeReturnTo(searchParams.get("returnTo"))));
+  function goAfterAuth(nextUser?: User) {
+    router.push(pathAfterAuth(safeReturnTo(searchParams.get("returnTo")), nextUser?.role));
   }
 
   async function onSubmit(values: RegisterFormValues) {
@@ -425,7 +429,7 @@ export function RegisterForm() {
           : "Account created successfully.";
       toast.success(successMessage, { duration: 5000 });
       console.info("[RegisterForm] success", { uid: result.user.id });
-      goAfterAuth();
+      goAfterAuth(result.user);
     } catch (err) {
       console.error("[RegisterForm] unexpected failure", err);
       const message = "Could not create your account. Check your connection and try again.";
@@ -609,7 +613,7 @@ export function RegisterForm() {
           <PhoneOtpSection
             variant="register"
             recaptchaId="phone-auth-recaptcha-register"
-            onSuccess={() => goAfterAuth()}
+            onSuccess={(user) => goAfterAuth(user)}
           />
           <p className="text-center text-sm text-muted-foreground">
             Already on the floor? <AuthCrossLink href={loginHref}>Sign in</AuthCrossLink>
@@ -618,7 +622,7 @@ export function RegisterForm() {
       )}
 
       <OrDivider />
-      <ContinueWithGoogle onSuccess={() => goAfterAuth()} />
+      <ContinueWithGoogle onSuccess={(user) => goAfterAuth(user)} />
     </div>
   );
 }

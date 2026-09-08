@@ -242,22 +242,7 @@ export function Navbar() {
           </nav>
 
           {/* Actions — desktop */}
-          <div className="hidden items-center gap-4 lg:flex xl:gap-5">
-            {showSignIn ? (
-              <Link
-                href="/login"
-                className={cn(
-                  "group relative py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
-                  overHero
-                    ? "text-[#F5F1E8]/95 hover:text-[#F5F1E8]"
-                    : "text-[#06291C] hover:text-[#082B1D]",
-                )}
-              >
-                Sign in
-                <span className="absolute bottom-1 left-0 h-px w-0 bg-[#B89545] transition-all duration-300 group-hover:w-full" />
-              </Link>
-            ) : null}
-
+          <div className="ml-auto hidden items-center gap-3 lg:flex xl:gap-4">
             <Link
               href={listPropertyHref}
               className={cn(
@@ -270,14 +255,6 @@ export function Navbar() {
               <span className="relative z-10">List a property</span>
               <span className="pointer-events-none absolute inset-0 translate-x-[-120%] bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-[120%]" />
             </Link>
-
-            <div
-              className={cn(
-                "mx-0.5 hidden h-8 w-px xl:block",
-                overHero ? "bg-[#F5F1E8]/25" : "bg-[#082B1D]/15",
-              )}
-              aria-hidden
-            />
 
             <a
               href={phoneHref}
@@ -310,6 +287,20 @@ export function Navbar() {
                 <span className="text-[12px] font-semibold tracking-[0.03em]">{phoneDisplay}</span>
               </span>
             </a>
+
+            {showSignIn ? (
+              <Link
+                href="/login"
+                className={cn(
+                  "inline-flex items-center justify-center rounded-xl border px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
+                  overHero
+                    ? "border-[#F5F1E8]/45 text-[#F5F1E8] hover:border-[#B89545] hover:text-[#B89545]"
+                    : "border-[#082B1D]/20 text-[#06291C] hover:border-[#B89545] hover:text-[#082B1D]",
+                )}
+              >
+                Sign in
+              </Link>
+            ) : null}
 
             {signedIn && user ? (
               <DropdownMenu>
@@ -363,20 +354,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile controls */}
-          <div className="flex items-center gap-2 sm:gap-3 lg:hidden">
-            {showSignIn ? (
-              <Link
-                href="/login"
-                className={cn(
-                  "inline-flex shrink-0 px-1 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors duration-300 sm:text-[11px] sm:tracking-[0.16em]",
-                  overHero
-                    ? "text-[#F5F1E8]/95 hover:text-[#F5F1E8]"
-                    : "text-[#06291C] hover:text-[#082B1D]",
-                )}
-              >
-                Sign in
-              </Link>
-            ) : null}
+          <div className="ml-auto flex items-center gap-2 sm:gap-3 lg:hidden">
             <a
               href={phoneHref}
               aria-label={`Call ${phoneDisplay}`}
@@ -387,6 +365,19 @@ export function Navbar() {
             >
               <PhoneCall className="h-5 w-5" strokeWidth={1.5} />
             </a>
+            {showSignIn ? (
+              <Link
+                href="/login"
+                className={cn(
+                  "inline-flex shrink-0 items-center justify-center rounded-lg border px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors duration-300 sm:px-3 sm:text-[11px] sm:tracking-[0.16em]",
+                  overHero
+                    ? "border-[#F5F1E8]/45 text-[#F5F1E8]/95 hover:border-[#B89545] hover:text-[#B89545]"
+                    : "border-[#082B1D]/20 text-[#06291C] hover:border-[#B89545] hover:text-[#082B1D]",
+                )}
+              >
+                Sign in
+              </Link>
+            ) : null}
             <button
               type="button"
               aria-expanded={open}
