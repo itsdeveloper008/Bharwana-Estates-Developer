@@ -863,61 +863,96 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     }) => {
       const email = input.email.trim().toLowerCase();
       const role = input.role ?? "HOUSE_OWNER";
+      const profileInput: UserDocInput = {
+        fullName: input.fullName.trim(),
+        email,
+        phone: input.phone.trim(),
+        role,
+        agencyName: input.agencyName,
+        registrationNumber: input.registrationNumber,
+      };
+
+      async function finishWithProfile(uid: string, firebaseUser?: FirebaseUser) {
+        console.info("[register] Writing Firestore profile", { uid, email, role });
+        const profile = await createUserDocWithRetry(uid, {
+          ...profileInput,
+          avatarUrl: firebaseUser?.photoURL ?? undefined,
+        });
+        console.info("[register] Firestore profile saved", { uid: profile.id });
+        if (firebaseUser && profileInput.fullName) {
+          void updateProfile(firebaseUser, { displayName: profileInput.fullName }).catch((err) =>
+            console.warn("[register] displayName update skipped", err),
+          );
+        }
+        commitSession(profile);
+        writePendingRegister(null);
+        return { ok: true as const, user: profile };
+      }
 
       if (isFirebaseConfigured()) {
         const auth = getFirebaseAuth();
         if (auth) {
           try {
+            console.info("[register] Creating Firebase Auth user", { email });
             const credential = await createUserWithEmailAndPassword(auth, email, input.password);
-            await credential.user.getIdToken(true);
-
-            const profileInput: UserDocInput = {
-              fullName: input.fullName.trim(),
-              email,
-              phone: input.phone.trim(),
-              role,
-              avatarUrl: credential.user.photoURL ?? undefined,
-              agencyName: input.agencyName,
-              registrationNumber: input.registrationNumber,
-            };
-
-            const [, profile] = await Promise.all([
-              input.fullName.trim()
-                ? updateProfile(credential.user, { displayName: input.fullName.trim() })
-                : Promise.resolve(),
-              createUserDocWithRetry(credential.user.uid, profileInput),
-            ]);
-
-            commitSession(profile);
-            writePendingRegister(null);
-            return { ok: true as const, user: profile };
+            console.info("[register] Auth user created", { uid: credential.user.uid });
+            return await finishWithProfile(credential.user.uid, credential.user);
           } catch (error) {
             const code =
               error && typeof error === "object" && "code" in error
                 ? String((error as { code?: string }).code)
                 : "";
+            console.error("[register] Failed", { code, error });
+
+            // Auth succeeded earlier but profile write failed — complete signup on retry.
+            if (code === "auth/email-already-in-use") {
+              try {
+                console.info("[register] Email exists — signing in to finish profile", { email });
+                const credential = await signInWithEmailAndPassword(auth, email, input.password);
+                const existing = await loadFirestoreUser(credential.user);
+                if (existing) {
+                  commitSession(existing);
+                  writePendingRegister(null);
+                  return { ok: true as const, user: existing };
+                }
+                return await finishWithProfile(credential.user.uid, credential.user);
+              } catch (recoverError) {
+                console.error("[register] Could not finish existing Auth account", recoverError);
+                return {
+                  ok: false as const,
+                  error:
+                    "This email is already registered. Sign in with your password, or use a different email.",
+                };
+              }
+            }
+
             if (code.startsWith("auth/")) {
-              console.error("Firebase register failed", error);
               return { ok: false as const, error: emailAuthErrorMessage(code) };
             }
+
             const currentUser = auth.currentUser;
             if (currentUser?.email?.toLowerCase() === email) {
               writePendingRegister({
                 uid: currentUser.uid,
-                fullName: input.fullName.trim(),
+                fullName: profileInput.fullName,
                 email,
-                phone: input.phone.trim(),
+                phone: profileInput.phone,
                 role,
                 agencyName: input.agencyName,
                 registrationNumber: input.registrationNumber,
               });
+              try {
+                return await finishWithProfile(currentUser.uid, currentUser);
+              } catch (retryError) {
+                console.error("[register] Profile retry failed", retryError);
+              }
             }
-            console.error("Firebase register profile save failed", error);
+
             return {
               ok: false as const,
               error: firestoreErrorMessage(
                 error,
-                "Account was created but your profile could not be saved. Try signing in.",
+                "Account was created but your profile could not be saved. Try signing in once — we will finish setup.",
               ),
             };
           }
@@ -932,12 +967,11 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         return { ok: false as const, error: "An account with this email already exists" };
       }
 
-      await delay(0);
       const account: StoredAccount = {
         id: `u-${Date.now()}`,
-        fullName: input.fullName.trim(),
+        fullName: profileInput.fullName,
         email,
-        phone: input.phone.trim(),
+        phone: profileInput.phone,
         role,
         password: input.password,
       };

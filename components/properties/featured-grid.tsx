@@ -8,8 +8,20 @@ import { PropertyCard } from "@/components/properties/property-card";
 import { useMockStore } from "@/lib/mock-store";
 
 export function FeaturedGrid() {
-  const { properties } = useMockStore();
+  const { properties, propertiesLoading } = useMockStore();
   const featured = properties.filter((property) => property.status === "PUBLISHED").slice(0, 6);
+
+  if (propertiesLoading) {
+    return <p className="py-10 text-center text-sm text-muted-foreground">Loading featured homes…</p>;
+  }
+
+  if (featured.length === 0) {
+    return (
+      <p className="py-10 text-center text-sm text-muted-foreground">
+        Featured listings will appear here when residences are published.
+      </p>
+    );
+  }
 
   return (
     <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">

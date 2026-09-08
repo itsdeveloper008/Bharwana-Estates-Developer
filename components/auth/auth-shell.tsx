@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useEffect, type ReactNode } from "react";
-import { toast } from "sonner";
 import { useMockAuth } from "@/lib/mock-auth";
 import { cn } from "@/lib/utils";
 
@@ -65,15 +64,11 @@ export function AuthFormEntrance({ children }: { children: ReactNode }) {
   );
 }
 
-/** Keeps signed-in users off /login and /register; clears leftover auth toasts. */
+/** Keeps signed-in users off /login and /register. */
 export function AuthGuestGate({ children }: { children: ReactNode }) {
   const { user, isReady } = useMockAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  useEffect(() => {
-    toast.dismiss();
-  }, []);
 
   useEffect(() => {
     if (!isReady || !user) return;

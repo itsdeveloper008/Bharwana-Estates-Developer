@@ -125,10 +125,12 @@ export async function createUserDocWithRetry(
   let lastError: unknown;
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
+      console.info("[createUserDoc] attempt", attempt + 1, { uid, email: input.email });
       return await createUserDoc(uid, input);
     } catch (error) {
       lastError = error;
-      if (attempt < attempts - 1) await delay(350 * (attempt + 1));
+      console.warn("[createUserDoc] attempt failed", attempt + 1, error);
+      if (attempt < attempts - 1) await delay(200 * (attempt + 1));
     }
   }
   throw lastError;

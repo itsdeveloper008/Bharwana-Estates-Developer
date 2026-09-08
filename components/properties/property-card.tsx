@@ -26,21 +26,32 @@ export function PropertyCard({
 
   const media = (
     <>
-      {property.images[0]?.startsWith("data:") || property.images[0]?.startsWith("blob:") ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={property.images[0]}
-          alt={property.title}
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-        />
+      {property.images[0] ? (
+        property.images[0].startsWith("data:") || property.images[0].startsWith("blob:") ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={property.images[0]}
+            alt={property.title}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <Image
+            src={property.images[0]}
+            alt={property.title}
+            fill
+            className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+            sizes={isList ? "96px" : "(max-width: 768px) 100vw, 33vw"}
+          />
+        )
       ) : (
-        <Image
-          src={property.images[0]}
-          alt={property.title}
-          fill
-          className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-          sizes={isList ? "96px" : "(max-width: 768px) 100vw, 33vw"}
-        />
+        <div
+          className={cn(
+            "flex h-full w-full items-center justify-center bg-cream text-[10px] uppercase tracking-[0.14em]",
+            highlighted ? "text-ivory/50" : "text-muted-foreground",
+          )}
+        >
+          No photo
+        </div>
       )}
       <Badge
         variant={property.listingType === "DIRECT_OWNER" ? "owner" : "verified"}

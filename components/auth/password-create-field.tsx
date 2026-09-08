@@ -41,7 +41,7 @@ export function PasswordCreateField({
             data-lpignore="true"
             data-bwignore="true"
             data-form-type="other"
-            placeholder=""
+            placeholder="Create a password"
             readOnly={!unlocked}
             value={value}
             name={field.name}

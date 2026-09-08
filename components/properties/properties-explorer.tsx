@@ -41,18 +41,28 @@ export function PropertiesExplorer() {
         <h1 className="mt-2 font-serif text-4xl sm:text-5xl">Properties</h1>
       </div>
       <FilterBar resultCount={results.length} />
-      <div
-        className={cn(
-          "mt-8",
-          view === "grid" ? "grid gap-8 sm:grid-cols-2 xl:grid-cols-3" : "flex flex-col gap-4",
-        )}
-      >
-        {results.map((property) => (
-          <PropertyCard key={property.id} property={property} layout={view} />
-        ))}
-      </div>
-      {results.length === 0 && (
-        <p className="py-20 text-center text-muted-foreground">No homes match these filters.</p>
+      {results.length === 0 ? (
+        <div className="mt-8 border border-dashed border-forest/15 bg-cream/40 px-6 py-16 text-center">
+          <p className="font-serif text-2xl text-forest">
+            {properties.length === 0 ? "No listings yet" : "No homes match these filters"}
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {properties.length === 0
+              ? "Published residences will appear here once they are live on Bharwana."
+              : "Try clearing filters to see the full collection."}
+          </p>
+        </div>
+      ) : (
+        <div
+          className={cn(
+            "mt-8",
+            view === "grid" ? "grid gap-8 sm:grid-cols-2 xl:grid-cols-3" : "flex flex-col gap-4",
+          )}
+        >
+          {results.map((property) => (
+            <PropertyCard key={property.id} property={property} layout={view} />
+          ))}
+        </div>
       )}
     </div>
   );

@@ -111,7 +111,9 @@ function mergeById<T extends { id: string }>(seed: T[], stored: T[] | null): T[]
 
 export function MockStoreProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated: isAdminSession } = useAdminAuth();
-  const [properties, setProperties] = useState<Property[]>(seedPropertiesList);
+  const [properties, setProperties] = useState<Property[]>(() =>
+    isFirebaseConfigured() ? [] : seedPropertiesList,
+  );
   const [developers, setDevelopers] = useState<Developer[]>(seedDevelopers);
   const [transactions, setTransactions] = useState<Transaction[]>(seedTransactions);
   const [users, setUsers] = useState<User[]>(seedUsers);
@@ -198,8 +200,10 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
 
     const timeout = window.setTimeout(() => {
       setPropertiesLoading(false);
-      setPropertiesError((current) => current ?? "Loading properties is taking longer than expected. Try refreshing.");
-    }, 15_000);
+      setPropertiesError((current) =>
+        current ?? "Loading properties is taking longer than expected. Try refreshing.",
+      );
+    }, 8_000);
 
     const unsub = subscribeProperties(
       (next) => {

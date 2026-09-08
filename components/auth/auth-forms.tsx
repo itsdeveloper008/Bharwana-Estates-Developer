@@ -168,6 +168,7 @@ function PasswordField({
 }) {
   const [show, setShow] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
+  const value = field.value ?? "";
   return (
     <FormItem>
       <FormLabel>Password</FormLabel>
@@ -175,27 +176,28 @@ function PasswordField({
         <div className="relative">
           <Input
             type={show ? "text" : "password"}
-            autoComplete="current-password"
+            autoComplete="off"
             data-1p-ignore="true"
             data-lpignore="true"
-            data-bwignore="true"
-            placeholder=""
+            data-form-type="other"
+            placeholder="Password"
             readOnly={!unlocked}
             onFocus={() => setUnlocked(true)}
-            value={field.value ?? ""}
-            name={field.name}
+            value={value}
+            name="bharwana-login-password"
             onBlur={field.onBlur}
             onChange={field.onChange}
             ref={field.ref}
             className={cn(
-              "bg-white pr-10",
+              "bg-white pr-10 placeholder:tracking-normal placeholder:text-[15px]",
+              value.length > 0 && "tracking-[0.3em]",
               fieldState.error && "border-destructive focus-visible:ring-destructive",
             )}
           />
           <button
             type="button"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-forest/50 transition-colors duration-200 hover:text-forest"
-            onClick={() => setShow((value) => !value)}
+            onClick={() => setShow((current) => !current)}
             aria-label={show ? "Hide password" : "Show password"}
           >
             {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -227,11 +229,14 @@ function EmailField({
           autoCorrect="off"
           autoCapitalize="none"
           spellCheck={false}
-          placeholder=""
+          data-1p-ignore="true"
+          data-lpignore="true"
+          data-form-type="other"
+          placeholder="Email"
           readOnly={!unlocked}
           onFocus={() => setUnlocked(true)}
           value={field.value ?? ""}
-          name={field.name}
+          name="bharwana-login-email"
           onBlur={field.onBlur}
           onChange={field.onChange}
           ref={field.ref}
@@ -256,12 +261,17 @@ export function LoginForm() {
 
   const form = useForm<UserLoginValues>({
     resolver: zodResolver(userLoginSchema),
-    mode: "onBlur",
+    mode: "onSubmit",
     defaultValues: { email: "", password: "" },
   });
 
   useEffect(() => {
     form.reset({ email: "", password: "" });
+    // Clear any browser-injected autofill after paint.
+    const timer = window.setTimeout(() => {
+      form.reset({ email: "", password: "" });
+    }, 50);
+    return () => window.clearTimeout(timer);
   }, [form]);
 
   function goAfterAuth() {
@@ -270,13 +280,20 @@ export function LoginForm() {
 
   async function onSubmit(values: UserLoginValues) {
     setError(null);
-    const result = await login(values.email, values.password);
-    if (!result.ok) {
-      setError(result.error);
-      return;
+    try {
+      const result = await login(values.email, values.password);
+      if (!result.ok) {
+        console.error("[login] rejected", result.error);
+        setError(result.error);
+        form.setValue("password", "");
+        return;
+      }
+      toast.success("Signed in.");
+      goAfterAuth();
+    } catch (err) {
+      console.error("[login] unexpected failure", err);
+      setError("Could not sign in. Check your connection and try again.");
     }
-    toast.dismiss();
-    goAfterAuth();
   }
 
   return (
@@ -285,7 +302,14 @@ export function LoginForm() {
 
       {authMethod === "email" ? (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" autoComplete="off">
+          <form
+            onSubmit={form.handleSubmit(onSubmit, (fieldErrors) => {
+              console.warn("[login] validation failed", fieldErrors);
+              setError("Enter a valid email and password to continue.");
+            })}
+            className="space-y-4"
+            autoComplete="off"
+          >
             <FormField
               control={form.control}
               name="email"
@@ -342,7 +366,8 @@ export function RegisterForm() {
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
-    mode: "onBlur",
+    mode: "onSubmit",
+    reValidateMode: "onChange",
     defaultValues: {
       fullName: "",
       email: "",
@@ -364,6 +389,7 @@ export function RegisterForm() {
     setError(null);
     setSubmitting(true);
     try {
+      console.info("[RegisterForm] submit start", { email: values.email, role: values.role });
       const result = await register({
         fullName: values.fullName,
         email: values.email,
@@ -374,7 +400,9 @@ export function RegisterForm() {
         registrationNumber: values.role === "DEALER" ? values.registrationNumber : undefined,
       });
       if (!result.ok) {
+        console.error("[RegisterForm] rejected", result.error);
         setError(result.error);
+        toast.error(result.error);
         return;
       }
 
@@ -391,12 +419,18 @@ export function RegisterForm() {
         }).catch((err) => console.error("Dealer profile save failed", err));
       }
 
-      toast.success(
+      const successMessage =
         values.role === "DEALER"
           ? "Dealer account created. Pending review."
-          : "Account created successfully.",
-      );
+          : "Account created successfully.";
+      toast.success(successMessage, { duration: 5000 });
+      console.info("[RegisterForm] success", { uid: result.user.id });
       goAfterAuth();
+    } catch (err) {
+      console.error("[RegisterForm] unexpected failure", err);
+      const message = "Could not create your account. Check your connection and try again.";
+      setError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -413,7 +447,22 @@ export function RegisterForm() {
 
       {authMethod === "email" ? (
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3" autoComplete="off">
+        <form
+          onSubmit={form.handleSubmit(onSubmit, (fieldErrors) => {
+            console.warn("[RegisterForm] validation failed", fieldErrors);
+            const first =
+              fieldErrors.fullName?.message ||
+              fieldErrors.email?.message ||
+              fieldErrors.phone?.message ||
+              fieldErrors.password?.message ||
+              fieldErrors.agencyName?.message ||
+              "Please fix the highlighted fields and try again.";
+            setError(first);
+            toast.error(first);
+          })}
+          className="space-y-3"
+          autoComplete="off"
+        >
           <FormField
             control={form.control}
             name="fullName"
