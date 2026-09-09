@@ -32,6 +32,7 @@ export function GoogleRoleCompletionDialog({
   onComplete,
   requireFullName = false,
   phoneVerified = false,
+  skipCommit = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,6 +41,8 @@ export function GoogleRoleCompletionDialog({
   requireFullName?: boolean;
   /** When true (phone OTP already verified), hide the phone field. */
   phoneVerified?: boolean;
+  /** Defer app session until caller finishes optional password step. */
+  skipCommit?: boolean;
 }) {
   const { completeGoogleSignup } = useMockAuth();
   const { addDeveloper } = useMockStore();
@@ -92,6 +95,7 @@ export function GoogleRoleCompletionDialog({
         role,
         agencyName: agencyName.trim() || undefined,
         registrationNumber: registrationNumber.trim() || undefined,
+        skipCommit,
       });
       if (!result.ok) {
         setError(result.error);

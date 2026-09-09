@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { sendPasswordResetEmail } from "firebase/auth";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -12,7 +11,8 @@ import { AuthCrossLink } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
+import { sendPasswordResetLink } from "@/lib/auth-reset";
+import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { cn } from "@/lib/utils";
 
 const schema = z.object({
@@ -21,13 +21,13 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: string }) {
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { email: "" },
+    defaultValues: { email: defaultEmail },
   });
 
   async function onSubmit(values: FormValues) {
@@ -37,13 +37,8 @@ export function ForgotPasswordForm() {
       setError("Password reset needs Firebase on this deploy.");
       return;
     }
-    const auth = getFirebaseAuth();
-    if (!auth) {
-      setError("Password reset is unavailable right now.");
-      return;
-    }
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetLink(email);
       setSentTo(email);
       toast.success("Reset email sent.");
     } catch (err) {
@@ -73,7 +68,9 @@ export function ForgotPasswordForm() {
         <p className="font-serif text-2xl text-forest">Check your email</p>
         <p className="text-sm leading-relaxed text-forest/75">
           If an account exists for <span className="font-medium text-forest">{sentTo}</span>, we sent a
-          link to reset your password. The link may take a minute to arrive.
+          link to reset your password. Open that link on this site to set a new password — email
+          scanners can invalidate one-time links if they open them first, so request another if
+          needed.
         </p>
         <Button asChild className="w-full">
           <Link href="/login">Back to sign in</Link>

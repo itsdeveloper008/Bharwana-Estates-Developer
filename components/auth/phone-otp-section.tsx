@@ -4,16 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { RecaptchaVerifier, type ConfirmationResult } from "firebase/auth";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { GoogleRoleCompletionDialog } from "@/components/auth/google-role-completion-dialog";
 import { OtpDigitInputs } from "@/components/auth/otp-digit-inputs";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
+import { SetPasswordOptional } from "@/components/auth/set-password-optional";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { useMockAuth } from "@/lib/mock-auth";
+import { firebaseErrorParts, phoneAuthErrorMessage } from "@/lib/phone-auth-errors";
 import { formatPakistanMobileE164 } from "@/lib/phone-format";
 import {
   phoneOtpRequestSchema,
@@ -23,7 +25,7 @@ import {
 } from "@/lib/schemas";
 import type { User } from "@/lib/types";
 
-type Step = "phone" | "otp";
+type Step = "phone" | "otp" | "password";
 
 const RESEND_SECONDS = 60;
 
@@ -31,12 +33,15 @@ export function PhoneOtpSection({
   onSuccess,
   variant = "login",
   recaptchaId = "phone-auth-recaptcha",
+  onPreferPassword,
 }: {
   onSuccess: (user: User) => void;
   variant?: "login" | "register";
   recaptchaId?: string;
+  /** Switch Sign In UI to the email/password tab. */
+  onPreferPassword?: () => void;
 }) {
-  const { sendPhoneOtp, verifyPhoneOtp } = useMockAuth();
+  const { sendPhoneOtp, verifyPhoneOtp, adoptSession } = useMockAuth();
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const confirmationRef = useRef<ConfirmationResult | null>(null);
   const completingRef = useRef(false);
@@ -49,6 +54,7 @@ export function PhoneOtpSection({
   const [sentPhone, setSentPhone] = useState("");
   const [localPhone, setLocalPhone] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [pendingUser, setPendingUser] = useState<User | null>(null);
 
   const phoneForm = useForm<PhoneOtpRequestValues>({
     resolver: zodResolver(phoneOtpRequestSchema),
@@ -59,10 +65,15 @@ export function PhoneOtpSection({
     resolver: zodResolver(phoneOtpVerifySchema),
     defaultValues: { otp: "" },
   });
+  const otpValue = useWatch({ control: otpForm.control, name: "otp" }) ?? "";
 
   useEffect(() => {
     return () => {
-      recaptchaRef.current?.clear();
+      try {
+        recaptchaRef.current?.clear();
+      } catch {
+        // ignore
+      }
       recaptchaRef.current = null;
     };
   }, []);
@@ -82,22 +93,31 @@ export function PhoneOtpSection({
       // ignore stale widget clear errors
     }
     recaptchaRef.current = null;
+    const host = document.getElementById(recaptchaId);
+    if (host) host.innerHTML = "";
   }
 
   async function getRecaptchaVerifier() {
     const auth = getFirebaseAuth();
     if (!auth) throw new Error("Firebase Auth is not available");
 
-    if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(auth, recaptchaId, {
-        size: "invisible",
-        callback: () => undefined,
-        "expired-callback": () => {
-          void resetRecaptcha();
-        },
+    if (recaptchaRef.current) return recaptchaRef.current;
+
+    const host = document.getElementById(recaptchaId);
+    if (!host) {
+      throw Object.assign(new Error("reCAPTCHA container is missing from the page."), {
+        code: "auth/argument-error",
       });
-      await recaptchaRef.current.render();
     }
+
+    recaptchaRef.current = new RecaptchaVerifier(auth, recaptchaId, {
+      size: "invisible",
+      callback: () => undefined,
+      "expired-callback": () => {
+        void resetRecaptcha();
+      },
+    });
+    await recaptchaRef.current.render();
     return recaptchaRef.current;
   }
 
@@ -109,10 +129,13 @@ export function PhoneOtpSection({
     setError(null);
     setPending(true);
     try {
-      await resetRecaptcha();
-      const verifier = await getRecaptchaVerifier();
+      // Reuse an existing verifier when possible — recreating on every send slows SMS and breaks often.
+      let verifier = recaptchaRef.current;
+      if (!verifier) {
+        verifier = await getRecaptchaVerifier();
+      }
       const e164 = formatPakistanMobileE164(localDigits);
-      console.info("[phone-otp] sending", e164);
+      console.info("[phone-otp] sending E.164", e164);
       const result = await sendPhoneOtp(e164, verifier);
       if (!result.ok) {
         console.error("[phone-otp] send failed", result.error);
@@ -129,8 +152,9 @@ export function PhoneOtpSection({
       toast.success("Verification code sent.");
       return true;
     } catch (err) {
-      console.error("[phone-otp] send exception", err);
-      setError("Could not send code. Refresh the page and try again.");
+      const { code, message } = firebaseErrorParts(err);
+      console.error("[phone-otp] send exception", code, message, err);
+      setError(phoneAuthErrorMessage(code, message));
       await resetRecaptcha();
       return false;
     } finally {
@@ -144,7 +168,14 @@ export function PhoneOtpSection({
 
   async function handleResend() {
     if (secondsLeft > 0 || !localPhone || pending) return;
+    await resetRecaptcha();
     await sendCode(localPhone);
+  }
+
+  function finishWithUser(user: User) {
+    if (completingRef.current) return;
+    completingRef.current = true;
+    onSuccess(user);
   }
 
   async function handleVerifyOtp(values: PhoneOtpVerifyValues) {
@@ -169,10 +200,11 @@ export function PhoneOtpSection({
         return;
       }
       toast.success(variant === "register" ? "Account ready" : "Welcome back");
-      onSuccess(result.user);
+      finishWithUser(result.user);
     } catch (err) {
-      console.error("[phone-otp] verify exception", err);
-      setError("Could not verify the code. Try again or resend a new code.");
+      const { code, message } = firebaseErrorParts(err);
+      console.error("[phone-otp] verify exception", code, message, err);
+      setError(phoneAuthErrorMessage(code, message));
     } finally {
       setPending(false);
     }
@@ -192,6 +224,22 @@ export function PhoneOtpSection({
       <p className="text-sm text-muted-foreground">
         Phone sign-in needs Firebase environment variables on this deploy. Use email or Google instead.
       </p>
+    );
+  }
+
+  if (step === "password" && pendingUser) {
+    return (
+      <SetPasswordOptional
+        defaultEmail={pendingUser.email}
+        onDone={() => {
+          // linkEmailPassword already committed the updated session
+          finishWithUser(pendingUser);
+        }}
+        onSkip={() => {
+          adoptSession(pendingUser);
+          finishWithUser(pendingUser);
+        }}
+      />
     );
   }
 
@@ -224,6 +272,19 @@ export function PhoneOtpSection({
                   </FormItem>
                 )}
               />
+              {onPreferPassword ? (
+                <p className="text-xs text-muted-foreground">
+                  Already added a password?{" "}
+                  <button
+                    type="button"
+                    className="font-medium text-forest underline-offset-2 hover:text-gold-700 hover:underline"
+                    onClick={onPreferPassword}
+                  >
+                    Sign in with email instead
+                  </button>{" "}
+                  to skip the SMS code.
+                </p>
+              ) : null}
               {error && (
                 <p className="text-sm text-destructive" role="alert">
                   {error}
@@ -270,7 +331,7 @@ export function PhoneOtpSection({
                   {error}
                 </p>
               )}
-              <Button type="submit" className="w-full" disabled={pending || otpForm.watch("otp").length !== 6}>
+              <Button type="submit" className="w-full" disabled={pending || otpValue.length !== 6}>
                 {pending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -315,11 +376,11 @@ export function PhoneOtpSection({
         draft={draft}
         requireFullName
         phoneVerified
+        skipCommit
         onComplete={(user) => {
-          if (completingRef.current) return;
-          completingRef.current = true;
           setRoleOpen(false);
-          onSuccess(user);
+          setPendingUser(user);
+          setStep("password");
         }}
       />
     </>

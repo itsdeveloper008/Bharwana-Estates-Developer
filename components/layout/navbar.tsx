@@ -300,14 +300,14 @@ export function Navbar() {
               <Link
                 href="/login"
                 className={cn(
-                  "group relative py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
+                  "inline-flex items-center justify-center rounded-xl border px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] transition-all duration-300",
+                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
                   overHero
-                    ? "text-[#F5F1E8]/95 hover:text-[#F5F1E8]"
-                    : "text-[#06291C] hover:text-[#082B1D]",
+                    ? "border-[#B89545]/80 text-[#F5F1E8] hover:border-[#B89545] hover:bg-[#B89545]/15"
+                    : "border-[#B89545] text-[#06291C] hover:bg-[#B89545]/12 hover:border-[#a8843c]",
                 )}
               >
                 Sign in
-                <span className="absolute bottom-1 left-0 h-px w-0 bg-[#B89545] transition-all duration-300 group-hover:w-full" />
               </Link>
             ) : null}
 
@@ -378,10 +378,10 @@ export function Navbar() {
               <Link
                 href="/login"
                 className={cn(
-                  "inline-flex shrink-0 items-center justify-center rounded-lg border px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors duration-300 sm:px-3 sm:text-[11px] sm:tracking-[0.16em]",
+                  "inline-flex shrink-0 items-center justify-center rounded-lg border px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] transition-all duration-300 sm:px-3 sm:text-[11px] sm:tracking-[0.16em]",
                   overHero
-                    ? "border-[#F5F1E8]/45 text-[#F5F1E8]/95 hover:border-[#B89545] hover:text-[#B89545]"
-                    : "border-[#082B1D]/20 text-[#06291C] hover:border-[#B89545] hover:text-[#082B1D]",
+                    ? "border-[#B89545]/80 text-[#F5F1E8] hover:border-[#B89545] hover:bg-[#B89545]/15"
+                    : "border-[#B89545] text-[#06291C] hover:bg-[#B89545]/12",
                 )}
               >
                 Sign in

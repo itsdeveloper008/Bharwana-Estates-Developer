@@ -350,6 +350,7 @@ export function LoginForm() {
           variant="login"
           recaptchaId="phone-auth-recaptcha-login"
           onSuccess={(user) => goAfterAuth(user)}
+          onPreferPassword={() => setAuthMethod("email")}
         />
       )}
 

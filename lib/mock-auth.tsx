@@ -37,12 +37,14 @@ import { createDeletionRequest, purgeUserOwnedData } from "@/lib/firestore/delet
 import {
   createUserDocWithRetry,
   getUserDoc,
+  updateUserEmail,
   updateUserPhone,
   type UserDocInput,
 } from "@/lib/firestore/users";
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import { users as seedUsers } from "@/lib/mock-data/users";
 import { isValidPhoneE164, normalizePhoneE164 } from "@/lib/phone-format";
+import { firebaseErrorParts, phoneAuthErrorMessage } from "@/lib/phone-auth-errors";
 import type { User, UserRole } from "@/lib/types";
 import { delay } from "@/lib/utils";
 
@@ -203,7 +205,11 @@ interface MockAuthContextValue {
     role: UserRole;
     agencyName?: string;
     registrationNumber?: string;
+    /** When true, save profile but leave app session unset until adoptSession (phone password prompt). */
+    skipCommit?: boolean;
   }) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
+  /** Commit an already-created profile into the app session. */
+  adoptSession: (user: User) => void;
   register: (input: {
     fullName: string;
     email: string;
@@ -222,6 +228,13 @@ interface MockAuthContextValue {
   }) => Promise<{ ok: true } | { ok: false; error: string }>;
   submitDeletionRequest: (note?: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   getAccountAuthMethod: () => AccountAuthMethod | null;
+  /** True when the signed-in Firebase user has an email/password provider linked. */
+  hasPasswordProvider: () => boolean;
+  /** Link email/password to the current user (phone signup → faster email login). */
+  linkEmailPassword: (input: {
+    email: string;
+    password: string;
+  }) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
 }
 
 const MockAuthContext = createContext<MockAuthContextValue | undefined>(undefined);
@@ -288,49 +301,6 @@ function readPendingRegister(): PendingRegisterProfile | null {
 function writePendingRegister(profile: PendingRegisterProfile | null) {
   if (profile) sessionStorage.setItem(PENDING_REGISTER_KEY, JSON.stringify(profile));
   else sessionStorage.removeItem(PENDING_REGISTER_KEY);
-}
-
-function phoneAuthErrorMessage(code: string, rawMessage = "") {
-  const message = rawMessage.toLowerCase();
-  if (code === "auth/billing-not-enabled" || message.includes("billing")) {
-    return "Phone sign-in requires the Firebase Blaze plan. Ask the project owner to enable billing in Firebase Console.";
-  }
-  if (
-    code === "auth/operation-not-allowed" &&
-    (message.includes("region") || message.includes("sms unable to be sent"))
-  ) {
-    return "SMS is not enabled for Pakistan (+92) on this Firebase project. Add PK under Authentication → Settings → SMS region policy.";
-  }
-  switch (code) {
-    case "auth/invalid-phone-number":
-      return "That phone number looks invalid. Use format +92 3XX XXXXXXX.";
-    case "auth/too-many-requests":
-      return "Too many attempts. Wait a moment and try again.";
-    case "auth/captcha-check-failed":
-      return "Security check failed. Refresh the page and try again.";
-    case "auth/invalid-verification-code":
-      return "Incorrect code. Check the SMS and try again.";
-    case "auth/code-expired":
-      return "Code expired. Request a new one.";
-    case "auth/missing-verification-code":
-      return "Enter the 6-digit code from your SMS.";
-    case "auth/quota-exceeded":
-      return "SMS limit reached. Try again later or use email sign-in.";
-    case "auth/operation-not-allowed":
-      return "Phone sign-in is disabled for this Firebase project. Enable Phone under Authentication → Sign-in method.";
-    case "auth/network-request-failed":
-      return "Could not reach Firebase Auth. Disable ad blockers for this site, try another network or browser, and stay on https://bharwanaestates.com.";
-    case "auth/credential-already-in-use":
-    case "auth/account-exists-with-different-credential":
-    case "auth/phone-number-already-exists":
-      return "This number is already in use by another account.";
-    case "auth/provider-already-linked":
-      return "A phone number is already linked to this account. Try updating again.";
-    case "auth/requires-recent-login":
-      return "For security, sign out and sign back in, then try changing your phone number again.";
-    default:
-      return code ? `Could not verify phone (${code}).` : "Could not verify phone. Try again.";
-  }
 }
 
 function emailAuthErrorMessage(code: string) {
@@ -962,6 +932,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       role: UserRole;
       agencyName?: string;
       registrationNumber?: string;
+      skipCommit?: boolean;
     }) => {
       const email = input.draft.email.trim().toLowerCase();
 
@@ -976,7 +947,11 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             agencyName: input.agencyName,
             registrationNumber: input.registrationNumber,
           });
-          commitSession(profile);
+          if (input.skipCommit) {
+            setPendingGoogle(null);
+          } else {
+            commitSession(profile);
+          }
           return { ok: true as const, user: profile };
         } catch (error) {
           console.error("Google signup profile save failed", error);
@@ -1002,8 +977,19 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       };
       writeRegistered([...registered, account]);
       const publicUser = toPublicUser(account);
-      commitSession(publicUser);
+      if (input.skipCommit) {
+        setPendingGoogle(null);
+      } else {
+        commitSession(publicUser);
+      }
       return { ok: true as const, user: publicUser };
+    },
+    [commitSession, setPendingGoogle],
+  );
+
+  const adoptSession = useCallback(
+    (profile: User) => {
+      commitSession(profile);
     },
     [commitSession],
   );
@@ -1152,12 +1138,90 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     const firebaseUser = auth?.currentUser;
     if (!firebaseUser) return null;
-    const provider = firebaseUser.providerData[0]?.providerId;
-    if (provider === "google.com") return "google";
-    if (provider === "phone") return "phone";
-    if (provider === "password") return "password";
+    const providers = firebaseUser.providerData.map((p) => p.providerId);
+    if (providers.includes("password")) return "password";
+    if (providers.includes("google.com")) return "google";
+    if (providers.includes("phone")) return "phone";
     return firebaseUser.email ? "password" : null;
   }, []);
+
+  const hasPasswordProvider = useCallback((): boolean => {
+    const auth = getFirebaseAuth();
+    const firebaseUser = auth?.currentUser;
+    if (!firebaseUser) return false;
+    return firebaseUser.providerData.some((p) => p.providerId === "password");
+  }, []);
+
+  const linkEmailPassword = useCallback(
+    async (input: { email: string; password: string }) => {
+      if (!user) {
+        return { ok: false as const, error: "You must be signed in to add a password." };
+      }
+      const email = input.email.trim().toLowerCase();
+      if (!email || !email.includes("@") || email.endsWith("@phone.bharwana.local")) {
+        return { ok: false as const, error: "Enter a real email address you can use to sign in." };
+      }
+      if (!input.password) {
+        return { ok: false as const, error: "Enter a password." };
+      }
+
+      const auth = getFirebaseAuth();
+      const firebaseUser = auth?.currentUser;
+      if (!auth || !firebaseUser || firebaseUser.uid !== user.id) {
+        return {
+          ok: false as const,
+          error: "Session expired. Sign in again, then try adding a password.",
+        };
+      }
+
+      if (firebaseUser.providerData.some((p) => p.providerId === "password")) {
+        return { ok: false as const, error: "This account already has a password." };
+      }
+
+      try {
+        const credential = EmailAuthProvider.credential(email, input.password);
+        await linkWithCredential(firebaseUser, credential);
+        try {
+          await updateUserEmail(user.id, email);
+        } catch (firestoreError) {
+          console.error("Password linked but Firestore email sync failed", firestoreError);
+          return {
+            ok: false as const,
+            error: "Password was linked, but we could not save your email to the profile. Refresh and try again.",
+          };
+        }
+        const nextUser: User = { ...user, email };
+        commitSession(nextUser);
+        return { ok: true as const, user: nextUser };
+      } catch (error) {
+        const { code } = firebaseErrorParts(error);
+        console.error("linkEmailPassword failed", error);
+        if (code === "auth/email-already-in-use" || code === "auth/credential-already-in-use") {
+          return {
+            ok: false as const,
+            error: "That email is already used by another account. Use a different email.",
+          };
+        }
+        if (code === "auth/provider-already-linked") {
+          return { ok: false as const, error: "This account already has a password." };
+        }
+        if (code === "auth/requires-recent-login") {
+          return {
+            ok: false as const,
+            error: "For security, sign out, sign back in with phone OTP, then add a password.",
+          };
+        }
+        if (code === "auth/weak-password") {
+          return { ok: false as const, error: "Choose a stronger password." };
+        }
+        if (code === "auth/invalid-email") {
+          return { ok: false as const, error: "Enter a valid email address." };
+        }
+        return { ok: false as const, error: emailAuthErrorMessage(code) };
+      }
+    },
+    [user, commitSession],
+  );
 
   const clearLocalAccountTraces = useCallback((uid: string, email: string) => {
     try {
@@ -1360,6 +1424,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       sendChangePhoneOtp,
       confirmChangePhone,
       completeGoogleSignup,
+      adoptSession,
       register,
       loginAs,
       loginAsRole,
@@ -1368,6 +1433,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       reauthenticateForDeletion,
       submitDeletionRequest,
       getAccountAuthMethod,
+      hasPasswordProvider,
+      linkEmailPassword,
     }),
     [
       user,
@@ -1381,6 +1448,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       sendChangePhoneOtp,
       confirmChangePhone,
       completeGoogleSignup,
+      adoptSession,
       register,
       loginAs,
       loginAsRole,
@@ -1389,6 +1457,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       reauthenticateForDeletion,
       submitDeletionRequest,
       getAccountAuthMethod,
+      hasPasswordProvider,
+      linkEmailPassword,
     ],
   );
 

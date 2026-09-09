@@ -150,6 +150,20 @@ export async function updateUserPhone(uid: string, phone: string): Promise<void>
   );
 }
 
+/** Keeps Firestore email in sync after linking email/password to a phone account. */
+export async function updateUserEmail(uid: string, email: string): Promise<void> {
+  const db = getDb();
+  if (!db) throw new Error("Firebase is not configured");
+  await withTimeout(
+    updateDoc(doc(db, COLLECTION, uid), {
+      email: email.trim().toLowerCase(),
+      updatedAt: serverTimestamp(),
+    }),
+    FIRESTORE_WRITE_TIMEOUT_MS,
+    "User email update",
+  );
+}
+
 /** Removes the Firestore profile only. Prefer purgeUserOwnedData + Auth user.delete() for self-service. */
 export async function deleteUserDoc(uid: string): Promise<void> {
   const db = getDb();

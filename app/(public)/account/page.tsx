@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ChangePhoneSection } from "@/components/account/change-phone-section";
+import { AddPasswordSection } from "@/components/account/add-password-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -137,6 +138,7 @@ export default function AccountSettingsPage() {
             <dd className="mt-1">{user.email}</dd>
           </div>
           <ChangePhoneSection currentPhone={user.phone} />
+          <AddPasswordSection />
           <div>
             <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Role</dt>
             <dd className="mt-1">{user.role.replaceAll("_", " ")}</dd>
