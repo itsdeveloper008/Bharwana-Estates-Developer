@@ -45,7 +45,7 @@ import {
   PROPERTY_SUBTYPES,
 } from "@/lib/property-taxonomy";
 import { propertyFormSchema, type PropertyFormValues } from "@/lib/schemas";
-import { CITIES, type PropertyCategory, type PropertyStatus, type User } from "@/lib/types";
+import { CITIES, type Property, type PropertyCategory, type PropertyStatus, type User } from "@/lib/types";
 import { CITY_COORDS } from "@/lib/map";
 import { cn } from "@/lib/utils";
 
@@ -223,6 +223,8 @@ export function PropertyForm({
     useMockStore();
   const editingProperty = editId ? properties.find((item) => item.id === editId) : undefined;
   const [previews, setPreviews] = useState<string[]>([]);
+  /** Parallel to previews — File for new uploads, null for existing remote URLs. */
+  const [photoFiles, setPhotoFiles] = useState<(File | null)[]>([]);
   const objectUrlsRef = useRef<string[]>([]);
   const [photoError, setPhotoError] = useState(false);
   const [done, setDone] = useState(false);
@@ -312,6 +314,7 @@ export function PropertyForm({
       contactPhone: toPakistanMobileLocal(editingProperty.contactPhone ?? ""),
     });
     setPreviews(editingProperty.images ?? []);
+    setPhotoFiles((editingProperty.images ?? []).map(() => null));
     setPhotoError(false);
   }, [editingProperty?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -452,15 +455,18 @@ export function PropertyForm({
 
   function onFiles(files: FileList | null) {
     if (!files?.length) return;
-    const next: string[] = [];
+    const nextUrls: string[] = [];
+    const nextFiles: File[] = [];
     Array.from(files).forEach((file) => {
       if (!file.type.startsWith("image/")) return;
       const url = URL.createObjectURL(file);
       objectUrlsRef.current.push(url);
-      next.push(url);
+      nextUrls.push(url);
+      nextFiles.push(file);
     });
-    if (next.length) {
-      setPreviews((current) => [...current, ...next]);
+    if (nextUrls.length) {
+      setPreviews((current) => [...current, ...nextUrls]);
+      setPhotoFiles((current) => [...current, ...nextFiles]);
       setPhotoError(false);
     }
   }
@@ -474,10 +480,18 @@ export function PropertyForm({
       }
       return current.filter((_, i) => i !== index);
     });
+    setPhotoFiles((current) => current.filter((_, i) => i !== index));
   }
 
   function movePreview(index: number, direction: -1 | 1) {
     setPreviews((current) => {
+      const target = index + direction;
+      if (target < 0 || target >= current.length) return current;
+      const copy = [...current];
+      [copy[index], copy[target]] = [copy[target], copy[index]];
+      return copy;
+    });
+    setPhotoFiles((current) => {
       const target = index + direction;
       if (target < 0 || target >= current.length) return current;
       const copy = [...current];
@@ -530,6 +544,7 @@ export function PropertyForm({
       return;
     }
     const images = previews;
+    const imageFiles = photoFiles;
 
     let listingTypeValue = values.listingType;
     let developerId: string | undefined;
@@ -568,28 +583,46 @@ export function PropertyForm({
           clearRejectionReason: true,
           by: user?.fullName ?? user?.email,
         });
-        await updateProperty(editingProperty.id, {
-          ...values,
-          listingType: listingTypeValue,
-          developerId: developerId ?? editingProperty.developerId,
-          images,
-          ownerUserId: resolvedOwnerId ?? editingProperty.ownerUserId,
-          ...statusPatch,
-          rejectionReason: undefined,
-        });
+        await updateProperty(
+          editingProperty.id,
+          {
+            ...values,
+            listingType: listingTypeValue,
+            developerId: developerId ?? editingProperty.developerId,
+            images,
+            ownerUserId: resolvedOwnerId ?? editingProperty.ownerUserId,
+            ...statusPatch,
+            rejectionReason: undefined,
+          },
+          { imageFiles },
+        );
         setSubmittedId(editingProperty.id);
       } else {
         const id = `p-${Date.now()}`;
-        await addProperty({
+        const listing: Property = {
           id,
-          ...values,
+          title: values.title,
+          description: values.description,
           listingType: listingTypeValue,
-          developerId,
+          purpose: values.purpose,
+          category: values.category,
+          subtype: values.subtype,
           status,
+          price: values.price,
+          areaSqft: values.areaSqft,
+          bedrooms: values.bedrooms,
+          bathrooms: values.bathrooms,
+          address: values.address,
+          city: values.city,
+          latitude: values.latitude,
+          longitude: values.longitude,
           images,
-          ownerUserId: resolvedOwnerId,
           createdAt: new Date().toISOString(),
-        });
+          contactPhone: values.contactPhone,
+        };
+        if (developerId) listing.developerId = developerId;
+        if (resolvedOwnerId) listing.ownerUserId = resolvedOwnerId;
+        await addProperty(listing, { imageFiles });
         setSubmittedId(id);
       }
     } catch (error) {

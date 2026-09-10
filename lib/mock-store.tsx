@@ -30,6 +30,7 @@ import {
   deleteProperty as deletePropertyRemote,
   subscribeProperties,
   upsertProperty,
+  type UpsertPropertyOptions,
 } from "@/lib/firestore/properties";
 import { createUserDoc, subscribeUsers } from "@/lib/firestore/users";
 import { developers as seedDevelopers } from "@/lib/mock-data/developers";
@@ -80,8 +81,8 @@ interface MockStoreContextValue {
   propertiesLoading: boolean;
   propertiesError: string | null;
   storeReady: boolean;
-  addProperty: (property: Property) => Promise<void>;
-  updateProperty: (id: string, patch: Partial<Property>) => Promise<void>;
+  addProperty: (property: Property, options?: UpsertPropertyOptions) => Promise<void>;
+  updateProperty: (id: string, patch: Partial<Property>, options?: UpsertPropertyOptions) => Promise<void>;
   deleteProperty: (id: string) => Promise<void>;
   addInquiry: (input: InquiryInput) => Promise<string>;
   updateInquiryStatus: (id: string, status: InquiryStatus) => Promise<void>;
@@ -287,13 +288,13 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     return () => unsub?.();
   }, [isAdminSession]);
 
-  const addProperty = useCallback(async (property: Property) => {
+  const addProperty = useCallback(async (property: Property, options?: UpsertPropertyOptions) => {
     setProperties((current) => [property, ...current.filter((item) => item.id !== property.id)]);
 
     if (!isFirebaseConfigured()) return;
 
     try {
-      const saved = await upsertProperty(property);
+      const saved = await upsertProperty(property, options);
       setProperties((current) =>
         current.map((item) => (item.id === property.id ? saved : item)),
       );
@@ -304,7 +305,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const updateProperty = useCallback(async (id: string, patch: Partial<Property>) => {
+  const updateProperty = useCallback(async (id: string, patch: Partial<Property>, options?: UpsertPropertyOptions) => {
     let merged: Property | undefined;
     setProperties((current) => {
       const existing = current.find((property) => property.id === id);
@@ -320,7 +321,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     if (!isFirebaseConfigured()) return;
 
     try {
-      const saved = await upsertProperty(merged);
+      const saved = await upsertProperty(merged, options);
       setProperties((current) =>
         current.map((property) => (property.id === id ? saved : property)),
       );

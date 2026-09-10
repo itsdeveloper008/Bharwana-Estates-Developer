@@ -6,10 +6,10 @@ export function appendPropertyStatusHistory(
 ): PropertyStatusHistoryEntry[] {
   const next: PropertyStatusHistoryEntry = {
     status: entry.status,
-    reason: entry.reason,
-    by: entry.by,
     at: entry.at ?? new Date().toISOString(),
   };
+  if (entry.reason) next.reason = entry.reason;
+  if (entry.by) next.by = entry.by;
   return [...(property.statusHistory ?? []), next].slice(-12);
 }
 
