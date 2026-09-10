@@ -115,9 +115,16 @@ function logPropertyPayload(propertyId: string, payload: Record<string, unknown>
   }
 }
 
-/** Shrink listing photos before Storage upload so submit is not stuck on multi‑MB files. */
+const MAX_UPLOAD_BYTES = 9 * 1024 * 1024;
+
+/** Shrink listing photos to JPEG before Storage upload (mobile HEIC / multi‑MB originals). */
 async function compressImageBlob(blob: Blob, maxEdge = 1600, quality = 0.72): Promise<Blob> {
-  if (typeof createImageBitmap === "undefined" || typeof document === "undefined") return blob;
+  if (typeof createImageBitmap === "undefined" || typeof document === "undefined") {
+    if (blob.size > MAX_UPLOAD_BYTES) {
+      throw new Error("Photo is too large. Use a JPG or PNG under 9MB.");
+    }
+    return blob;
+  }
   try {
     const bitmap = await createImageBitmap(blob);
     const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
@@ -133,16 +140,31 @@ async function compressImageBlob(blob: Blob, maxEdge = 1600, quality = 0.72): Pr
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       bitmap.close();
-      return blob;
+      throw new Error("Could not process photo. Try a JPG or PNG.");
     }
     ctx.drawImage(bitmap, 0, 0, width, height);
     bitmap.close();
-    const compressed = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((next) => resolve(next), "image/jpeg", quality);
-    });
-    return compressed && compressed.size > 0 ? compressed : blob;
-  } catch {
-    return blob;
+
+    let nextQuality = quality;
+    let compressed: Blob | null = null;
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      compressed = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((next) => resolve(next), "image/jpeg", nextQuality);
+      });
+      if (compressed && compressed.size > 0 && compressed.size <= MAX_UPLOAD_BYTES) {
+        return compressed;
+      }
+      nextQuality = Math.max(0.4, nextQuality - 0.12);
+    }
+
+    if (compressed && compressed.size > 0 && compressed.size <= MAX_UPLOAD_BYTES) {
+      return compressed;
+    }
+    throw new Error("Photo is too large after compression. Try a smaller JPG or PNG.");
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Photo")) throw error;
+    if (blob.type === "image/jpeg" && blob.size <= MAX_UPLOAD_BYTES) return blob;
+    throw new Error("Could not process photo. On iPhone, choose “Most Compatible” or use JPG/PNG.");
   }
 }
 
@@ -164,61 +186,75 @@ async function resolvePropertyImages(
   }
 
   const auth = getFirebaseAuth();
-  const uid = auth?.currentUser?.uid;
-  if (!uid) {
+  const currentUser = auth?.currentUser;
+  if (!currentUser?.uid) {
     throw new Error("Sign in required to upload listing photos");
   }
+  // Refresh token so mobile Safari / long form sessions still pass Storage rules.
+  await currentUser.getIdToken(true).catch(() => undefined);
+  const uid = currentUser.uid;
 
-  return Promise.all(
-    images.map(async (image, index) => {
-      if (isRemoteImageUrl(image) && !imageFiles?.[index]) return image;
+  // Serial uploads — parallel bitmap/canvas on phones often OOMs mid-submit.
+  const urls: string[] = [];
+  for (let index = 0; index < images.length; index += 1) {
+    const image = images[index];
+    if (isRemoteImageUrl(image) && !imageFiles?.[index]) {
+      urls.push(image);
+      continue;
+    }
 
-      let raw: Blob;
-      const direct = imageFiles?.[index];
-      if (direct) {
-        raw = direct;
-      } else {
-        const response = await fetch(image);
-        if (!response.ok) throw new Error(`Could not read listing photo ${index + 1} for upload`);
-        raw = await response.blob();
-      }
+    let raw: Blob;
+    const direct = imageFiles?.[index];
+    if (direct) {
+      raw = direct;
+    } else if (image.startsWith("blob:") || image.startsWith("data:")) {
+      const response = await fetch(image);
+      if (!response.ok) throw new Error(`Could not read listing photo ${index + 1} for upload`);
+      raw = await response.blob();
+    } else {
+      throw new Error(`Photo ${index + 1} is missing. Remove it and upload again.`);
+    }
 
-      if (!raw.size) {
-        throw new Error(`Photo ${index + 1} is empty. Remove it and upload again.`);
-      }
+    if (!raw.size) {
+      throw new Error(`Photo ${index + 1} is empty. Remove it and upload again.`);
+    }
 
-      const blob = await compressImageBlob(raw);
-      if (!blob.size) {
-        throw new Error(`Photo ${index + 1} could not be processed. Try a JPG or PNG.`);
-      }
+    let blob: Blob;
+    try {
+      blob = await compressImageBlob(raw);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Try a JPG or PNG.";
+      throw new Error(`Photo ${index + 1}: ${detail}`);
+    }
+    if (!blob.size) {
+      throw new Error(`Photo ${index + 1} could not be processed. Try a JPG or PNG.`);
+    }
 
-      const contentType =
-        blob.type && blob.type.startsWith("image/") ? blob.type : "image/jpeg";
-      const extension = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
-      const storageRef = ref(storage, `listings/${uid}/${propertyId}/${index}.${extension}`);
+    const contentType = "image/jpeg";
+    const storageRef = ref(storage, `listings/${uid}/${propertyId}/${index}.jpg`);
 
-      try {
-        await withTimeout(
-          uploadBytes(storageRef, blob, { contentType }),
-          PHOTO_UPLOAD_TIMEOUT_MS,
-          `Photo ${index + 1} upload`,
-        );
-      } catch (error) {
-        console.error(`[resolvePropertyImages] upload failed for photo ${index + 1}`, error);
-        throw error;
-      }
-
-      const downloadUrl = await withTimeout(
-        getDownloadURL(storageRef),
-        FIRESTORE_WRITE_TIMEOUT_MS,
-        `Photo ${index + 1} URL`,
+    try {
+      await withTimeout(
+        uploadBytes(storageRef, blob, { contentType }),
+        PHOTO_UPLOAD_TIMEOUT_MS,
+        `Photo ${index + 1} upload`,
       );
-      if (!isStoredImageUrl(downloadUrl)) {
-        throw new Error(`Photo ${index + 1} upload returned an invalid URL`);
-      }
-      return downloadUrl;
-    }),
-  );
+    } catch (error) {
+      console.error(`[resolvePropertyImages] upload failed for photo ${index + 1}`, error);
+      throw error;
+    }
+
+    const downloadUrl = await withTimeout(
+      getDownloadURL(storageRef),
+      FIRESTORE_WRITE_TIMEOUT_MS,
+      `Photo ${index + 1} URL`,
+    );
+    if (!isStoredImageUrl(downloadUrl)) {
+      throw new Error(`Photo ${index + 1} upload returned an invalid URL`);
+    }
+    urls.push(downloadUrl);
+  }
+  return urls;
 }
 
 function createdAtIso(value: unknown): string {

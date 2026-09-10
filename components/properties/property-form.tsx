@@ -227,6 +227,7 @@ export function PropertyForm({
   const [photoFiles, setPhotoFiles] = useState<(File | null)[]>([]);
   const objectUrlsRef = useRef<string[]>([]);
   const [photoError, setPhotoError] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
   const [submittedTitle, setSubmittedTitle] = useState("");
@@ -453,12 +454,25 @@ export function PropertyForm({
     goToStep(first ? stepForField(first) : 0);
   }
 
+  function isAcceptableImageFile(file: File) {
+    // iOS/Android gallery often sends empty MIME; accept by extension too.
+    if (file.type.startsWith("image/")) return true;
+    if (!file.type) {
+      return /\.(jpe?g|png|webp|gif|heic|heif|bmp)$/i.test(file.name);
+    }
+    return false;
+  }
+
   function onFiles(files: FileList | null) {
     if (!files?.length) return;
     const nextUrls: string[] = [];
     const nextFiles: File[] = [];
+    let rejected = 0;
     Array.from(files).forEach((file) => {
-      if (!file.type.startsWith("image/")) return;
+      if (!isAcceptableImageFile(file)) {
+        rejected += 1;
+        return;
+      }
       const url = URL.createObjectURL(file);
       objectUrlsRef.current.push(url);
       nextUrls.push(url);
@@ -468,6 +482,9 @@ export function PropertyForm({
       setPreviews((current) => [...current, ...nextUrls]);
       setPhotoFiles((current) => [...current, ...nextFiles]);
       setPhotoError(false);
+      setSubmitError(null);
+    } else if (rejected > 0) {
+      toast.error("Could not add those photos. Use JPG, PNG, or HEIC from your gallery.");
     }
   }
 
@@ -540,9 +557,11 @@ export function PropertyForm({
   async function commitPublish(values: PropertyFormValues, ownerId: string | undefined) {
     if (previews.length < 1) {
       setPhotoError(true);
+      setSubmitError("Add at least one photo to submit.");
       goToStep(2);
       return;
     }
+    setSubmitError(null);
     const images = previews;
     const imageFiles = photoFiles;
 
@@ -627,12 +646,12 @@ export function PropertyForm({
       }
     } catch (error) {
       console.error("Listing submit failed", error);
-      toast.error(
-        firestoreErrorMessage(
-          error,
-          "Could not submit listing. Check your photos and connection, then try again.",
-        ),
+      const message = firestoreErrorMessage(
+        error,
+        "Could not submit listing. Check your photos and connection, then try again.",
       );
+      setSubmitError(message);
+      toast.error(message);
       return;
     }
     setSubmittedTitle(values.title);
@@ -1330,12 +1349,14 @@ export function PropertyForm({
               <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#FFFCF7] via-gold/20 to-gold/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_8px_20px_-12px_rgba(184,149,69,0.55)]">
                 <ImagePlus className="h-7 w-7 text-gold-700" strokeWidth={1.5} />
               </span>
-              <p className="mt-4 text-sm text-forest">Drop photographs or click to select</p>
-              <p className="mt-1 text-xs text-muted-foreground">First photo becomes the cover.</p>
+              <p className="mt-4 text-sm text-forest">Drop photographs or tap to select</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                First photo becomes the cover. JPG, PNG, or HEIC work on phones.
+              </p>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif,image/heic,image/heif"
                 multiple
                 className="hidden"
                 onChange={(event) => {
@@ -1361,7 +1382,7 @@ export function PropertyForm({
                         Cover
                       </span>
                     )}
-                    <div className="absolute bottom-1.5 left-1.5 flex gap-1 opacity-0 transition-opacity duration-200 group-hover/thumb:opacity-100">
+                    <div className="absolute bottom-1.5 left-1.5 flex gap-1 opacity-100 sm:opacity-0 sm:transition-opacity sm:duration-200 sm:group-hover/thumb:opacity-100">
                       <button
                         type="button"
                         className="rounded-lg bg-forest/80 p-1 text-ivory disabled:opacity-40"
@@ -1383,7 +1404,7 @@ export function PropertyForm({
                     </div>
                     <button
                       type="button"
-                      className="absolute right-1.5 top-1.5 rounded-full bg-forest/80 p-1 text-ivory opacity-0 transition-opacity duration-200 group-hover/thumb:opacity-100"
+                      className="absolute right-1.5 top-1.5 rounded-full bg-forest/80 p-1 text-ivory opacity-100 sm:opacity-0 sm:transition-opacity sm:duration-200 sm:group-hover/thumb:opacity-100"
                       onClick={() => removePreview(index)}
                       aria-label="Remove photo"
                     >
@@ -1435,6 +1456,12 @@ export function PropertyForm({
                 </div>
               </div>
             )}
+
+            {submitError ? (
+              <p className="rounded-xl border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {submitError}
+              </p>
+            ) : null}
 
             <div
               className={cn(
