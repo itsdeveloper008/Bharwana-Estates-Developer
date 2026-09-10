@@ -44,6 +44,10 @@ export interface User {
   phone: string;
   role: UserRole;
   avatarUrl?: string;
+  /** Self-registered dealer agency (users/{uid}) */
+  agencyName?: string;
+  /** Self-registered dealer CNIC (users/{uid}) */
+  registrationNumber?: string;
   /** Persisted in localStorage per user via favorites context */
   savedPropertyIds?: string[];
 }

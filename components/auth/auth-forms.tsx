@@ -439,16 +439,24 @@ export function RegisterForm() {
       }
 
       if (values.role === "DEALER") {
-        void addDeveloper({
-          id: `d-${Date.now()}`,
-          companyName: values.agencyName!.trim(),
-          contactPerson: values.fullName.trim(),
-          commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
-          dealerUserId: result.user.id,
-          status: "PENDING_REVIEW",
-          origin: "SELF_REGISTERED",
-          registrationNumber: values.registrationNumber?.trim() || undefined,
-        }).catch((err) => console.error("Dealer profile save failed", err));
+        try {
+          await addDeveloper({
+            id: `d-${result.user.id}`,
+            companyName: values.agencyName!.trim(),
+            contactPerson: values.fullName.trim(),
+            commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
+            dealerUserId: result.user.id,
+            status: "PENDING_REVIEW",
+            origin: "SELF_REGISTERED",
+            registrationNumber: values.registrationNumber?.trim() || undefined,
+          });
+        } catch (err) {
+          console.error("[RegisterForm] dealer profile save failed", err);
+          setError("Account created, but dealer profile failed to save. Open Dealer Desk to retry, or contact support.");
+          toast.error("Account created, but dealer profile failed to save.");
+          goAfterAuth(result.user);
+          return;
+        }
       }
 
       const successMessage =

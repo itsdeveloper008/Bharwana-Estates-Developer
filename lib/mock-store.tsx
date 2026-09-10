@@ -14,6 +14,12 @@ import { useAdminAuth } from "@/lib/admin-auth";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import {
+  createDeveloperDoc,
+  deleteDeveloperDoc,
+  subscribeDevelopers,
+  updateDeveloperDoc,
+} from "@/lib/firestore/developers";
+import {
   createInquiry,
   deleteInquiry,
   subscribeInquiries,
@@ -70,6 +76,7 @@ interface MockStoreContextValue {
   usingFirestoreInquiries: boolean;
   usingFirestoreProperties: boolean;
   usingFirestoreUsers: boolean;
+  usingFirestoreDevelopers: boolean;
   propertiesLoading: boolean;
   propertiesError: string | null;
   storeReady: boolean;
@@ -124,6 +131,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const [usingFirestoreInquiries, setUsingFirestoreInquiries] = useState(false);
   const [usingFirestoreProperties, setUsingFirestoreProperties] = useState(false);
   const [usingFirestoreUsers, setUsingFirestoreUsers] = useState(false);
+  const [usingFirestoreDevelopers, setUsingFirestoreDevelopers] = useState(false);
   const [propertiesLoading, setPropertiesLoading] = useState(isFirebaseConfigured());
   const [propertiesError, setPropertiesError] = useState<string | null>(null);
 
@@ -150,7 +158,9 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       if (!usingFirestoreProperties) {
         localStorage.setItem(PROPERTIES_KEY, JSON.stringify(properties));
       }
-      localStorage.setItem(DEVELOPERS_KEY, JSON.stringify(developers));
+      if (!usingFirestoreDevelopers) {
+        localStorage.setItem(DEVELOPERS_KEY, JSON.stringify(developers));
+      }
       localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
       if (!usingFirestoreUsers) {
         localStorage.setItem(USERS_KEY, JSON.stringify(users));
@@ -158,7 +168,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Could not persist mock store", error);
     }
-  }, [properties, developers, transactions, users, hydrated, usingFirestoreProperties, usingFirestoreUsers]);
+  }, [properties, developers, transactions, users, hydrated, usingFirestoreProperties, usingFirestoreUsers, usingFirestoreDevelopers]);
 
   useEffect(() => {
     if (!isFirebaseConfigured() || !isAdminSession) {
@@ -234,6 +244,27 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       window.clearTimeout(timeout);
       unsub?.();
     };
+  }, []);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured()) {
+      setUsingFirestoreDevelopers(false);
+      return;
+    }
+
+    const unsub = subscribeDevelopers(
+      (next) => {
+        setUsingFirestoreDevelopers(true);
+        setDevelopers(next);
+      },
+      (error) => {
+        console.error("Firestore developers subscription failed", error);
+        setUsingFirestoreDevelopers(false);
+        toast.error("Could not load dealers from Firestore.");
+      },
+    );
+
+    return () => unsub?.();
   }, []);
 
   useEffect(() => {
@@ -377,16 +408,47 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       const without = current.filter((item) => item.id !== developer.id);
       return [developer, ...without];
     });
+    if (!isFirebaseConfigured()) return;
+    try {
+      const saved = await createDeveloperDoc(developer);
+      setDevelopers((current) => {
+        const without = current.filter(
+          (item) => item.id !== saved.id && item.dealerUserId !== saved.dealerUserId,
+        );
+        return [saved, ...without];
+      });
+    } catch (error) {
+      console.error(error);
+      setDevelopers((current) => current.filter((item) => item.id !== developer.id));
+      toast.error(firestoreErrorMessage(error, "Could not save dealer profile to Firestore."));
+      throw error;
+    }
   }, []);
 
   const updateDeveloper = useCallback(async (id: string, patch: Partial<Developer>) => {
     setDevelopers((current) =>
       current.map((developer) => (developer.id === id ? { ...developer, ...patch, id } : developer)),
     );
+    if (!isFirebaseConfigured()) return;
+    try {
+      await updateDeveloperDoc(id, patch);
+    } catch (error) {
+      console.error(error);
+      toast.error(firestoreErrorMessage(error, "Could not update dealer in Firestore."));
+      throw error;
+    }
   }, []);
 
   const deleteDeveloper = useCallback(async (id: string) => {
     setDevelopers((current) => current.filter((developer) => developer.id !== id));
+    if (!isFirebaseConfigured()) return;
+    try {
+      await deleteDeveloperDoc(id);
+    } catch (error) {
+      console.error(error);
+      toast.error(firestoreErrorMessage(error, "Could not delete dealer from Firestore."));
+      throw error;
+    }
   }, []);
 
   const updateTransaction = useCallback(async (id: string, patch: Partial<Transaction>) => {
@@ -433,6 +495,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       usingFirestoreInquiries,
       usingFirestoreProperties,
       usingFirestoreUsers,
+      usingFirestoreDevelopers,
       propertiesLoading,
       propertiesError,
       storeReady: hydrated,
@@ -460,6 +523,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       usingFirestoreInquiries,
       usingFirestoreProperties,
       usingFirestoreUsers,
+      usingFirestoreDevelopers,
       propertiesLoading,
       propertiesError,
       hydrated,

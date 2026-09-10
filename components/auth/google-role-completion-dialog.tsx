@@ -111,16 +111,22 @@ export function GoogleRoleCompletionDialog({
         return;
       }
       if (role === "DEALER") {
-        await addDeveloper({
-          id: `d-${Date.now()}`,
-          companyName: agencyName.trim(),
-          contactPerson: resolvedName || draft.fullName,
-          commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
-          dealerUserId: result.user.id,
-          status: "PENDING_REVIEW",
-          origin: "SELF_REGISTERED",
-          registrationNumber: registrationNumber.trim() || undefined,
-        });
+        try {
+          await addDeveloper({
+            id: `d-${result.user.id}`,
+            companyName: agencyName.trim(),
+            contactPerson: resolvedName || draft.fullName,
+            commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
+            dealerUserId: result.user.id,
+            status: "PENDING_REVIEW",
+            origin: "SELF_REGISTERED",
+            registrationNumber: registrationNumber.trim() || undefined,
+          });
+        } catch (err) {
+          console.error("[GoogleRole] dealer profile save failed", err);
+          setError("Account created, but dealer profile failed to save. Open Dealer Desk or contact support.");
+          return;
+        }
       }
       toast.success(role === "DEALER" ? "Dealer account created. Pending review." : "Account created");
       onOpenChange(false);

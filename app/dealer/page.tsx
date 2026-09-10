@@ -27,6 +27,9 @@ import {
 } from "@/lib/format";
 import { useMockAuth } from "@/lib/mock-auth";
 import { markListingsViewed } from "@/lib/listings-notifications";
+import { ensureSelfRegisteredDealer } from "@/lib/firestore/developers";
+import { getUserDoc } from "@/lib/firestore/users";
+import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { sumCommission, useMockStore } from "@/lib/mock-store";
 import type { CommissionStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -71,6 +74,32 @@ function DealerDashboard() {
   useEffect(() => {
     if (user?.id && tab === "listings") markListingsViewed(user.id);
   }, [user?.id, tab]);
+
+  /** Backfill dealer docs that only exist as users/{uid} (pre-Firestore developers bug). */
+  useEffect(() => {
+    if (!user || user.role !== "DEALER" || !isFirebaseConfigured()) return;
+    if (getDeveloperForUser(user.id)) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const profile = await getUserDoc(user.id);
+        if (!profile || cancelled) return;
+        await ensureSelfRegisteredDealer({
+          uid: user.id,
+          companyName: profile.agencyName?.trim() || profile.fullName,
+          contactPerson: profile.fullName,
+          registrationNumber: profile.registrationNumber,
+        });
+      } catch (error) {
+        console.error("[dealer] could not backfill dealer profile", error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, getDeveloperForUser]);
 
   if (!user) return null;
 

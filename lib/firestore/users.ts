@@ -36,6 +36,8 @@ function mapUser(id: string, data: Record<string, unknown>): User {
     phone: String(data.phone ?? ""),
     role: (data.role as User["role"]) ?? "BUYER",
     avatarUrl: data.avatarUrl ? String(data.avatarUrl) : undefined,
+    agencyName: data.agencyName ? String(data.agencyName) : undefined,
+    registrationNumber: data.registrationNumber ? String(data.registrationNumber) : undefined,
     savedPropertyIds: Array.isArray(data.savedPropertyIds)
       ? (data.savedPropertyIds as string[])
       : [],

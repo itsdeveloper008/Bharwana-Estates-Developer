@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ensureSelfRegisteredDealer } from "@/lib/firestore/developers";
+import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { formatCommissionRate } from "@/lib/format";
 import { sumCommission, useMockStore } from "@/lib/mock-store";
 import type { Developer, DeveloperOrigin } from "@/lib/types";
@@ -22,10 +24,50 @@ import { cn } from "@/lib/utils";
 type Filter = "ALL" | "ADMIN" | "SELF_REGISTERED";
 
 export default function AdminDevelopersPage() {
-  const { properties, developers, transactions, updateDeveloper, deleteDeveloper } = useMockStore();
+  const {
+    properties,
+    developers,
+    transactions,
+    users,
+    usingFirestoreDevelopers,
+    updateDeveloper,
+    deleteDeveloper,
+  } = useMockStore();
   const [filter, setFilter] = useState<Filter>("ALL");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [rateDraft, setRateDraft] = useState("");
+
+  /** Repair DEALER users that never got a Firestore developers/{id} doc. */
+  useEffect(() => {
+    if (!isFirebaseConfigured() || !usingFirestoreDevelopers) return;
+
+    const missing = users.filter(
+      (user) =>
+        user.role === "DEALER" && !developers.some((developer) => developer.dealerUserId === user.id),
+    );
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    void (async () => {
+      for (const user of missing) {
+        if (cancelled) return;
+        try {
+          await ensureSelfRegisteredDealer({
+            uid: user.id,
+            companyName: user.agencyName?.trim() || user.fullName,
+            contactPerson: user.fullName,
+            registrationNumber: user.registrationNumber,
+          });
+        } catch (error) {
+          console.error("[admin/developers] backfill failed", user.id, error);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [users, developers, usingFirestoreDevelopers]);
 
   const filtered = useMemo(() => {
     if (filter === "ALL") return developers;
