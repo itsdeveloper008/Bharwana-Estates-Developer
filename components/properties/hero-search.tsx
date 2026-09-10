@@ -196,12 +196,12 @@ export function HeroSearch() {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {CITY_CARDS.map((item) => (
           <Link
             key={item.city}
             href={`/properties?city=${encodeURIComponent(item.city)}`}
-            className="group flex items-center gap-3 rounded-2xl border border-white/30 bg-white/20 px-4 py-3 text-left backdrop-blur-md transition hover:bg-white/30"
+            className="group flex w-full items-center gap-3 rounded-2xl border border-white/30 bg-white/20 px-4 py-3 text-left backdrop-blur-md transition hover:bg-white/30"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-forest text-ivory">
               <Home className="h-4 w-4" />

@@ -165,12 +165,12 @@ export function Navbar() {
             : "border-b border-[#082B1D]/10 bg-[#FBFAF6] shadow-[0_8px_30px_-18px_rgba(8,43,29,0.35)] transition-[background-color,border-color,box-shadow] duration-300 ease-out",
         )}
       >
-        <div className="mx-auto flex h-full max-w-[1360px] items-center gap-3 px-5 sm:px-8 lg:gap-4 lg:px-8 xl:gap-6 xl:px-10">
+        <div className="relative mx-auto grid h-full max-w-[1360px] grid-cols-[1fr_auto] items-center gap-3 px-5 sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-4 lg:px-8 xl:px-10">
           {/* Brand */}
           <Link
             href="/"
             aria-label="Bharwana Estates home"
-            className="group flex shrink-0 items-center gap-3.5 transition-transform duration-300 hover:-translate-y-px"
+            className="group z-10 flex shrink-0 items-center gap-3.5 justify-self-start transition-transform duration-300 hover:-translate-y-px"
           >
             <span
               className={cn(
@@ -205,10 +205,10 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Primary nav — sits in flex flow (not absolute) so it never overlaps CTAs */}
+          {/* Primary nav — truly centered in the header */}
           <nav
             aria-label="Primary"
-            className="ml-2 hidden min-w-0 flex-1 items-center justify-center gap-0.5 lg:flex xl:gap-1"
+            className="absolute left-1/2 top-1/2 z-[5] hidden -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 lg:flex xl:gap-1"
           >
             {publicLinks.map((link) => {
               const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -241,12 +241,12 @@ export function Navbar() {
             })}
           </nav>
 
-          {/* Actions — desktop only */}
-          <div className="ml-auto hidden shrink-0 items-center gap-2 lg:ml-0 lg:flex xl:gap-3">
+          {/* Actions — pinned to the right */}
+          <div className="z-10 col-start-2 hidden shrink-0 items-center justify-self-end gap-2 lg:col-start-3 lg:flex xl:gap-3">
             <Link
               href={listPropertyHref}
               className={cn(
-                "group relative hidden items-center overflow-hidden rounded-xl bg-[#B89545] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#082B1D] lg:inline-flex xl:px-4 xl:py-3 xl:text-[11px] xl:tracking-[0.14em]",
+                "group relative inline-flex items-center overflow-hidden rounded-xl bg-[#B89545] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#082B1D] xl:px-4 xl:py-3 xl:text-[11px] xl:tracking-[0.14em]",
                 "shadow-[0_10px_24px_-12px_rgba(184,149,69,0.85)] transition-[transform,background-color,box-shadow] duration-300",
                 "hover:-translate-y-px hover:bg-[#c4a455] hover:shadow-[0_14px_28px_-12px_rgba(184,149,69,0.95)]",
                 "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#082B1D]",
@@ -364,7 +364,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile controls */}
-          <div className="ml-auto flex items-center gap-2 sm:gap-3 lg:hidden">
+          <div className="z-10 col-start-2 flex items-center justify-self-end gap-2 sm:gap-3 lg:hidden">
             <a
               href={phoneHref}
               aria-label={`Call ${phoneDisplay}`}
