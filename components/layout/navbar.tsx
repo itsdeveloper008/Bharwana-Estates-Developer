@@ -37,16 +37,16 @@ const ease = [0.22, 1, 0.36, 1] as const;
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, logout, isReady } = useMockAuth();
+  const { user, logout } = useMockAuth();
   const { properties, getDeveloperForUser } = useMockStore();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [viewedTick, setViewedTick] = useState(0);
   const menuId = useId();
 
-  /** Single auth source — Sign In and avatar must never contradict. */
-  const signedIn = isReady && Boolean(user);
-  const showSignIn = isReady && !user;
+  /** Always show Sign In for guests — never wait on auth hydration (QA / first paint). */
+  const signedIn = Boolean(user);
+  const showSignIn = !user;
 
   const listPropertyHref = signedIn
     ? user!.role === "DEALER"
@@ -241,12 +241,12 @@ export function Navbar() {
             })}
           </nav>
 
-          {/* Actions — desktop: List CTA → divider → Call us → Sign in */}
-          <div className="ml-auto hidden items-center gap-3 lg:flex xl:gap-4">
+          {/* Actions — desktop: List CTA → Call us → Sign in (Sign in never clipped) */}
+          <div className="ml-auto hidden min-w-0 items-center gap-2 lg:flex xl:gap-3">
             <Link
               href={listPropertyHref}
               className={cn(
-                "group relative inline-flex items-center overflow-hidden rounded-xl bg-[#B89545] px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#082B1D]",
+                "group relative inline-flex shrink-0 items-center overflow-hidden rounded-xl bg-[#B89545] px-3.5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#082B1D] xl:px-5 xl:py-3.5 xl:text-[11px] xl:tracking-[0.16em]",
                 "shadow-[0_10px_24px_-12px_rgba(184,149,69,0.85)] transition-[transform,background-color,box-shadow] duration-300",
                 "hover:-translate-y-px hover:bg-[#c4a455] hover:shadow-[0_14px_28px_-12px_rgba(184,149,69,0.95)]",
                 "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#082B1D]",
@@ -258,7 +258,7 @@ export function Navbar() {
 
             <div
               className={cn(
-                "mx-0.5 hidden h-8 w-px xl:block",
+                "mx-0.5 hidden h-8 w-px shrink-0 xl:block",
                 overHero ? "bg-[#F5F1E8]/25" : "bg-[#082B1D]/15",
               )}
               aria-hidden
@@ -267,7 +267,7 @@ export function Navbar() {
             <a
               href={phoneHref}
               className={cn(
-                "group flex items-center gap-3 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
+                "group flex shrink-0 items-center gap-2 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545] xl:gap-3",
                 overHero
                   ? "text-[#F5F1E8] hover:text-[#B89545]"
                   : "text-[#082B1D] hover:text-[#B89545]",
@@ -283,7 +283,7 @@ export function Navbar() {
               >
                 <PhoneCall className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-hover:-translate-y-px" strokeWidth={1.5} />
               </span>
-              <span className="flex flex-col leading-tight">
+              <span className="hidden flex-col leading-tight xl:flex">
                 <span
                   className={cn(
                     "text-[9px] font-medium uppercase tracking-[0.22em]",
@@ -299,12 +299,13 @@ export function Navbar() {
             {showSignIn ? (
               <Link
                 href="/login"
+                aria-label="Sign in"
                 className={cn(
-                  "inline-flex items-center justify-center rounded-xl border px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] transition-all duration-300",
+                  "inline-flex shrink-0 items-center justify-center rounded-xl border px-3.5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] transition-all duration-300 xl:px-4 xl:text-[11px] xl:tracking-[0.16em]",
                   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
                   overHero
-                    ? "border-[#B89545]/80 text-[#F5F1E8] hover:border-[#B89545] hover:bg-[#B89545]/15"
-                    : "border-[#B89545] text-[#06291C] hover:bg-[#B89545]/12 hover:border-[#a8843c]",
+                    ? "border-[#B89545] bg-[#B89545]/20 text-[#F5F1E8] hover:bg-[#B89545]/30"
+                    : "border-[#B89545] bg-[#B89545]/10 text-[#06291C] hover:bg-[#B89545]/20",
                 )}
               >
                 Sign in
@@ -377,11 +378,12 @@ export function Navbar() {
             {showSignIn ? (
               <Link
                 href="/login"
+                aria-label="Sign in"
                 className={cn(
                   "inline-flex shrink-0 items-center justify-center rounded-lg border px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] transition-all duration-300 sm:px-3 sm:text-[11px] sm:tracking-[0.16em]",
                   overHero
-                    ? "border-[#B89545]/80 text-[#F5F1E8] hover:border-[#B89545] hover:bg-[#B89545]/15"
-                    : "border-[#B89545] text-[#06291C] hover:bg-[#B89545]/12",
+                    ? "border-[#B89545] bg-[#B89545]/20 text-[#F5F1E8] hover:bg-[#B89545]/30"
+                    : "border-[#B89545] bg-[#B89545]/10 text-[#06291C] hover:bg-[#B89545]/20",
                 )}
               >
                 Sign in
