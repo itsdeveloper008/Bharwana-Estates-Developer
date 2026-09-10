@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import { formatPrice, statusLabel } from "@/lib/format";
 import { useMockStore } from "@/lib/mock-store";
 
 export default function AdminPropertiesPage() {
+  const router = useRouter();
   const { properties, deleteProperty } = useMockStore();
 
   return (
@@ -44,15 +46,21 @@ export default function AdminPropertiesPage() {
           </TableHeader>
           <TableBody>
             {properties.map((property) => (
-              <TableRow key={property.id}>
+              <TableRow
+                key={property.id}
+                className="cursor-pointer hover:bg-forest/[0.04]"
+                onClick={() => router.push(`/admin/properties/${property.id}`)}
+              >
                 <TableCell className="font-medium">{property.title}</TableCell>
                 <TableCell>{property.city}</TableCell>
-                <TableCell>{property.listingType === "DIRECT_OWNER" ? "Owner" : "Dealer"}</TableCell>
+                <TableCell>
+                  {property.listingType === "DIRECT_OWNER" ? "Owner" : "Dealer"}
+                </TableCell>
                 <TableCell>
                   <Badge variant="outline">{statusLabel(property.status)}</Badge>
                 </TableCell>
                 <TableCell className="text-right">{formatPrice(property.price)}</TableCell>
-                <TableCell>
+                <TableCell onClick={(event) => event.stopPropagation()}>
                   <ConfirmDeleteButton
                     label={property.title}
                     onConfirm={async () => {

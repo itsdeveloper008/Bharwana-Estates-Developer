@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -13,8 +14,10 @@ import { toast } from "sonner";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 import {
   deleteTeamMember as deleteTeamMemberDoc,
+  fetchTeamMembers,
   reorderTeamMembers as reorderTeamMembersDoc,
   resolveTeamPhotoUrl,
+  seedTeamMembers,
   subscribeTeamMembers,
   upsertTeamMember,
 } from "@/lib/firestore/team";
@@ -48,6 +51,8 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
   const [members, setMembers] = useState<TeamMember[]>(localSeedTeam);
   const [isReady, setIsReady] = useState(true);
   const [usingFirestore, setUsingFirestore] = useState(false);
+  /** Once Firestore has returned any docs, never re-substitute local seed for an empty list. */
+  const remoteHasDataRef = useRef(false);
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
@@ -68,11 +73,14 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
     setUsingFirestore(true);
     const unsub = subscribeTeamMembers(
       (next) => {
-        if (next.length === 0) {
-          // Keep seed visible until admin seeds Firestore
+        if (next.length > 0) {
+          remoteHasDataRef.current = true;
+          setMembers(next);
+        } else if (!remoteHasDataRef.current) {
+          // Provisional UI only — seed is not yet in Firestore.
           setMembers(localSeedTeam);
         } else {
-          setMembers(next);
+          setMembers([]);
         }
         setIsReady(true);
       },
@@ -94,7 +102,15 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
     const next: TeamMember = { id, ...input, photoUrl };
 
     if (isFirebaseConfigured()) {
-      await upsertTeamMember(id, { ...input, photoUrl }, members.length);
+      // If Firestore is still empty, persist the seed first so adding a member
+      // does not replace the provisional seed list with a single doc.
+      const existing = await fetchTeamMembers();
+      if (existing.length === 0) {
+        await seedTeamMembers(localSeedTeam);
+        await upsertTeamMember(id, { ...input, photoUrl }, localSeedTeam.length);
+      } else {
+        await upsertTeamMember(id, { ...input, photoUrl }, existing.length);
+      }
       return next;
     }
 
@@ -104,7 +120,7 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
       return updated;
     });
     return next;
-  }, [members.length]);
+  }, []);
 
   const updateMember = useCallback(async (id: string, input: TeamMemberInput) => {
     const photoUrl = await resolveTeamPhotoUrl(id, input.photoUrl).catch(() => input.photoUrl);

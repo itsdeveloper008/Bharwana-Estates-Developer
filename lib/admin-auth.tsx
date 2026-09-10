@@ -33,6 +33,10 @@ const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefi
 
 const NOT_ADMIN_ERROR = "This account does not have admin access.";
 
+/** Survive Strict Mode / soft remounts so AdminGate does not flash “Checking session…”. */
+let cachedAdminSession: AdminSession | null = null;
+let cachedAdminReady = false;
+
 function authErrorMessage(code: string): string {
   switch (code) {
     case "auth/operation-not-allowed":
@@ -70,8 +74,8 @@ async function resolveAdminSession(firebaseUser: FirebaseUser): Promise<AdminSes
 }
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
-  const [admin, setAdmin] = useState<AdminSession | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const [admin, setAdmin] = useState<AdminSession | null>(cachedAdminSession);
+  const [isReady, setIsReady] = useState(cachedAdminReady);
 
   useEffect(() => {
     try {
@@ -81,6 +85,8 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!isFirebaseConfigured()) {
+      cachedAdminSession = null;
+      cachedAdminReady = true;
       setAdmin(null);
       setIsReady(true);
       return;
@@ -88,6 +94,8 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
     const auth = getFirebaseAuth();
     if (!auth) {
+      cachedAdminSession = null;
+      cachedAdminReady = true;
       setAdmin(null);
       setIsReady(true);
       return;
@@ -99,6 +107,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       void (async () => {
         try {
           if (!firebaseUser) {
+            cachedAdminSession = null;
             if (!cancelled) setAdmin(null);
             return;
           }
@@ -106,11 +115,14 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
           const session = await resolveAdminSession(firebaseUser);
           // Non-admin users share this Firebase Auth instance with the main site.
           // Never sign them out here — that wiped buyer/owner sessions right after login.
+          cachedAdminSession = session;
           if (!cancelled) setAdmin(session);
         } catch (error) {
           console.error("Admin auth state sync failed", error);
+          cachedAdminSession = null;
           if (!cancelled) setAdmin(null);
         } finally {
+          cachedAdminReady = true;
           if (!cancelled) setIsReady(true);
         }
       })();
@@ -147,6 +159,9 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         }
 
         setAdmin(session);
+        cachedAdminSession = session;
+        cachedAdminReady = true;
+        setIsReady(true);
         return { ok: true as const };
       } catch (error) {
         const code =
@@ -160,6 +175,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    cachedAdminSession = null;
     setAdmin(null);
     const auth = getFirebaseAuth();
     if (auth) void signOut(auth).catch(() => undefined);
