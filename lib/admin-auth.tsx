@@ -32,10 +32,53 @@ interface AdminAuthContextValue {
 const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefined);
 
 const NOT_ADMIN_ERROR = "This account does not have admin access.";
+const STORAGE_KEY = "bharwana_admin_session_v1";
 
-/** Survive Strict Mode / soft remounts so AdminGate does not flash “Checking session…”. */
+/** In-memory cache for Soft remounts / Strict Mode. */
 let cachedAdminSession: AdminSession | null = null;
 let cachedAdminReady = false;
+
+function readStoredAdmin(): AdminSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AdminSession>;
+    if (
+      typeof parsed.uid === "string" &&
+      typeof parsed.email === "string" &&
+      parsed.role === "ADMIN" &&
+      typeof parsed.fullName === "string"
+    ) {
+      return {
+        uid: parsed.uid,
+        email: parsed.email,
+        fullName: parsed.fullName,
+        role: "ADMIN",
+        avatarUrl: typeof parsed.avatarUrl === "string" ? parsed.avatarUrl : undefined,
+      };
+    }
+  } catch {
+    // ignore corrupt cache
+  }
+  return null;
+}
+
+function writeStoredAdmin(session: AdminSession | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!session) localStorage.removeItem(STORAGE_KEY);
+    else localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function setAdminCache(session: AdminSession | null, ready = true) {
+  cachedAdminSession = session;
+  cachedAdminReady = ready;
+  writeStoredAdmin(session);
+}
 
 function authErrorMessage(code: string): string {
   switch (code) {
@@ -73,20 +116,24 @@ async function resolveAdminSession(firebaseUser: FirebaseUser): Promise<AdminSes
   };
 }
 
+function initialAdminSession(): AdminSession | null {
+  if (cachedAdminSession) return cachedAdminSession;
+  const stored = readStoredAdmin();
+  if (stored) {
+    cachedAdminSession = stored;
+    cachedAdminReady = true;
+  }
+  return stored;
+}
+
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
-  const [admin, setAdmin] = useState<AdminSession | null>(cachedAdminSession);
-  const [isReady, setIsReady] = useState(cachedAdminReady);
+  const [admin, setAdmin] = useState<AdminSession | null>(initialAdminSession);
+  // Optimistic ready when we already know who the admin is (refresh / remount).
+  const [isReady, setIsReady] = useState(() => cachedAdminReady || Boolean(initialAdminSession()));
 
   useEffect(() => {
-    try {
-      localStorage.removeItem("bharwana_admin_session");
-    } catch {
-      // ignore
-    }
-
     if (!isFirebaseConfigured()) {
-      cachedAdminSession = null;
-      cachedAdminReady = true;
+      setAdminCache(null, true);
       setAdmin(null);
       setIsReady(true);
       return;
@@ -94,8 +141,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
     const auth = getFirebaseAuth();
     if (!auth) {
-      cachedAdminSession = null;
-      cachedAdminReady = true;
+      setAdminCache(null, true);
       setAdmin(null);
       setIsReady(true);
       return;
@@ -107,7 +153,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       void (async () => {
         try {
           if (!firebaseUser) {
-            cachedAdminSession = null;
+            setAdminCache(null, true);
             if (!cancelled) setAdmin(null);
             return;
           }
@@ -115,14 +161,13 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
           const session = await resolveAdminSession(firebaseUser);
           // Non-admin users share this Firebase Auth instance with the main site.
           // Never sign them out here — that wiped buyer/owner sessions right after login.
-          cachedAdminSession = session;
+          setAdminCache(session, true);
           if (!cancelled) setAdmin(session);
         } catch (error) {
           console.error("Admin auth state sync failed", error);
-          cachedAdminSession = null;
+          setAdminCache(null, true);
           if (!cancelled) setAdmin(null);
         } finally {
-          cachedAdminReady = true;
           if (!cancelled) setIsReady(true);
         }
       })();
@@ -155,12 +200,12 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         const session = await resolveAdminSession(credential.user);
         if (!session) {
           await signOut(auth);
+          setAdminCache(null, true);
           return { ok: false as const, error: NOT_ADMIN_ERROR };
         }
 
+        setAdminCache(session, true);
         setAdmin(session);
-        cachedAdminSession = session;
-        cachedAdminReady = true;
         setIsReady(true);
         return { ok: true as const };
       } catch (error) {
@@ -175,7 +220,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    cachedAdminSession = null;
+    setAdminCache(null, true);
     setAdmin(null);
     const auth = getFirebaseAuth();
     if (auth) void signOut(auth).catch(() => undefined);

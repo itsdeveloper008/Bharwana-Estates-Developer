@@ -21,25 +21,35 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
     }
   }, [isReady, isLogin, isAuthenticated, router]);
 
-  if (!isReady) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-ivory text-sm text-muted-foreground">
-        Checking session…
-      </div>
-    );
-  }
-
+  // Login page: never block on Firebase restore.
   if (isLogin) {
+    if (isReady && isAuthenticated) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-ivory text-sm text-muted-foreground">
+          Redirecting…
+        </div>
+      );
+    }
     return <>{children}</>;
   }
 
-  if (!isAuthenticated) {
+  // Protected admin: if we already have a session (incl. restored from localStorage),
+  // render the shell immediately — Firebase still re-verifies in the background.
+  if (isAuthenticated) {
+    return <AdminShell>{children}</AdminShell>;
+  }
+
+  if (!isReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-ivory text-sm text-muted-foreground">
-        Redirecting to sign in…
+        Loading…
       </div>
     );
   }
 
-  return <AdminShell>{children}</AdminShell>;
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-ivory text-sm text-muted-foreground">
+      Redirecting to sign in…
+    </div>
+  );
 }
