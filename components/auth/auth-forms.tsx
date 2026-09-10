@@ -62,6 +62,7 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
     isReady,
     pendingGoogleSignup,
     consumeGoogleReturn,
+    cancelPendingOAuthSignup,
   } = useMockAuth();
   const [pendingProvider, setPendingProvider] = useState<"google" | "facebook" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,15 +74,17 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
 
   useEffect(() => {
     if (!isReady || handledReturn.current) return;
+    // Only auto-open role dialog after an OAuth redirect return — never when the user
+    // simply opens Sign In with a stale incomplete Google/Facebook session.
+    const fromRedirect = consumeGoogleReturn();
+    if (!fromRedirect) return;
+    handledReturn.current = true;
     if (pendingGoogleSignup) {
-      handledReturn.current = true;
-      consumeGoogleReturn();
       setDraft(pendingGoogleSignup);
       setRoleOpen(true);
       return;
     }
-    if (user && consumeGoogleReturn()) {
-      handledReturn.current = true;
+    if (user) {
       toast.dismiss();
       onSuccessRef.current(user);
     }
@@ -128,6 +131,23 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
   return (
     <>
       <div className="space-y-2">
+        {pendingGoogleSignup && !roleOpen ? (
+          <div className="rounded-xl border border-gold/30 bg-gold/10 px-3 py-2.5 text-sm text-forest">
+            <p className="text-[13px] leading-snug">
+              Finish setting up your Google/Facebook account, or continue with email/phone below.
+            </p>
+            <button
+              type="button"
+              className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-gold-700 underline-offset-2 hover:underline"
+              onClick={() => {
+                setDraft(pendingGoogleSignup);
+                setRoleOpen(true);
+              }}
+            >
+              Continue setup
+            </button>
+          </div>
+        ) : null}
         <Button
           type="button"
           variant="outline"
@@ -160,7 +180,13 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
       </div>
       <GoogleRoleCompletionDialog
         open={roleOpen}
-        onOpenChange={setRoleOpen}
+        onOpenChange={(open) => {
+          setRoleOpen(open);
+          if (!open) {
+            setDraft(null);
+            void cancelPendingOAuthSignup();
+          }
+        }}
         draft={draft}
         onComplete={(completed) => {
           setRoleOpen(false);

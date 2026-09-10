@@ -183,6 +183,8 @@ interface MockAuthContextValue {
   loginWithGoogle: () => Promise<GoogleLoginResult>;
   loginWithFacebook: () => Promise<GoogleLoginResult>;
   consumeGoogleReturn: () => boolean;
+  /** Dismiss incomplete Google/Facebook signup so email/phone login can proceed. */
+  cancelPendingOAuthSignup: () => Promise<void>;
   sendPhoneOtp: (
     phone: string,
     verifier: RecaptchaVerifier,
@@ -826,6 +828,20 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
   }, []);
+
+  const cancelPendingOAuthSignup = useCallback(async () => {
+    setPendingGoogle(null);
+    const auth = getFirebaseAuth();
+    const firebaseUser = auth?.currentUser;
+    if (!firebaseUser) return;
+    // Incomplete social signup (no Firestore profile yet) — sign out so login form works.
+    const profile = await loadFirestoreUser(firebaseUser).catch(() => null);
+    if (!profile) {
+      authSyncGenerationRef.current += 1;
+      persist(null);
+      await signOut(auth).catch(() => undefined);
+    }
+  }, [persist, setPendingGoogle]);
 
   const sendPhoneOtp = useCallback(
     async (phone: string, verifier: RecaptchaVerifier) => {
@@ -1521,6 +1537,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       loginWithGoogle,
       loginWithFacebook,
       consumeGoogleReturn,
+      cancelPendingOAuthSignup,
       sendPhoneOtp,
       verifyPhoneOtp,
       sendChangePhoneOtp,
@@ -1546,6 +1563,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       loginWithGoogle,
       loginWithFacebook,
       consumeGoogleReturn,
+      cancelPendingOAuthSignup,
       sendPhoneOtp,
       verifyPhoneOtp,
       sendChangePhoneOtp,

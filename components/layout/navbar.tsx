@@ -165,7 +165,7 @@ export function Navbar() {
             : "border-b border-[#082B1D]/10 bg-[#FBFAF6] shadow-[0_8px_30px_-18px_rgba(8,43,29,0.35)] transition-[background-color,border-color,box-shadow] duration-300 ease-out",
         )}
       >
-        <div className="mx-auto flex h-full max-w-[1360px] items-center justify-between gap-5 px-5 sm:px-8 lg:px-10">
+        <div className="mx-auto flex h-full max-w-[1360px] items-center gap-3 px-5 sm:px-8 lg:gap-4 lg:px-8 xl:gap-6 xl:px-10">
           {/* Brand */}
           <Link
             href="/"
@@ -205,10 +205,10 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Primary nav — desktop */}
+          {/* Primary nav — sits in flex flow (not absolute) so it never overlaps CTAs */}
           <nav
             aria-label="Primary"
-            className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-1 lg:flex"
+            className="ml-2 hidden min-w-0 flex-1 items-center justify-center gap-0.5 lg:flex xl:gap-1"
           >
             {publicLinks.map((link) => {
               const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -217,7 +217,7 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "group relative mx-1 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-300 xl:mx-1.5 xl:tracking-[0.22em]",
+                    "group relative shrink-0 px-2.5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors duration-300 xl:px-3.5 xl:text-[11px] xl:tracking-[0.2em]",
                     overHero
                       ? active
                         ? "text-[#F5F1E8]"
@@ -241,18 +241,18 @@ export function Navbar() {
             })}
           </nav>
 
-          {/* Actions — desktop: List CTA → Call us → Sign in (Sign in never clipped) */}
-          <div className="ml-auto hidden min-w-0 items-center gap-2 lg:flex xl:gap-3">
+          {/* Actions — desktop only */}
+          <div className="ml-auto hidden shrink-0 items-center gap-2 lg:ml-0 lg:flex xl:gap-3">
             <Link
               href={listPropertyHref}
               className={cn(
-                "group relative inline-flex shrink-0 items-center overflow-hidden rounded-xl bg-[#B89545] px-3.5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#082B1D] xl:px-5 xl:py-3.5 xl:text-[11px] xl:tracking-[0.16em]",
+                "group relative hidden items-center overflow-hidden rounded-xl bg-[#B89545] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#082B1D] lg:inline-flex xl:px-4 xl:py-3 xl:text-[11px] xl:tracking-[0.14em]",
                 "shadow-[0_10px_24px_-12px_rgba(184,149,69,0.85)] transition-[transform,background-color,box-shadow] duration-300",
                 "hover:-translate-y-px hover:bg-[#c4a455] hover:shadow-[0_14px_28px_-12px_rgba(184,149,69,0.95)]",
                 "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#082B1D]",
               )}
             >
-              <span className="relative z-10">List your property</span>
+              <span className="relative z-10 whitespace-nowrap">List your property</span>
               <span className="pointer-events-none absolute inset-0 translate-x-[-120%] bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-[120%]" />
             </Link>
 
