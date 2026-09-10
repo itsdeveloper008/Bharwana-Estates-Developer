@@ -173,6 +173,20 @@ export async function deleteUserDoc(uid: string): Promise<void> {
   await deleteDoc(doc(db, COLLECTION, uid));
 }
 
+/** Demote / change role so Admin dealer backfill does not recreate a deleted dealer. */
+export async function updateUserRole(uid: string, role: UserRole): Promise<void> {
+  const db = getDb();
+  if (!db) throw new Error("Firebase is not configured");
+  await withTimeout(
+    updateDoc(doc(db, COLLECTION, uid), {
+      role,
+      updatedAt: serverTimestamp(),
+    }),
+    FIRESTORE_WRITE_TIMEOUT_MS,
+    "User role update",
+  );
+}
+
 export async function addSavedProperty(uid: string, propertyId: string): Promise<void> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");

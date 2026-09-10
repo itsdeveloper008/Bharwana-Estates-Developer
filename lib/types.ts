@@ -66,6 +66,8 @@ export interface Developer {
   registrationNumber?: string;
   /** Set when the linked dealer user account is deleted — profile kept for history */
   accountDeleted?: boolean;
+  /** ISO timestamp when the dealer profile was created (retention / admin detail) */
+  createdAt?: string;
 }
 
 export type PropertyStatusHistoryEntry = {

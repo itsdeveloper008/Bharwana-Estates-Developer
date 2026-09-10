@@ -50,13 +50,19 @@ function daysAgoIso(days: number): string {
   return date.toISOString();
 }
 
-function createdAtIso(data: Record<string, unknown>): string {
-  const createdAt = data.createdAt;
-  if (typeof createdAt === "string") return createdAt;
-  if (createdAt && typeof createdAt === "object" && "toDate" in createdAt) {
-    return (createdAt as { toDate: () => Date }).toDate().toISOString();
+function createdAtIso(data: Record<string, unknown>, field = "createdAt"): string {
+  const value = data[field] ?? data.createdAt;
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && "toDate" in value) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
   }
   return new Date(0).toISOString();
+}
+
+function propertyAgeIso(data: Record<string, unknown>): string {
+  // Prefer status change time for rejected listings so age matches rejection, not create.
+  if (data.statusUpdatedAt) return createdAtIso(data, "statusUpdatedAt");
+  return createdAtIso(data, "createdAt");
 }
 
 function mapDeletionRequest(id: string, data: Record<string, unknown>): DeletionRequest {
@@ -192,7 +198,7 @@ export async function previewRetentionCleanup(options?: {
         id: item.id,
         title: String(data.title ?? "Untitled"),
         status: (data.status as PropertyStatus) ?? "DRAFT",
-        createdAt: createdAtIso(data),
+        createdAt: propertyAgeIso(data),
       };
     })
     .filter((item) => item.status === "REJECTED" && item.createdAt <= rejectedCutoff)
@@ -228,14 +234,13 @@ function flagPendingDealers(developers: Developer[]) {
   return developers
     .filter((developer) => {
       if (developer.status !== "PENDING_REVIEW" || developer.accountDeleted) return false;
-      // Developers may not have createdAt in the type — treat missing as not stale
-      const created = (developer as Developer & { createdAt?: string }).createdAt;
-      return created ? created <= cutoff : false;
+      // Missing createdAt = legacy docs — include so Admin can see/clean them.
+      return !developer.createdAt || developer.createdAt <= cutoff;
     })
     .map((developer) => ({
       id: developer.id,
       companyName: developer.companyName,
-      createdAt: (developer as Developer & { createdAt?: string }).createdAt,
+      createdAt: developer.createdAt,
     }));
 }
 
@@ -271,8 +276,16 @@ export function previewRetentionCleanupFromLists(input: {
 
   return {
     rejectedProperties: input.properties
-      .filter((item) => item.status === "REJECTED" && item.createdAt <= rejectedCutoff)
-      .map((item) => ({ id: item.id, title: item.title, createdAt: item.createdAt })),
+      .filter((item) => {
+        if (item.status !== "REJECTED") return false;
+        const age = item.statusUpdatedAt ?? item.createdAt;
+        return age <= rejectedCutoff;
+      })
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        createdAt: item.statusUpdatedAt ?? item.createdAt,
+      })),
     closedLostInquiries: input.inquiries
       .filter((item) => item.status === "CLOSED_LOST" && item.createdAt <= closedLostCutoff)
       .map((item) => ({ id: item.id, createdAt: item.createdAt })),

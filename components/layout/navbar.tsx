@@ -252,7 +252,7 @@ export function Navbar() {
                 "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#082B1D]",
               )}
             >
-              <span className="relative z-10">List a property</span>
+              <span className="relative z-10">List your property</span>
               <span className="pointer-events-none absolute inset-0 translate-x-[-120%] bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-[120%]" />
             </Link>
 
@@ -505,7 +505,7 @@ export function Navbar() {
                 onClick={() => setOpen(false)}
                 className="flex w-full items-center justify-center rounded-xl bg-[#B89545] px-6 py-4 text-[12px] font-medium uppercase tracking-[0.16em] text-[#082B1D] transition-colors hover:bg-[#a8843c]"
               >
-                List a property
+                List your property
               </Link>
 
               <a

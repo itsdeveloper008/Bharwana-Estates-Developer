@@ -45,20 +45,20 @@ export function AuthFormEntrance({ children }: { children: ReactNode }) {
 
 export function AuthFormHeader() {
   return (
-    <Link href="/" className="mb-4 flex items-center justify-center gap-3 text-left">
+    <Link href="/" className="mb-4 flex items-center justify-center gap-3.5 text-left">
       <Image
         src="/logo.png"
         alt="Bharwana"
-        width={56}
-        height={56}
-        className="h-11 w-11 shrink-0 object-contain sm:h-12 sm:w-12"
+        width={72}
+        height={72}
+        className="h-14 w-14 shrink-0 object-contain sm:h-16 sm:w-16"
         priority
       />
       <span className="flex min-w-0 flex-col leading-tight">
-        <span className="font-display text-base font-semibold tracking-[0.18em] text-forest sm:text-lg">
+        <span className="font-display text-lg font-semibold tracking-[0.18em] text-forest sm:text-xl">
           BHARWANA
         </span>
-        <span className="mt-0.5 text-[9px] font-medium uppercase tracking-[0.22em] text-forest/65 sm:text-[10px]">
+        <span className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.22em] text-forest/65 sm:text-[11px]">
           Estate Developer
         </span>
       </span>

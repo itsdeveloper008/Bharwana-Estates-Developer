@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
+import { DealerDetailModal } from "@/components/admin/dealer-detail-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ export default function AdminDevelopersPage() {
   const [filter, setFilter] = useState<Filter>("ALL");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [rateDraft, setRateDraft] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   /** Repair DEALER users that never got a Firestore developers/{id} doc. */
   useEffect(() => {
@@ -73,6 +75,11 @@ export default function AdminDevelopersPage() {
     if (filter === "ALL") return developers;
     return developers.filter((developer) => developer.origin === filter);
   }, [developers, filter]);
+
+  const selected = developers.find((developer) => developer.id === selectedId) ?? null;
+  const selectedUser = selected?.dealerUserId
+    ? users.find((user) => user.id === selected.dealerUserId)
+    : undefined;
 
   function startEdit(developer: Developer) {
     setEditingId(developer.id);
@@ -149,7 +156,11 @@ export default function AdminDevelopersPage() {
                 SELF_REGISTERED: "Self-registered",
               };
               return (
-                <TableRow key={developer.id}>
+                <TableRow
+                  key={developer.id}
+                  className="cursor-pointer hover:bg-forest/[0.04]"
+                  onClick={() => setSelectedId(developer.id)}
+                >
                   <TableCell className="font-medium">{developer.companyName}</TableCell>
                   <TableCell>
                     <div>{developer.contactPerson}</div>
@@ -167,7 +178,10 @@ export default function AdminDevelopersPage() {
                       <Badge variant="verified">Active</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell
+                    className="text-right"
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     {editingId === developer.id ? (
                       <div className="flex items-center justify-end gap-2">
                         <Input
@@ -199,7 +213,7 @@ export default function AdminDevelopersPage() {
                       </button>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(event) => event.stopPropagation()}>
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       {developer.status === "PENDING_REVIEW" && (
                         <Button size="sm" type="button" onClick={() => void approveDealer(developer)}>
@@ -214,11 +228,12 @@ export default function AdminDevelopersPage() {
                                 pendingCommission > 0
                                   ? " and outstanding commission"
                                   : ""
-                              }. Deleting may orphan listings. Are you sure?`
-                            : "This cannot be undone."
+                              }. Deleting removes the dealer profile and demotes their login so they cannot reappear. Are you sure?`
+                            : "Deletes the dealer profile and demotes their login account. This cannot be undone."
                         }
                         onConfirm={async () => {
                           await deleteDeveloper(developer.id);
+                          if (selectedId === developer.id) setSelectedId(null);
                           toast.success(`Deleted “${developer.companyName}”.`);
                         }}
                       />
@@ -237,6 +252,26 @@ export default function AdminDevelopersPage() {
           </TableBody>
         </Table>
       </div>
+
+      <DealerDetailModal
+        developer={selected}
+        linkedUser={selectedUser}
+        linkedListings={
+          selected
+            ? properties.filter((property) => property.developerId === selected.id).length
+            : 0
+        }
+        pendingCommission={
+          selected
+            ? sumCommission(
+                transactions.filter((tx) => tx.developerId === selected.id),
+                ["PENDING", "INVOICED"],
+              )
+            : 0
+        }
+        open={Boolean(selected)}
+        onOpenChange={(open) => !open && setSelectedId(null)}
+      />
     </div>
   );
 }

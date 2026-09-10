@@ -19,7 +19,12 @@ export function formatPriceFull(amount: number) {
 }
 
 export function formatArea(sqft: number) {
-  return `${sqft.toLocaleString("en-PK")} sqft`;
+  const marla = sqft / 225;
+  const marlaLabel =
+    Number.isInteger(marla) || Math.abs(marla - Math.round(marla)) < 0.05
+      ? marla.toFixed(0)
+      : marla.toFixed(1).replace(/\.0$/, "");
+  return `${sqft.toLocaleString("en-PK")} sqft (${marlaLabel} Marla)`;
 }
 
 export function listingBadge(type: ListingType) {

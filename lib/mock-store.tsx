@@ -32,7 +32,7 @@ import {
   upsertProperty,
   type UpsertPropertyOptions,
 } from "@/lib/firestore/properties";
-import { createUserDoc, subscribeUsers } from "@/lib/firestore/users";
+import { createUserDoc, subscribeUsers, updateUserRole } from "@/lib/firestore/users";
 import { developers as seedDevelopers } from "@/lib/mock-data/developers";
 import { inquiries as seedInquiries } from "@/lib/mock-data/inquiries";
 import { properties as seedPropertiesList } from "@/lib/mock-data/properties";
@@ -441,16 +441,32 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteDeveloper = useCallback(async (id: string) => {
+    const existing = developers.find((developer) => developer.id === id);
     setDevelopers((current) => current.filter((developer) => developer.id !== id));
+
+    // Demote linked DEALER user so Admin backfill does not recreate the developer doc.
+    if (existing?.dealerUserId) {
+      setUsers((current) =>
+        current.map((user) =>
+          user.id === existing.dealerUserId && user.role === "DEALER"
+            ? { ...user, role: "BUYER" }
+            : user,
+        ),
+      );
+    }
+
     if (!isFirebaseConfigured()) return;
     try {
       await deleteDeveloperDoc(id);
+      if (existing?.dealerUserId) {
+        await updateUserRole(existing.dealerUserId, "BUYER");
+      }
     } catch (error) {
       console.error(error);
       toast.error(firestoreErrorMessage(error, "Could not delete dealer from Firestore."));
       throw error;
     }
-  }, []);
+  }, [developers]);
 
   const updateTransaction = useCallback(async (id: string, patch: Partial<Transaction>) => {
     setTransactions((current) =>

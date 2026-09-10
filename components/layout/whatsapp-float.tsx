@@ -24,14 +24,16 @@ function WhatsAppGlyph({ className }: { className?: string }) {
 
 export function WhatsAppFloat() {
   const pathname = usePathname();
-  // Map page keeps legend / controls near bottom-right — lift the FAB clear of them.
+  // Map page: bottom-left so Google Maps zoom (+/-) on the right stay usable.
   const onMap = pathname === "/map";
 
   return (
     <div
       className={cn(
-        "pointer-events-none fixed z-[45] right-5 sm:right-6",
-        onMap ? "bottom-24 sm:bottom-28" : "bottom-5 sm:bottom-6",
+        "pointer-events-none fixed z-[45]",
+        onMap
+          ? "bottom-24 left-5 sm:bottom-8 sm:left-6"
+          : "bottom-5 right-5 sm:bottom-6 sm:right-6",
       )}
     >
       <motion.span

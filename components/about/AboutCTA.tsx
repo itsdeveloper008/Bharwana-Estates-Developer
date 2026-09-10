@@ -24,7 +24,7 @@ export function AboutCTA() {
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild size="lg">
-            <Link href="/owner/add-property">List a property</Link>
+            <Link href="/owner/add-property">List your property</Link>
           </Button>
           <Button
             asChild

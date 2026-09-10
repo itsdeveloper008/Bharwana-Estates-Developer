@@ -23,6 +23,21 @@ import { withTimeout } from "@/lib/utils";
 
 const COLLECTION = "developers";
 
+function createdAtIso(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim()) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  }
+  if (value && typeof value === "object" && "toDate" in value) {
+    try {
+      return (value as { toDate: () => Date }).toDate().toISOString();
+    } catch {
+      // fall through
+    }
+  }
+  return undefined;
+}
+
 function mapDeveloper(id: string, data: Record<string, unknown>): Developer {
   return {
     id,
@@ -35,6 +50,7 @@ function mapDeveloper(id: string, data: Record<string, unknown>): Developer {
     origin: (data.origin as DeveloperOrigin) ?? "SELF_REGISTERED",
     registrationNumber: data.registrationNumber ? String(data.registrationNumber) : undefined,
     accountDeleted: data.accountDeleted === true ? true : undefined,
+    createdAt: createdAtIso(data.createdAt),
   };
 }
 

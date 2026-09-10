@@ -277,9 +277,7 @@ export function TeamDirectory() {
     name: member.fullName,
     role: member.role,
     image: member.photoUrl,
-    href: `/team/${member.id}`,
     department: member.department,
-    quote: member.quote,
   }));
 
   return (
@@ -287,7 +285,7 @@ export function TeamDirectory() {
       members={kineticMembers}
       eyebrow="Bharwana Estates"
       title="Our Team"
-      subtitle="Leadership, design, and craft. Open a profile to read every detail behind the floor."
+      subtitle="Leadership, design, and craft behind every introduction."
     />
   );
 }

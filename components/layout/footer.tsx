@@ -14,7 +14,7 @@ const footerLinks = [
   { href: "/about", label: "About" },
   { href: "/faq", label: "FAQ" },
   { href: "/team", label: "Team" },
-  { href: "/owner/add-property", label: "List a property" },
+  { href: "/owner/add-property", label: "List your property" },
   { href: "/login", label: "Sign in" },
 ];
 
@@ -303,17 +303,6 @@ export function Footer() {
                 </li>
               ))}
             </ul>
-            <p className="mt-8 max-w-[16rem] text-[13px] leading-relaxed text-[#F4F0E6]/45">
-              Part of{" "}
-              <a
-                href="https://bharwanaestates.com/"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[#C2A35A]/80 underline-offset-2 hover:underline"
-              >
-                Bharwana Estate Group
-              </a>
-            </p>
           </div>
         </motion.div>
 

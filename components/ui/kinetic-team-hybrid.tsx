@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import {
   AnimatePresence,
@@ -18,7 +17,7 @@ export interface KineticTeamMember {
   name: string;
   role: string;
   image: string;
-  href: string;
+  href?: string;
   department?: string;
   quote?: string;
 }
@@ -209,17 +208,7 @@ function TeamRow({
         <div className="flex items-baseline gap-5 pl-2 transition-transform duration-500 group-hover:translate-x-4 md:gap-12 md:pl-3">
           <div>
             <h2 className="font-serif text-[2rem] font-normal tracking-tight text-[#F5F1E8]/40 transition-colors duration-300 group-hover:text-[#F5F1E8] sm:text-4xl md:text-5xl lg:text-[3.75rem] lg:leading-[1.05]">
-              {isMobile ? (
-                data.name
-              ) : (
-                <Link
-                  href={data.href}
-                  className="focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B9954A]"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  {data.name}
-                </Link>
-              )}
+              {data.name}
             </h2>
             {data.department ? (
               <p className="mt-2 hidden text-[10px] uppercase tracking-[0.22em] text-[#F5F1E8]/30 transition-colors group-hover:text-[#B9954A]/80 md:block">
@@ -250,7 +239,7 @@ function TeamRow({
             className="overflow-hidden bg-[#0c2418]/90"
           >
             <div className="px-3 pb-6 pt-1">
-              <Link href={data.href} className="relative block h-[520px] w-full overflow-hidden sm:h-[580px]">
+              <div className="relative h-[520px] w-full overflow-hidden sm:h-[580px]">
                 <Image
                   src={data.image}
                   alt={data.name}
@@ -265,7 +254,7 @@ function TeamRow({
                     {data.role}
                   </p>
                 </div>
-              </Link>
+              </div>
             </div>
           </motion.div>
         )}

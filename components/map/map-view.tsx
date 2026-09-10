@@ -466,7 +466,7 @@ export function MapView({
         </div>
       )}
 
-      <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-ivory/95 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-forest shadow-lift sm:left-auto sm:right-24 sm:translate-x-0">
+      <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-ivory/95 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-forest shadow-lift sm:left-auto sm:right-4 sm:translate-x-0">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full border border-gold bg-forest" />
           Owner
