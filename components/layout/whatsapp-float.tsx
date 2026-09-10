@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
 
 /**
  * Same number as sitewide CALL US (+92 300 1713811 → 923001713811).
@@ -24,18 +23,11 @@ function WhatsAppGlyph({ className }: { className?: string }) {
 
 export function WhatsAppFloat() {
   const pathname = usePathname();
-  // Map page: bottom-left so Google Maps zoom (+/-) on the right stay usable.
-  const onMap = pathname === "/map";
+  // Keep map controls clear — no WhatsApp FAB on /map.
+  if (pathname === "/map") return null;
 
   return (
-    <div
-      className={cn(
-        "pointer-events-none fixed z-[45]",
-        onMap
-          ? "bottom-24 left-5 sm:bottom-8 sm:left-6"
-          : "bottom-5 right-5 sm:bottom-6 sm:right-6",
-      )}
-    >
+    <div className="pointer-events-none fixed bottom-5 right-5 z-[45] sm:bottom-6 sm:right-6">
       <motion.span
         aria-hidden
         className="absolute inset-0 rounded-full bg-[#25D366]"
