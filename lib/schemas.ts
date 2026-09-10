@@ -136,9 +136,6 @@ export type AdminLoginValues = z.infer<typeof adminLoginSchema>;
 export const teamMemberFormSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   role: z.string().min(2, "Role is required"),
-  bio: z.string().max(150, "Bio must be 150 characters or fewer"),
-  email: z.union([z.literal(""), z.string().email("Enter a valid email")]),
-  linkedinUrl: z.union([z.literal(""), z.string().url("Enter a valid URL")]),
   photoUrl: z.string(),
 });
 

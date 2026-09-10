@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { ImagePlus, X } from "lucide-react";
@@ -21,7 +21,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import type { TeamMember } from "@/lib/mock-data/team";
 import { teamMemberFormSchema, type TeamMemberFormValues } from "@/lib/schemas";
 import type { TeamMemberInput } from "@/lib/team-store";
@@ -48,9 +47,6 @@ export function TeamMemberFormDialog({
     defaultValues: {
       fullName: "",
       role: "",
-      bio: "",
-      email: "",
-      linkedinUrl: "",
       photoUrl: "",
     },
   });
@@ -60,16 +56,10 @@ export function TeamMemberFormDialog({
     form.reset({
       fullName: member?.fullName ?? "",
       role: member?.role ?? "",
-      bio: member?.bio ?? "",
-      email: member?.email ?? "",
-      linkedinUrl: member?.linkedinUrl && member.linkedinUrl !== "#" ? member.linkedinUrl : "",
       photoUrl: member?.photoUrl ?? "",
     });
     setPreview(member?.photoUrl ?? "");
   }, [open, member, form]);
-
-  const bioValue = form.watch("bio") ?? "";
-  const bioCount = useMemo(() => bioValue.length, [bioValue]);
 
   function onFiles(files: FileList | null) {
     const file = files?.[0];
@@ -83,14 +73,11 @@ export function TeamMemberFormDialog({
     onSave({
       fullName: values.fullName.trim(),
       role: values.role.trim(),
-      bio: values.bio?.trim() || "Team member at Bharwana Estates Dealer.",
-      email: values.email?.trim() || undefined,
-      linkedinUrl: values.linkedinUrl?.trim() || undefined,
+      bio: member?.bio?.trim() || "Team member at Bharwana Estates Dealer.",
+      email: member?.email,
+      linkedinUrl: member?.linkedinUrl,
       photoUrl: values.photoUrl?.trim() || preview || DEFAULT_AVATAR,
-      about:
-        member?.about?.trim() ||
-        values.bio?.trim() ||
-        "Team member at Bharwana Estates Dealer.",
+      about: member?.about?.trim() || "Team member at Bharwana Estates Dealer.",
       expertise: member?.expertise ?? [],
       responsibilities: member?.responsibilities ?? [],
       highlights: member?.highlights ?? [],
@@ -111,7 +98,7 @@ export function TeamMemberFormDialog({
             {isEdit ? "Edit team member" : "Add team member"}
           </DialogTitle>
           <DialogDescription>
-            Changes appear on the public About page within this session.
+            Add a name, title, and photo for the public Team page.
           </DialogDescription>
         </DialogHeader>
 
@@ -149,72 +136,12 @@ export function TeamMemberFormDialog({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="bio"
-              render={({ field, fieldState }) => (
-                <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel>Bio</FormLabel>
-                    <span className="text-[11px] text-muted-foreground">{bioCount}/150</span>
-                  </div>
-                  <FormControl>
-                    <Textarea
-                      rows={3}
-                      maxLength={150}
-                      className={fieldState.error ? "border-destructive bg-white" : "bg-white"}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field, fieldState }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder=""
-                        autoComplete="off"
-                        className={fieldState.error ? "border-destructive bg-white" : "bg-white"}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="linkedinUrl"
-                render={({ field, fieldState }) => (
-                  <FormItem>
-                    <FormLabel>LinkedIn URL</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://"
-                        className={fieldState.error ? "border-destructive bg-white" : "bg-white"}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
 
             <div>
               <p className="mb-2 text-sm font-medium">Photo</p>
               <label className="flex cursor-pointer flex-col items-center justify-center border border-dashed border-forest/20 bg-white px-4 py-8 text-center">
                 <ImagePlus className="h-5 w-5 text-gold" />
                 <span className="mt-2 text-sm text-forest">Choose a local photo</span>
-                <span className="mt-1 text-xs text-muted-foreground">Preview only, not uploaded</span>
                 <input
                   type="file"
                   accept="image/*"
