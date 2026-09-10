@@ -60,11 +60,11 @@
     @apply font-sans font-medium tracking-tight text-forest;
   }
 
-  /* Larger password masking dots — utilities on Input also enforce size */
+  /* Larger masking dots; keep normal tracking so empty placeholders don't stretch */
   input[type="password"] {
-    font-size: 1.75rem !important;
-    letter-spacing: 0.3em !important;
-    line-height: 1.1 !important;
+    font-size: 1.5rem !important;
+    letter-spacing: 0.08em !important;
+    line-height: 1.25 !important;
   }
 }
 

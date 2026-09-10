@@ -4,10 +4,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useRef, useState, type Ref } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, Mail, ArrowRight } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-import { AuthCrossLink } from "@/components/auth/auth-shell";
 import { AuthMethodToggle, type AuthMethod } from "@/components/auth/auth-method-toggle";
 import { GoogleRoleCompletionDialog } from "@/components/auth/google-role-completion-dialog";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
@@ -22,7 +21,14 @@ import { useMockAuth } from "@/lib/mock-auth";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { formatPakistanMobileE164 } from "@/lib/phone-format";
 import { useMockStore } from "@/lib/mock-store";
-import { registerSchema, userLoginSchema, type RegisterFormValues, type UserLoginValues } from "@/lib/schemas";
+import {
+  formatPakistanCnic,
+  PK_CNIC_FORMATTED_LENGTH,
+  registerSchema,
+  userLoginSchema,
+  type RegisterFormValues,
+  type UserLoginValues,
+} from "@/lib/schemas";
 import { DEFAULT_DEALER_COMMISSION_RATE, type User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +44,7 @@ function OrDivider() {
         <div className="w-full border-t border-forest/10" />
       </div>
       <div className="relative flex justify-center text-[11px] uppercase tracking-[0.16em]">
-        <span className="bg-ivory px-3 text-muted-foreground">or</span>
+        <span className="bg-white px-3 text-forest/40">or</span>
       </div>
     </div>
   );
@@ -109,7 +115,7 @@ function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) 
         <Button
           type="button"
           variant="outline"
-          className="w-full border-forest/15 bg-white text-forest hover:border-forest/25 hover:bg-white hover:text-forest"
+          className="h-10 w-full rounded-xl border-forest/15 bg-white text-forest shadow-none hover:border-forest/25 hover:bg-[#FBFAF6] hover:text-forest"
           disabled={pending}
           onClick={() => void handleClick()}
         >
@@ -168,16 +174,22 @@ function PasswordField({
   const value = field.value ?? "";
   return (
     <FormItem>
-      <FormLabel>Password</FormLabel>
+      <FormLabel className="text-forest/80">Password</FormLabel>
       <FormControl>
         <div className="relative">
+          <Lock
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-forest/35"
+            strokeWidth={1.75}
+            aria-hidden
+          />
           <Input
             type={show ? "text" : "password"}
             autoComplete="off"
             data-1p-ignore="true"
             data-lpignore="true"
+            data-bwignore="true"
             data-form-type="other"
-            placeholder="Password"
+            placeholder=""
             readOnly={!unlocked}
             onFocus={() => setUnlocked(true)}
             value={value}
@@ -186,13 +198,13 @@ function PasswordField({
             onChange={field.onChange}
             ref={field.ref}
             className={cn(
-              "bg-white pr-10",
+              "h-12 rounded-xl border-forest/10 bg-[#F4F2ED] pl-10 pr-10 shadow-none focus-visible:ring-forest/30",
               fieldState.error && "border-destructive focus-visible:ring-destructive",
             )}
           />
           <button
             type="button"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-forest/50 transition-colors duration-200 hover:text-forest"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-forest/45 transition-colors duration-200 hover:text-forest"
             onClick={() => setShow((current) => !current)}
             aria-label={show ? "Hide password" : "Show password"}
           >
@@ -217,31 +229,39 @@ function EmailField({
   const [unlocked, setUnlocked] = useState(false);
   return (
     <FormItem>
-      <FormLabel>Email</FormLabel>
+      <FormLabel className="text-forest/80">Email</FormLabel>
       <FormControl>
-        <Input
-          type="email"
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          data-1p-ignore="true"
-          data-lpignore="true"
-          data-form-type="other"
-          placeholder="Email"
-          readOnly={!unlocked}
-          onFocus={() => setUnlocked(true)}
-          value={field.value ?? ""}
-          name="bharwana-login-email"
-          onBlur={field.onBlur}
-          onChange={field.onChange}
-          ref={field.ref}
-          className={cn(
-            "bg-white",
-            className,
-            fieldState.error && "border-destructive focus-visible:ring-destructive",
-          )}
-        />
+        <div className="relative">
+          <Mail
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-forest/35"
+            strokeWidth={1.75}
+            aria-hidden
+          />
+          <Input
+            type="email"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            data-1p-ignore="true"
+            data-lpignore="true"
+            data-form-type="other"
+            placeholder="Email"
+            maxLength={50}
+            readOnly={!unlocked}
+            onFocus={() => setUnlocked(true)}
+            value={field.value ?? ""}
+            name="bharwana-login-email"
+            onBlur={field.onBlur}
+            onChange={field.onChange}
+            ref={field.ref}
+            className={cn(
+              "h-12 rounded-xl border-forest/10 bg-[#F4F2ED] pl-10 shadow-none focus-visible:ring-forest/30",
+              className,
+              fieldState.error && "border-destructive focus-visible:ring-destructive",
+            )}
+          />
+        </div>
       </FormControl>
       <FormMessage />
     </FormItem>
@@ -293,7 +313,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <AuthMethodToggle value={authMethod} onChange={setAuthMethod} />
 
       {authMethod === "email" ? (
@@ -323,7 +343,7 @@ export function LoginForm() {
             <div className="-mt-1 flex justify-end">
               <Link
                 href="/forgot-password"
-                className="text-xs text-forest/70 underline-offset-2 transition-colors hover:text-gold-700 hover:underline"
+                className="text-xs font-medium text-[#1F6B4F] underline-offset-2 transition-colors hover:text-forest hover:underline"
               >
                 Forgot password?
               </Link>
@@ -333,14 +353,21 @@ export function LoginForm() {
                 {error}
               </p>
             )}
-            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+            <Button
+              type="submit"
+              className="h-12 w-full rounded-xl bg-forest text-ivory hover:bg-forest-800"
+              disabled={form.formState.isSubmitting}
+            >
               {form.formState.isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Signing in…
                 </>
               ) : (
-                "Sign in"
+                <>
+                  Sign in
+                  <ArrowRight className="h-4 w-4" strokeWidth={2} />
+                </>
               )}
             </Button>
           </form>
@@ -441,13 +468,8 @@ export function RegisterForm() {
     }
   }
 
-  const loginHref = (() => {
-    const returnTo = searchParams.get("returnTo");
-    return returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : "/login";
-  })();
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <AuthMethodToggle value={authMethod} onChange={setAuthMethod} />
 
       {authMethod === "email" ? (
@@ -461,25 +483,28 @@ export function RegisterForm() {
               fieldErrors.phone?.message ||
               fieldErrors.password?.message ||
               fieldErrors.agencyName?.message ||
+              fieldErrors.registrationNumber?.message ||
               "Please fix the highlighted fields and try again.";
             setError(first);
             toast.error(first);
           })}
-          className="space-y-3"
+          className="space-y-2"
           autoComplete="off"
         >
           <FormField
             control={form.control}
             name="fullName"
             render={({ field, fieldState }) => (
-              <FormItem>
+              <FormItem className="space-y-1">
                 <FormLabel>Full name</FormLabel>
                 <FormControl>
                   <Input
                     className={cn(
-                      "bg-white",
+                      "h-10 rounded-xl border-forest/10 bg-[#F4F2ED] shadow-none focus-visible:ring-forest/30",
                       fieldState.error && "border-destructive focus-visible:ring-destructive",
                     )}
+                    maxLength={50}
+                    placeholder="Your name"
                     {...field}
                   />
                 </FormControl>
@@ -491,14 +516,14 @@ export function RegisterForm() {
             control={form.control}
             name="email"
             render={({ field, fieldState }) => (
-              <EmailField field={field} fieldState={fieldState} />
+              <EmailField field={field} fieldState={fieldState} className="h-10" />
             )}
           />
           <FormField
             control={form.control}
             name="phone"
             render={({ field, fieldState }) => (
-              <FormItem>
+              <FormItem className="space-y-1">
                 <FormLabel>Phone</FormLabel>
                 <FormControl>
                   <PakistanPhoneInput
@@ -525,7 +550,7 @@ export function RegisterForm() {
             control={form.control}
             name="role"
             render={({ field }) => (
-              <FormItem className="gap-1.5">
+              <FormItem className="gap-1 space-y-1">
                 <FormLabel>I am a</FormLabel>
                 <RoleSelector
                   value={field.value}
@@ -538,17 +563,17 @@ export function RegisterForm() {
           />
 
           {selectedRole === "DEALER" && (
-            <div className="space-y-3 rounded-2xl border border-forest/10 bg-cream/40 p-3">
+            <div className="space-y-2 rounded-2xl border border-forest/10 bg-cream/40 p-2.5">
               <FormField
                 control={form.control}
                 name="agencyName"
                 render={({ field, fieldState }) => (
-                  <FormItem>
+                  <FormItem className="space-y-1">
                     <FormLabel>Agency / Company Name</FormLabel>
                     <FormControl>
                       <Input
                         className={cn(
-                          "bg-white",
+                          "h-10 bg-white",
                           fieldState.error && "border-destructive focus-visible:ring-destructive",
                         )}
                         placeholder="e.g. Ali Realty"
@@ -563,16 +588,23 @@ export function RegisterForm() {
                 control={form.control}
                 name="registrationNumber"
                 render={({ field, fieldState }) => (
-                  <FormItem>
-                    <FormLabel>CNIC or Business Registration (optional)</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel>CNIC</FormLabel>
                     <FormControl>
                       <Input
                         className={cn(
-                          "bg-white",
+                          "h-10 bg-white",
                           fieldState.error && "border-destructive focus-visible:ring-destructive",
                         )}
+                        inputMode="numeric"
+                        autoComplete="off"
+                        maxLength={PK_CNIC_FORMATTED_LENGTH}
                         placeholder="e.g. 34201-1234567-1"
-                        {...field}
+                        value={field.value}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        onChange={(event) => field.onChange(formatPakistanCnic(event.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
@@ -591,19 +623,23 @@ export function RegisterForm() {
               {error}
             </p>
           )}
-          <Button type="submit" className="w-full" disabled={submitting || form.formState.isSubmitting}>
+          <Button
+            type="submit"
+            className="h-10 w-full rounded-xl bg-forest text-ivory hover:bg-forest-800"
+            disabled={submitting || form.formState.isSubmitting}
+          >
             {submitting || form.formState.isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Creating…
               </>
             ) : (
-              "Create account"
+              <>
+                Create account
+                <ArrowRight className="h-4 w-4" strokeWidth={2} />
+              </>
             )}
           </Button>
-          <p className="!mt-2 text-center text-sm text-muted-foreground">
-            Already on the floor? <AuthCrossLink href={loginHref}>Sign in</AuthCrossLink>
-          </p>
         </form>
       </Form>
       ) : (
@@ -616,9 +652,6 @@ export function RegisterForm() {
             recaptchaId="phone-auth-recaptcha-register"
             onSuccess={(user) => goAfterAuth(user)}
           />
-          <p className="text-center text-sm text-muted-foreground">
-            Already on the floor? <AuthCrossLink href={loginHref}>Sign in</AuthCrossLink>
-          </p>
         </div>
       )}
 

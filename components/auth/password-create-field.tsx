@@ -30,7 +30,7 @@ export function PasswordCreateField({
   const showChecklist = focused || value.length > 0;
 
   return (
-    <FormItem>
+    <FormItem className="space-y-1">
       <FormLabel>Password</FormLabel>
       <FormControl>
         <div className="relative">
@@ -41,7 +41,7 @@ export function PasswordCreateField({
             data-lpignore="true"
             data-bwignore="true"
             data-form-type="other"
-            placeholder="Create a password"
+            placeholder=""
             readOnly={!unlocked}
             value={value}
             name={field.name}
@@ -72,21 +72,25 @@ export function PasswordCreateField({
         </div>
       </FormControl>
       {showChecklist ? (
-        <ul id="password-requirements" className="mt-2 space-y-1.5" aria-live="polite">
+        <ul
+          id="password-requirements"
+          className="mt-1.5 grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2"
+          aria-live="polite"
+        >
           {PASSWORD_REQUIREMENTS.map((item) => {
             const met = item.test(value);
             return (
               <li
                 key={item.id}
                 className={cn(
-                  "flex items-center gap-2 text-[12px] leading-tight",
+                  "flex items-center gap-1.5 text-[11px] leading-tight",
                   met ? "text-forest" : "text-muted-foreground",
                 )}
               >
                 {met ? (
-                  <Check className="h-3.5 w-3.5 shrink-0 text-[#2F6B4F]" aria-hidden />
+                  <Check className="h-3 w-3 shrink-0 text-[#2F6B4F]" aria-hidden />
                 ) : (
-                  <Circle className="h-3.5 w-3.5 shrink-0 opacity-40" aria-hidden />
+                  <Circle className="h-3 w-3 shrink-0 opacity-40" aria-hidden />
                 )}
                 <span>{item.label}</span>
               </li>

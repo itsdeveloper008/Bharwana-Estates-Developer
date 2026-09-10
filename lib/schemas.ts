@@ -1,6 +1,21 @@
 import { z } from "zod";
-import { isValidPakistanMobileLocal } from "@/lib/phone-format";
+import { digitsOnly, isValidPakistanMobileLocal } from "@/lib/phone-format";
 import { passwordMeetsPolicy } from "@/lib/password-policy";
+
+/** Pakistani CNIC: 13 digits, displayed as XXXXX-XXXXXXX-X (15 chars). */
+export const PK_CNIC_DIGIT_LENGTH = 13;
+export const PK_CNIC_FORMATTED_LENGTH = 15;
+
+export function formatPakistanCnic(raw: string): string {
+  const digits = digitsOnly(raw).slice(0, PK_CNIC_DIGIT_LENGTH);
+  if (digits.length <= 5) return digits;
+  if (digits.length <= 12) return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+  return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}`;
+}
+
+export function isValidPakistanCnic(value: string): boolean {
+  return /^\d{5}-\d{7}-\d$/.test(formatPakistanCnic(value));
+}
 
 export const pakistanMobileLocalSchema = z
   .string()
@@ -53,8 +68,14 @@ export const otpSchema = z.object({
 
 export const registerSchema = z
   .object({
-    fullName: z.string().min(2, "Enter your name"),
-    email: z.string().email("Enter a valid email"),
+    fullName: z
+      .string()
+      .min(2, "Enter your name")
+      .max(50, "Name must be 50 characters or fewer"),
+    email: z
+      .string()
+      .max(50, "Email must be 50 characters or fewer")
+      .email("Enter a valid email"),
     phone: pakistanMobileLocalSchema,
     password: passwordCreateSchema,
     role: z.enum(["BUYER", "HOUSE_OWNER", "DEALER"]),
@@ -70,11 +91,11 @@ export const registerSchema = z
         path: ["agencyName"],
       });
     }
-    const reg = data.registrationNumber?.trim();
-    if (reg && !/^[A-Za-z0-9\-\/]{5,25}$/.test(reg)) {
+    const cnic = data.registrationNumber?.trim() ?? "";
+    if (!isValidPakistanCnic(cnic)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Use 5–25 letters, numbers, dashes, or slashes",
+        message: "Enter a valid 13-digit CNIC (e.g. 34201-1234567-1)",
         path: ["registrationNumber"],
       });
     }
@@ -84,7 +105,11 @@ export type RegisterFormValues = z.infer<typeof registerSchema>;
 
 /** Sign-in only — do not enforce create-password complexity on existing credentials. */
 export const userLoginSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Enter a valid email"),
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .max(50, "Email must be 50 characters or fewer")
+    .email("Enter a valid email"),
   password: z.string().min(1, "Password is required"),
 });
 

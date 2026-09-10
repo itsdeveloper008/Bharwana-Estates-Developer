@@ -23,6 +23,11 @@ import {
   isValidPakistanMobileLocal,
   toPakistanMobileLocal,
 } from "@/lib/phone-format";
+import {
+  formatPakistanCnic,
+  isValidPakistanCnic,
+  PK_CNIC_FORMATTED_LENGTH,
+} from "@/lib/schemas";
 import { DEFAULT_DEALER_COMMISSION_RATE, type User } from "@/lib/types";
 
 export function GoogleRoleCompletionDialog({
@@ -81,6 +86,10 @@ export function GoogleRoleCompletionDialog({
     }
     if (role === "DEALER" && !agencyName.trim()) {
       setError("Agency name is required for dealer accounts.");
+      return;
+    }
+    if (role === "DEALER" && !isValidPakistanCnic(registrationNumber)) {
+      setError("Enter a valid 13-digit CNIC (e.g. 34201-1234567-1).");
       return;
     }
     setError(null);
@@ -181,13 +190,16 @@ export function GoogleRoleCompletionDialog({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="google-reg">CNIC or Business Registration (optional)</Label>
+                <Label htmlFor="google-reg">CNIC</Label>
                 <Input
                   id="google-reg"
                   className="bg-white"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={PK_CNIC_FORMATTED_LENGTH}
                   placeholder="e.g. 34201-1234567-1"
                   value={registrationNumber}
-                  onChange={(event) => setRegistrationNumber(event.target.value)}
+                  onChange={(event) => setRegistrationNumber(formatPakistanCnic(event.target.value))}
                 />
               </div>
             </div>

@@ -34,7 +34,7 @@ export function phoneAuthErrorMessage(code: string, rawMessage = "") {
     case "auth/operation-not-allowed":
       return "Phone sign-in is disabled for this Firebase project. Enable Phone under Authentication → Sign-in method.";
     case "auth/network-request-failed":
-      return "Could not reach Firebase Auth. Disable ad blockers for this site, try another network or browser, and stay on https://bharwanaestates.com.";
+      return "Could not reach Firebase Auth. Check your internet, disable ad blockers for this site, or try another browser/network.";
     case "auth/app-not-authorized":
       return "This domain is not authorized for phone auth. Add it under Firebase Authentication → Settings → Authorized domains.";
     case "auth/argument-error":

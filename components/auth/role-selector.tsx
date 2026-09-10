@@ -30,7 +30,7 @@ export function RoleSelector({
             onClick={() => onChange(option.id)}
             className={cn(
               "min-w-0 rounded-2xl border text-left transition-colors duration-200",
-              compact ? "px-2 py-2.5 sm:px-2.5 sm:py-2" : "px-2.5 py-3 sm:px-3",
+              compact ? "px-2 py-2 sm:px-2.5" : "px-2.5 py-3 sm:px-3",
               active
                 ? "border-gold bg-gold/10 text-forest"
                 : "border-forest/15 bg-white text-forest hover:border-gold/45",
@@ -40,9 +40,11 @@ export function RoleSelector({
             <span className={cn("mt-1.5 block font-medium leading-snug", compact ? "text-[11px] sm:text-xs" : "text-xs sm:text-sm")}>
               {option.label}
             </span>
-            <span className="mt-0.5 hidden text-[10px] leading-snug text-muted-foreground sm:block sm:text-[11px]">
-              {option.hint}
-            </span>
+            {!compact ? (
+              <span className="mt-0.5 hidden text-[10px] leading-snug text-muted-foreground sm:block sm:text-[11px]">
+                {option.hint}
+              </span>
+            ) : null}
           </button>
         );
       })}

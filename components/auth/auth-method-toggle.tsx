@@ -18,7 +18,7 @@ export function AuthMethodToggle({
 }) {
   return (
     <div
-      className="flex rounded-full border border-forest/10 bg-cream/50 p-1"
+      className="flex rounded-xl bg-[#EDEBE6] p-1"
       role="tablist"
       aria-label="Sign-in method"
     >
@@ -30,9 +30,9 @@ export function AuthMethodToggle({
           aria-selected={value === item.id}
           onClick={() => onChange(item.id)}
           className={cn(
-            "flex-1 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition-colors duration-200",
+            "flex-1 rounded-lg px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition-colors duration-200",
             value === item.id
-              ? "bg-gold/25 text-forest shadow-sm"
+              ? "bg-forest text-ivory shadow-sm"
               : "text-forest/55 hover:text-forest",
           )}
         >

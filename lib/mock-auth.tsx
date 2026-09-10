@@ -322,9 +322,9 @@ function emailAuthErrorMessage(code: string) {
     case "auth/operation-not-allowed":
       return "Email sign-in is disabled for this Firebase project.";
     case "auth/network-request-failed":
-      return "Could not reach Firebase Auth. Disable ad blockers for this site, try another network or browser, and make sure you are on https://bharwanaestates.com (not www).";
+      return "Could not reach Firebase Auth. Check your internet, disable ad blockers for this site, or try another browser/network.";
     case "auth/unauthorized-domain":
-      return "This domain is not authorized for sign-in. In Firebase → Authentication → Settings → Authorized domains, add bharwanaestates.com.";
+      return "This domain is not authorized for sign-in. In Firebase → Authentication → Settings → Authorized domains, add localhost (for local testing) and your live domain.";
     default:
       return code ? `Could not complete sign-in (${code}).` : "Could not complete sign-in. Try again.";
   }
@@ -336,18 +336,18 @@ function googleAuthErrorMessage(code: string) {
     case "auth/cancelled-popup-request":
       return "Google sign-in did not finish. Keep the Google window open, choose an account, and allow popups for this site.";
     case "auth/popup-blocked":
-      return "Your browser blocked the Google popup. Allow popups for bharwanaestates.com, then try again.";
+      return "Your browser blocked the Google popup. Allow popups for this site, then try again.";
     case "auth/unauthorized-domain":
-      return "This domain is not authorized for Google sign-in. In Firebase → Authentication → Settings, add bharwanaestates.com and www.bharwanaestates.com.";
+      return "This domain is not authorized for Google sign-in. In Firebase → Authentication → Settings, add localhost and your live domain.";
     case "auth/operation-not-allowed":
       return "Google sign-in is disabled in Firebase. Enable Google under Authentication → Sign-in method.";
     case "auth/account-exists-with-different-credential":
       return "An account already exists with this email using a different sign-in method.";
     case "auth/network-request-failed":
-      return "Could not reach Google/Firebase Auth. Disable ad blockers, try another browser/network, and stay on https://bharwanaestates.com.";
+      return "Could not reach Google/Firebase Auth. Check your internet, disable ad blockers, or try another browser/network.";
     case "auth/invalid-continue-uri":
     case "auth/unauthorized-continue-uri":
-      return "Google sign-in cannot return to this domain yet. In Firebase Hosting, make sure bharwanaestates.com is attached to project bharwana-estate-developer (not another Firebase project).";
+      return "Google sign-in cannot return to this domain yet. Check Firebase Hosting / authorized domains for this project.";
     default:
       return code
         ? `Could not sign in with Google (${code}).`

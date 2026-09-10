@@ -58,7 +58,7 @@ export interface Developer {
   dealerUserId?: string;
   status: DeveloperStatus;
   origin: DeveloperOrigin;
-  /** Optional CNIC / business registration number */
+  /** Dealer CNIC (XXXXX-XXXXXXX-X) */
   registrationNumber?: string;
   /** Set when the linked dealer user account is deleted — profile kept for history */
   accountDeleted?: boolean;
