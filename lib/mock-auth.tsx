@@ -12,6 +12,7 @@ import {
 } from "react";
 import {
   EmailAuthProvider,
+  FacebookAuthProvider,
   GoogleAuthProvider,
   PhoneAuthProvider,
   RecaptchaVerifier,
@@ -167,7 +168,7 @@ type PhoneLoginResult =
   | { ok: true; isNewUser: true; draft: GoogleSignupDraft }
   | { ok: false; error: string };
 
-export type AccountAuthMethod = "password" | "google" | "phone";
+export type AccountAuthMethod = "password" | "google" | "facebook" | "phone";
 
 export type DeleteAccountResult =
   | { ok: true }
@@ -180,6 +181,7 @@ interface MockAuthContextValue {
   pendingGoogleSignup: GoogleSignupDraft | null;
   login: (email: string, password: string) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   loginWithGoogle: () => Promise<GoogleLoginResult>;
+  loginWithFacebook: () => Promise<GoogleLoginResult>;
   consumeGoogleReturn: () => boolean;
   sendPhoneOtp: (
     phone: string,
@@ -352,6 +354,28 @@ function googleAuthErrorMessage(code: string) {
       return code
         ? `Could not sign in with Google (${code}).`
         : "Could not sign in with Google. Try again.";
+  }
+}
+
+function facebookAuthErrorMessage(code: string) {
+  switch (code) {
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return "Facebook sign-in did not finish. Keep the Facebook window open and allow popups for this site.";
+    case "auth/popup-blocked":
+      return "Your browser blocked the Facebook popup. Allow popups for this site, then try again.";
+    case "auth/unauthorized-domain":
+      return "This domain is not authorized for Facebook sign-in. In Firebase → Authentication → Settings, add localhost and your live domain.";
+    case "auth/operation-not-allowed":
+      return "Facebook sign-in is disabled in Firebase. Enable Facebook under Authentication → Sign-in method.";
+    case "auth/account-exists-with-different-credential":
+      return "An account already exists with this email using a different sign-in method. Sign in with that method first.";
+    case "auth/network-request-failed":
+      return "Could not reach Facebook/Firebase Auth. Check your internet, disable ad blockers, or try another browser/network.";
+    default:
+      return code
+        ? `Could not sign in with Facebook (${code}).`
+        : "Could not sign in with Facebook. Try again.";
   }
 }
 
@@ -718,6 +742,77 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
 
       return { ok: false as const, error: googleAuthErrorMessage(code) };
+    }
+  }, [commitSession, setPendingGoogle]);
+
+  const loginWithFacebook = useCallback(async () => {
+    if (!isFirebaseConfigured()) {
+      return {
+        ok: false as const,
+        error: "Facebook sign-in is not ready on this deploy. Firebase env vars are missing.",
+      };
+    }
+    const auth = getFirebaseAuth();
+    if (!auth) {
+      return { ok: false as const, error: "Facebook sign-in is unavailable right now." };
+    }
+
+    async function finishFacebookUser(firebaseUser: FirebaseUser): Promise<GoogleLoginResult> {
+      const email = (firebaseUser.email ?? "").trim().toLowerCase();
+      if (!email) {
+        return {
+          ok: false as const,
+          error: "Facebook did not share an email. Allow email access, or use Google / email sign-in.",
+        };
+      }
+
+      const profile = await loadFirestoreUser(firebaseUser);
+      if (profile) {
+        commitSession(profile);
+        return { ok: true as const, isNewUser: false as const, user: profile };
+      }
+
+      const draft = draftFromFirebaseUser(firebaseUser);
+      setPendingGoogle(draft);
+      return { ok: true as const, isNewUser: true as const, draft };
+    }
+
+    const provider = new FacebookAuthProvider();
+    provider.addScope("email");
+    provider.addScope("public_profile");
+    provider.setCustomParameters({ display: "popup" });
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      return await finishFacebookUser(result.user);
+    } catch (error) {
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code?: string }).code)
+          : "";
+      console.error("Facebook sign-in failed", { code, error });
+
+      if (code === "auth/popup-blocked") {
+        try {
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem(
+              GOOGLE_RETURN_KEY,
+              `${window.location.pathname}${window.location.search}`,
+            );
+          }
+          await signInWithRedirect(auth, provider);
+          return { ok: true as const, redirecting: true as const };
+        } catch (redirectError) {
+          const redirectCode =
+            redirectError && typeof redirectError === "object" && "code" in redirectError
+              ? String((redirectError as { code?: string }).code)
+              : code;
+          console.error("Facebook redirect fallback failed", { code: redirectCode, redirectError });
+          return { ok: false as const, error: facebookAuthErrorMessage(redirectCode || code) };
+        }
+      }
+
+      return { ok: false as const, error: facebookAuthErrorMessage(code) };
     }
   }, [commitSession, setPendingGoogle]);
 
@@ -1141,6 +1236,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     const providers = firebaseUser.providerData.map((p) => p.providerId);
     if (providers.includes("password")) return "password";
     if (providers.includes("google.com")) return "google";
+    if (providers.includes("facebook.com")) return "facebook";
     if (providers.includes("phone")) return "phone";
     return firebaseUser.email ? "password" : null;
   }, []);
@@ -1349,6 +1445,11 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           await reauthenticateWithPopup(firebaseUser, provider);
           return { ok: true as const };
         }
+        if (method === "facebook") {
+          const provider = new FacebookAuthProvider();
+          await reauthenticateWithPopup(firebaseUser, provider);
+          return { ok: true as const };
+        }
         if (method === "password") {
           const password = input?.password?.trim() ?? "";
           if (!password) return { ok: false as const, error: "Enter your password to continue." };
@@ -1418,6 +1519,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       pendingGoogleSignup,
       login,
       loginWithGoogle,
+      loginWithFacebook,
       consumeGoogleReturn,
       sendPhoneOtp,
       verifyPhoneOtp,
@@ -1442,6 +1544,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       pendingGoogleSignup,
       login,
       loginWithGoogle,
+      loginWithFacebook,
       consumeGoogleReturn,
       sendPhoneOtp,
       verifyPhoneOtp,

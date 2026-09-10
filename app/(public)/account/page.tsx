@@ -241,6 +241,12 @@ export default function AccountSettingsPage() {
               </p>
             )}
 
+            {needsReauth && authMethod === "facebook" && (
+              <p className="text-sm text-forest/70">
+                You will be asked to confirm with Facebook before deletion continues.
+              </p>
+            )}
+
             {needsReauth && authMethod === "phone" && (
               <p className="text-sm text-forest/70">
                 Phone accounts need a fresh sign-in. Sign out, sign back in with OTP, then try again —
@@ -259,7 +265,13 @@ export default function AccountSettingsPage() {
               disabled={!emailMatches || busy || (needsReauth && authMethod === "phone")}
               onClick={runDelete}
             >
-              {busy ? "Deleting…" : needsReauth && authMethod === "google" ? "Confirm with Google & delete" : "Delete My Account"}
+              {busy
+                ? "Deleting…"
+                : needsReauth && authMethod === "google"
+                  ? "Confirm with Google & delete"
+                  : needsReauth && authMethod === "facebook"
+                    ? "Confirm with Facebook & delete"
+                    : "Delete My Account"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

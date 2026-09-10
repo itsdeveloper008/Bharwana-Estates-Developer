@@ -51,8 +51,19 @@ function OrDivider() {
 }
 
 function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) {
-  const { loginWithGoogle, user, isReady, pendingGoogleSignup, consumeGoogleReturn } = useMockAuth();
-  const [pending, setPending] = useState(false);
+  return <SocialAuthButtons onSuccess={onSuccess} />;
+}
+
+function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
+  const {
+    loginWithGoogle,
+    loginWithFacebook,
+    user,
+    isReady,
+    pendingGoogleSignup,
+    consumeGoogleReturn,
+  } = useMockAuth();
+  const [pendingProvider, setPendingProvider] = useState<"google" | "facebook" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [roleOpen, setRoleOpen] = useState(false);
   const [draft, setDraft] = useState<GoogleSignupDraft | null>(null);
@@ -76,38 +87,43 @@ function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) 
     }
   }, [isReady, pendingGoogleSignup, user, consumeGoogleReturn]);
 
-  async function handleClick() {
-    if (pending) return;
+  async function handleOAuth(provider: "google" | "facebook") {
+    if (pendingProvider) return;
     setError(null);
-    setPending(true);
+    setPendingProvider(provider);
     try {
-      const result = await loginWithGoogle();
+      const result = provider === "google" ? await loginWithGoogle() : await loginWithFacebook();
       if (!result.ok) {
         setError(result.error);
-        setPending(false);
+        setPendingProvider(null);
         return;
       }
       if ("redirecting" in result && result.redirecting) {
-        // Full-page navigate to Google — keep disabled until unload.
         return;
       }
       if ("isNewUser" in result && result.isNewUser) {
         setDraft(result.draft);
         setRoleOpen(true);
-        setPending(false);
+        setPendingProvider(null);
         return;
       }
       if ("user" in result) {
         toast.dismiss();
         onSuccess(result.user);
       }
-      setPending(false);
+      setPendingProvider(null);
     } catch (err) {
-      console.error("Google continue failed", err);
-      setError("Could not sign in with Google. Try again.");
-      setPending(false);
+      console.error(`${provider} continue failed`, err);
+      setError(
+        provider === "google"
+          ? "Could not sign in with Google. Try again."
+          : "Could not sign in with Facebook. Try again.",
+      );
+      setPendingProvider(null);
     }
   }
+
+  const busy = pendingProvider !== null;
 
   return (
     <>
@@ -116,11 +132,29 @@ function ContinueWithGoogle({ onSuccess }: { onSuccess: (user: User) => void }) 
           type="button"
           variant="outline"
           className="h-10 w-full rounded-xl border-forest/15 bg-white text-forest shadow-none hover:border-forest/25 hover:bg-[#FBFAF6] hover:text-forest"
-          disabled={pending}
-          onClick={() => void handleClick()}
+          disabled={busy}
+          onClick={() => void handleOAuth("google")}
         >
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark className="h-4 w-4" />}
-          {pending ? "Connecting…" : "Continue with Google"}
+          {pendingProvider === "google" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <GoogleMark className="h-4 w-4" />
+          )}
+          {pendingProvider === "google" ? "Connecting…" : "Continue with Google"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 w-full rounded-xl border-forest/15 bg-white text-forest shadow-none hover:border-forest/25 hover:bg-[#FBFAF6] hover:text-forest"
+          disabled={busy}
+          onClick={() => void handleOAuth("facebook")}
+        >
+          {pendingProvider === "facebook" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <FacebookMark className="h-4 w-4" />
+          )}
+          {pendingProvider === "facebook" ? "Connecting…" : "Continue with Facebook"}
         </Button>
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
@@ -160,7 +194,18 @@ function GoogleMark({ className }: { className?: string }) {
   );
 }
 
-export { ContinueWithGoogle };
+function FacebookMark({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="#1877F2"
+        d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"
+      />
+    </svg>
+  );
+}
+
+export { ContinueWithGoogle, SocialAuthButtons };
 
 function PasswordField({
   field,
@@ -653,7 +698,7 @@ export function RegisterForm() {
       ) : (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Verify your mobile number to create an account. First-time sign-in will ask for your role, same as Google.
+            Verify your mobile number to create an account. First-time sign-in will ask for your role, same as Google or Facebook.
           </p>
           <PhoneOtpSection
             variant="register"
