@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 const MapView = dynamic(() => import("@/components/map/map-view").then((mod) => mod.MapView), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full min-h-[320px] items-center justify-center bg-cream/60">
+    <div className="flex h-full w-full items-center justify-center bg-cream/60">
       <div className="h-8 w-8 animate-pulse rounded-full border-2 border-forest/20 border-t-gold" />
     </div>
   ),
@@ -85,12 +85,12 @@ export function MapExplorer() {
   );
 
   return (
-    <div className="flex min-h-[calc(100dvh-5rem)] flex-col">
-      <div className="border-b border-forest/10 bg-ivory px-4 py-4 sm:px-6">
+    <div className="flex h-[calc(100dvh-72px)] w-full flex-col overflow-hidden md:h-[calc(100dvh-80px)]">
+      <div className="shrink-0 border-b border-forest/10 bg-ivory px-4 py-3 sm:px-6 sm:py-3.5">
         <FilterBar resultCount={results.length} />
       </div>
 
-      <div className="flex border-b border-forest/10 bg-ivory px-4 py-2 lg:hidden">
+      <div className="flex shrink-0 border-b border-forest/10 bg-ivory px-4 py-2 lg:hidden">
         <div className="grid w-full grid-cols-2 gap-2">
           <button
             type="button"
@@ -118,16 +118,16 @@ export function MapExplorer() {
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr]">
         <div
           className={cn(
-            "min-h-0 border-b border-forest/10 lg:block lg:h-[calc(100dvh-9rem)] lg:border-b-0 lg:border-r",
-            mobilePanel === "list" ? "flex h-[calc(100dvh-11rem)] flex-col" : "hidden",
+            "min-h-0 border-b border-forest/10 lg:block lg:border-b-0 lg:border-r",
+            mobilePanel === "list" ? "flex h-full min-h-0 flex-col" : "hidden",
           )}
         >
           {listPanel}
         </div>
         <div
           className={cn(
-            "min-h-0 lg:block lg:h-[calc(100dvh-9rem)]",
-            mobilePanel === "map" ? "block h-[calc(100dvh-11rem)]" : "hidden lg:block",
+            "min-h-0 w-full lg:block",
+            mobilePanel === "map" ? "block h-full" : "hidden h-full lg:block",
           )}
         >
           <MapView

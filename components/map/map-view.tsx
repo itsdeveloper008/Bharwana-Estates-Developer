@@ -49,7 +49,7 @@ const mapOptions: google.maps.MapOptions = {
 
 function MapLoadingSkeleton({ message = "Loading map" }: { message?: string }) {
   return (
-    <div className="flex h-full min-h-[420px] w-full items-center justify-center">
+    <div className="flex h-full w-full items-center justify-center">
       <div className="flex flex-col items-center gap-3">
         <div className="h-8 w-8 animate-pulse rounded-full border-2 border-forest/20 border-t-gold" />
         <p className="text-xs uppercase tracking-[0.16em] text-forest/50">{message}</p>
@@ -60,7 +60,7 @@ function MapLoadingSkeleton({ message = "Loading map" }: { message?: string }) {
 
 function MapKeyMissing() {
   return (
-    <div className="flex h-full min-h-[420px] items-center justify-center bg-cream/60 px-6 text-center">
+    <div className="flex h-full items-center justify-center bg-cream/60 px-6 text-center">
       <div>
         <p className="font-serif text-2xl text-forest">Google Maps key needed</p>
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">
@@ -266,7 +266,7 @@ export function MapView({
   if (!hasGoogleMapsKey()) return <MapKeyMissing />;
   if (loadError || authFailed) {
     return (
-      <div className="flex h-full min-h-[420px] items-center justify-center bg-cream/60 px-6 text-center">
+      <div className="flex h-full items-center justify-center bg-cream/60 px-6 text-center">
         <div className="max-w-md">
           <p className="font-serif text-2xl text-forest">Google Maps blocked this key</p>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
@@ -297,7 +297,7 @@ export function MapView({
   if (!isLoaded) return <MapLoadingSkeleton />;
 
   return (
-    <div className="relative h-full min-h-[420px] w-full">
+    <div className="relative h-full w-full">
       {!styleLoaded && (
         <div className="pointer-events-none absolute inset-0 z-10 bg-cream/40">
           <MapLoadingSkeleton />
