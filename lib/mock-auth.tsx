@@ -642,19 +642,12 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: false as const, error: "Google sign-in is unavailable right now." };
     }
 
-    // Minimal provider — no forced account picker / extra scopes (those slow consent).
-    const provider = new GoogleAuthProvider();
-
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const firebaseUser = result.user;
+    async function finishGoogleUser(firebaseUser: FirebaseUser): Promise<GoogleLoginResult> {
       const email = (firebaseUser.email ?? "").trim().toLowerCase();
       if (!email) return { ok: false as const, error: "Google account did not return an email." };
 
-      // Cancel competing onAuthStateChanged profile fetches that abort in-flight reads.
       authSyncGenerationRef.current += 1;
 
-      // Returning visitor: reuse local session immediately, refresh profile in background.
       try {
         const raw = localStorage.getItem(SESSION_KEY);
         if (raw) {
@@ -680,11 +673,50 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       const draft = draftFromFirebaseUser(firebaseUser);
       setPendingGoogle(draft);
       return { ok: true as const, isNewUser: true as const, draft };
+    }
+
+    async function startGoogleRedirect(): Promise<GoogleLoginResult> {
+      try {
+        sessionStorage.setItem(
+          GOOGLE_RETURN_KEY,
+          `${window.location.pathname}${window.location.search}`,
+        );
+      } catch {
+        /* ignore */
+      }
+      const redirectProvider = new GoogleAuthProvider();
+      await signInWithRedirect(auth, redirectProvider);
+      return { ok: true as const, redirecting: true as const };
+    }
+
+    const provider = new GoogleAuthProvider();
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      return await finishGoogleUser(result.user);
     } catch (popupError) {
       const code =
         popupError && typeof popupError === "object" && "code" in popupError
           ? String((popupError as { code?: string }).code)
           : "";
+      // Chrome often reports popup-closed when COOP blocks window.closed — use redirect.
+      if (
+        code === "auth/popup-closed-by-user" ||
+        code === "auth/cancelled-popup-request" ||
+        code === "auth/popup-blocked"
+      ) {
+        console.warn("Google popup interrupted; falling back to redirect", { code });
+        try {
+          return await startGoogleRedirect();
+        } catch (redirectError) {
+          const redirectCode =
+            redirectError && typeof redirectError === "object" && "code" in redirectError
+              ? String((redirectError as { code?: string }).code)
+              : code;
+          console.error("Google redirect fallback failed", { code: redirectCode, redirectError });
+          return { ok: false as const, error: googleAuthErrorMessage(redirectCode || code) };
+        }
+      }
       console.error("Google sign-in failed", { code, popupError });
       return { ok: false as const, error: googleAuthErrorMessage(code) };
     }

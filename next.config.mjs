@@ -20,24 +20,12 @@ const nextConfig = {
     ],
   },
   async headers() {
-    // Allow Firebase Google/Facebook popup auth to call window.closed (Chrome COOP).
-    return [
-      {
-        source: "/:path*",
-        headers: [
-          {
-            key: "Cross-Origin-Opener-Policy",
-            value: "same-origin-allow-popups",
-          },
-        ],
-      },
-    ];
+    // Do not set Cross-Origin-Opener-Policy here. Chrome + Firebase Google popup
+    // treat COOP as "popup closed" and sign-in fails with auth/popup-closed-by-user.
+    return [];
   },
   async rewrites() {
     // Proxy Firebase Auth helper scripts through the custom domain.
-    // NOTE: Google redirect continueUri on bharwanaestates.com still requires this
-    // domain to be attached to Firebase Hosting for project bharwana-estate-developer
-    // (not another Firebase project). Until then, Google sign-in uses popup.
     return [
       {
         source: "/__/auth/:path*",
