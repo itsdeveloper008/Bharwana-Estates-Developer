@@ -31,7 +31,7 @@ export function OwnerGate({ children }: { children: React.ReactNode }) {
   if (!isReady) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
-        Checking your session…
+        Loading…
       </div>
     );
   }

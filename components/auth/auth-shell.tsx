@@ -78,11 +78,8 @@ export function AuthGuestGate({ children }: { children: ReactNode }) {
     router.replace(pathAfterAuth(returnTo, user.role));
   }, [isReady, user, router, searchParams]);
 
-  if (!isReady) {
-    return <p className="text-sm text-muted-foreground">Checking your session…</p>;
-  }
-
-  if (user) {
+  // Show the form immediately — never block QA/users on Firebase network stalls.
+  if (isReady && user) {
     return <p className="text-sm text-muted-foreground">Redirecting…</p>;
   }
 

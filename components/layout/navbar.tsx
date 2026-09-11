@@ -166,7 +166,7 @@ export function Navbar() {
             : "border-b border-[#082B1D]/10 bg-[#FBFAF6] shadow-[0_8px_30px_-18px_rgba(8,43,29,0.35)] transition-[background-color,border-color,box-shadow] duration-300 ease-out",
         )}
       >
-        <div className="relative mx-auto grid h-full max-w-[1360px] grid-cols-[1fr_auto] items-center gap-3 px-5 sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-4 lg:px-8 xl:px-10">
+        <div className="relative mx-auto grid h-full max-w-[1360px] grid-cols-[1fr_auto] items-center gap-3 px-5 sm:px-8 xl:grid-cols-[auto_minmax(0,1fr)_auto] xl:gap-4 xl:px-10">
           {/* Brand */}
           <Link
             href="/"
@@ -206,10 +206,10 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Primary nav — truly centered in the header */}
+          {/* Primary nav — middle column (not absolute, so it can't overlap actions) */}
           <nav
             aria-label="Primary"
-            className="absolute left-1/2 top-1/2 z-[5] hidden -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 lg:flex xl:gap-1"
+            className="hidden min-w-0 items-center justify-center gap-0.5 xl:flex"
           >
             {publicLinks.map((link) => {
               const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -218,7 +218,7 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "group relative shrink-0 px-2.5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors duration-300 xl:px-3.5 xl:text-[11px] xl:tracking-[0.2em]",
+                    "group relative shrink-0 px-2.5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors duration-300 2xl:px-3.5 2xl:text-[11px] 2xl:tracking-[0.2em]",
                     overHero
                       ? active
                         ? "text-[#F5F1E8]"
@@ -243,11 +243,11 @@ export function Navbar() {
           </nav>
 
           {/* Actions — pinned to the right */}
-          <div className="z-10 col-start-2 hidden shrink-0 items-center justify-self-end gap-2 lg:col-start-3 lg:flex xl:gap-3">
+          <div className="z-10 col-start-2 hidden shrink-0 items-center justify-self-end gap-2 xl:col-start-auto xl:flex xl:gap-3">
             <Link
               href={listPropertyHref}
               className={cn(
-                "group relative inline-flex items-center overflow-hidden rounded-xl bg-[#B89545] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#082B1D] xl:px-4 xl:py-3 xl:text-[11px] xl:tracking-[0.14em]",
+                "group relative inline-flex items-center overflow-hidden rounded-xl bg-[#B89545] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#082B1D] 2xl:px-4 2xl:py-3 2xl:text-[11px] 2xl:tracking-[0.14em]",
                 "shadow-[0_10px_24px_-12px_rgba(184,149,69,0.85)] transition-[transform,background-color,box-shadow] duration-300",
                 "hover:-translate-y-px hover:bg-[#c4a455] hover:shadow-[0_14px_28px_-12px_rgba(184,149,69,0.95)]",
                 "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#082B1D]",
@@ -259,7 +259,7 @@ export function Navbar() {
 
             <div
               className={cn(
-                "mx-0.5 hidden h-8 w-px shrink-0 xl:block",
+                "mx-0.5 hidden h-8 w-px shrink-0 2xl:block",
                 overHero ? "bg-[#F5F1E8]/25" : "bg-[#082B1D]/15",
               )}
               aria-hidden
@@ -268,7 +268,7 @@ export function Navbar() {
             <a
               href={phoneHref}
               className={cn(
-                "group flex shrink-0 items-center gap-2 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545] xl:gap-3",
+                "group flex shrink-0 items-center gap-2 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545] 2xl:gap-3",
                 overHero
                   ? "text-[#F5F1E8] hover:text-[#B89545]"
                   : "text-[#082B1D] hover:text-[#B89545]",
@@ -284,7 +284,7 @@ export function Navbar() {
               >
                 <PhoneCall className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-hover:-translate-y-px" strokeWidth={1.5} />
               </span>
-              <span className="hidden flex-col leading-tight xl:flex">
+              <span className="hidden flex-col leading-tight 2xl:flex">
                 <span
                   className={cn(
                     "text-[9px] font-medium uppercase tracking-[0.22em]",
@@ -302,7 +302,7 @@ export function Navbar() {
                 href="/login"
                 aria-label="Sign in"
                 className={cn(
-                  "inline-flex shrink-0 items-center justify-center rounded-xl border px-3.5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] transition-all duration-300 xl:px-4 xl:text-[11px] xl:tracking-[0.16em]",
+                  "inline-flex shrink-0 items-center justify-center rounded-xl border px-3.5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] transition-all duration-300 2xl:px-4 2xl:text-[11px] 2xl:tracking-[0.16em]",
                   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
                   overHero
                     ? "border-[#B89545] bg-[#B89545]/20 text-[#F5F1E8] hover:bg-[#B89545]/30"
@@ -370,8 +370,8 @@ export function Navbar() {
             ) : null}
           </div>
 
-          {/* Mobile controls */}
-          <div className="z-10 col-start-2 flex items-center justify-self-end gap-2 sm:gap-3 lg:hidden">
+          {/* Mobile / tablet controls — used until xl where full desktop bar fits */}
+          <div className="z-10 col-start-2 flex items-center justify-self-end gap-2 sm:gap-3 xl:hidden">
             <a
               href={phoneHref}
               aria-label={`Call ${phoneDisplay}`}
@@ -427,7 +427,7 @@ export function Navbar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.35, ease }}
-            className="fixed inset-0 z-[60] flex flex-col bg-[#082B1D] lg:hidden"
+            className="fixed inset-0 z-[60] flex flex-col bg-[#082B1D] xl:hidden"
           >
             <div className="mx-auto flex h-[72px] w-full max-w-[1360px] items-center justify-between px-5 sm:px-8">
               <Link href="/" aria-label="Bharwana Estates home" onClick={() => setOpen(false)} className="flex items-center gap-3">

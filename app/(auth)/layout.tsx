@@ -16,7 +16,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <AuthFormEntrance>
           <AuthFormHeader />
           <FirebaseConfigBanner context="auth" />
-          <Suspense fallback={<p className="text-sm text-muted-foreground">Checking your session…</p>}>
+          <Suspense fallback={null}>
             <AuthGuestGate>{children}</AuthGuestGate>
           </Suspense>
         </AuthFormEntrance>

@@ -491,6 +491,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
+    let readyTimer: number | undefined;
 
     async function boot() {
       try {
@@ -522,33 +523,19 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Do NOT hydrate from localStorage before Firebase confirms — that caused
-      // /login to redirect to /properties with a stale session, then wipe to SIGN IN.
+      // Never leave the UI stuck on "Checking your session…" — Auth network calls can hang
+      // (e.g. getProjectConfig ERR_CONNECTION_CLOSED) without rejecting.
+      readyTimer = window.setTimeout(() => {
+        if (!cancelled) setIsReady(true);
+      }, 900);
 
-      try {
-        const redirected = await getRedirectResult(auth);
-        if (!cancelled && redirected?.user) {
-          try {
-            sessionStorage.setItem(
-              GOOGLE_RETURN_KEY,
-              sessionStorage.getItem(GOOGLE_RETURN_KEY) ||
-                `${window.location.pathname}${window.location.search}`,
-            );
-          } catch {
-            /* ignore */
-          }
-          const profile = await loadFirestoreUser(redirected.user);
-          if (profile) {
-            persist(profile);
-            setPendingGoogle(null);
-          } else {
-            setPendingGoogle(draftFromFirebaseUser(redirected.user));
-          }
-        }
-      } catch (error) {
-        console.error("Google redirect result failed", error);
-      }
+      const markReady = () => {
+        if (cancelled) return;
+        if (readyTimer) window.clearTimeout(readyTimer);
+        setIsReady(true);
+      };
 
+      // Attach listener first — do not await getRedirectResult (it can hang indefinitely).
       unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         if (cancelled) return;
         const syncId = ++authSyncGenerationRef.current;
@@ -615,19 +602,47 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           } catch (error) {
             console.error("Auth state sync failed", error);
           } finally {
-            if (!cancelled && syncId === authSyncGenerationRef.current) setIsReady(true);
+            if (!cancelled && syncId === authSyncGenerationRef.current) markReady();
           }
         })();
       });
 
-      window.setTimeout(() => {
-        if (!cancelled) setIsReady(true);
-      }, 4000);
+      try {
+        const redirected = await Promise.race([
+          getRedirectResult(auth),
+          new Promise<null>((resolve) => {
+            window.setTimeout(() => resolve(null), 2500);
+          }),
+        ]);
+        if (!cancelled && redirected?.user) {
+          try {
+            sessionStorage.setItem(
+              GOOGLE_RETURN_KEY,
+              sessionStorage.getItem(GOOGLE_RETURN_KEY) ||
+                `${window.location.pathname}${window.location.search}`,
+            );
+          } catch {
+            /* ignore */
+          }
+          const profile = await loadFirestoreUser(redirected.user);
+          if (profile) {
+            persist(profile);
+            setPendingGoogle(null);
+          } else {
+            setPendingGoogle(draftFromFirebaseUser(redirected.user));
+          }
+          markReady();
+        }
+      } catch (error) {
+        console.error("Google redirect result failed", error);
+        markReady();
+      }
     }
 
     void boot();
     return () => {
       cancelled = true;
+      if (readyTimer) window.clearTimeout(readyTimer);
       unsubscribe?.();
     };
   }, [persist, setPendingGoogle]);
