@@ -44,7 +44,7 @@ import {
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import { users as seedUsers } from "@/lib/mock-data/users";
 import { isValidPhoneE164, normalizePhoneE164 } from "@/lib/phone-format";
-import { firebaseErrorParts, phoneAuthErrorMessage } from "@/lib/phone-auth-errors";
+import { firebaseErrorParts, logFirebaseAuthError, phoneAuthErrorMessage } from "@/lib/phone-auth-errors";
 import type { User, UserRole } from "@/lib/types";
 import { authEmailFromLoginIdentifier, isSyntheticPhoneEmail } from "@/lib/user-display";
 import { delay } from "@/lib/utils";
@@ -853,24 +853,21 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
 
       const normalized = normalizePhoneE164(phone);
-      if (!isValidPhoneE164(normalized)) {
-        return { ok: false as const, error: "Enter a valid phone number (e.g. +92 300 1234567)." };
+      if (!isValidPhoneE164(normalized) || !/^\+923\d{9}$/.test(normalized)) {
+        return {
+          ok: false as const,
+          error: "Enter a valid Pakistani mobile number (10 digits starting with 3).",
+        };
       }
 
       try {
+        console.info("[phone-otp] signInWithPhoneNumber", { e164: normalized, length: normalized.length });
         const confirmation = await signInWithPhoneNumber(auth, normalized, verifier);
         return { ok: true as const, confirmation };
       } catch (error) {
-        const code =
-          error && typeof error === "object" && "code" in error
-            ? String((error as { code?: string }).code)
-            : "";
-        console.error("Phone OTP send failed", error);
-        const rawMessage =
-          error && typeof error === "object" && "message" in error
-            ? String((error as { message?: string }).message)
-            : "";
-        return { ok: false as const, error: phoneAuthErrorMessage(code, rawMessage) };
+        logFirebaseAuthError("phone-otp-send", error, { e164: normalized });
+        const { code, message } = firebaseErrorParts(error);
+        return { ok: false as const, error: phoneAuthErrorMessage(code, message) };
       }
     },
     [],
@@ -896,16 +893,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         // Setting both causes a duplicate "Choose your role" modal with ContinueWithGoogle.
         return { ok: true as const, isNewUser: true as const, draft };
       } catch (error) {
-        const code =
-          error && typeof error === "object" && "code" in error
-            ? String((error as { code?: string }).code)
-            : "";
-        console.error("Phone OTP verify failed", error);
-        const rawMessage =
-          error && typeof error === "object" && "message" in error
-            ? String((error as { message?: string }).message)
-            : "";
-        return { ok: false as const, error: phoneAuthErrorMessage(code, rawMessage) };
+        logFirebaseAuthError("phone-otp-verify", error);
+        const { code, message } = firebaseErrorParts(error);
+        return { ok: false as const, error: phoneAuthErrorMessage(code, message) };
       }
     },
     [commitSession],
@@ -940,20 +930,14 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
+        console.info("[change-phone] verifyPhoneNumber", { e164: normalized });
         const provider = new PhoneAuthProvider(auth);
         const verificationId = await provider.verifyPhoneNumber(normalized, verifier);
         return { ok: true as const, verificationId, phone: normalized };
       } catch (error) {
-        const code =
-          error && typeof error === "object" && "code" in error
-            ? String((error as { code?: string }).code)
-            : "";
-        console.error("Change phone OTP send failed", error);
-        const rawMessage =
-          error && typeof error === "object" && "message" in error
-            ? String((error as { message?: string }).message)
-            : "";
-        return { ok: false as const, error: phoneAuthErrorMessage(code, rawMessage) };
+        logFirebaseAuthError("change-phone-send", error, { e164: normalized });
+        const { code, message } = firebaseErrorParts(error);
+        return { ok: false as const, error: phoneAuthErrorMessage(code, message) };
       }
     },
     [user],

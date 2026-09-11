@@ -151,13 +151,18 @@ export function PhoneOtpSection({
     recaptchaRef.current = null;
     const host = document.getElementById(recaptchaId);
     if (host) host.innerHTML = "";
+    // Allow the DOM to settle before a new RecaptchaVerifier binds the same container.
+    await new Promise<void>((resolve) => {
+      window.setTimeout(() => resolve(), 50);
+    });
   }
 
-  async function getRecaptchaVerifier() {
+  async function createFreshRecaptchaVerifier() {
     const auth = getFirebaseAuth();
     if (!auth) throw new Error("Firebase Auth is not available");
 
-    if (recaptchaRef.current) return recaptchaRef.current;
+    // Always destroy any prior widget — reusing a spent invisible verifier causes auth/internal-error.
+    await resetRecaptcha();
 
     const host = document.getElementById(recaptchaId);
     if (!host) {
@@ -166,15 +171,16 @@ export function PhoneOtpSection({
       });
     }
 
-    recaptchaRef.current = new RecaptchaVerifier(auth, recaptchaId, {
+    const verifier = new RecaptchaVerifier(auth, recaptchaId, {
       size: "invisible",
       callback: () => undefined,
       "expired-callback": () => {
         void resetRecaptcha();
       },
     });
-    await recaptchaRef.current.render();
-    return recaptchaRef.current;
+    recaptchaRef.current = verifier;
+    await verifier.render();
+    return verifier;
   }
 
   async function sendCode(localDigits: string) {
@@ -189,12 +195,10 @@ export function PhoneOtpSection({
     setHasConfirmation(false);
     setOtpExpiresAt(null);
     try {
-      let verifier = recaptchaRef.current;
-      if (!verifier) {
-        verifier = await getRecaptchaVerifier();
-      }
       const e164 = formatPakistanMobileE164(localDigits);
-      console.info("[phone-otp] sending E.164", e164);
+      console.info("[phone-otp] preparing send", { localDigits, e164 });
+      // Fresh invisible reCAPTCHA on every send (including retries) — required by Firebase.
+      const verifier = await createFreshRecaptchaVerifier();
       const result = await sendPhoneOtp(e164, verifier);
       if (!result.ok) {
         console.error("[phone-otp] send failed", result.error);
@@ -202,6 +206,8 @@ export function PhoneOtpSection({
         await resetRecaptcha();
         return false;
       }
+      // Verifier is spent after a successful challenge — drop it so the next send is fresh.
+      await resetRecaptcha();
       confirmationRef.current = result.confirmation;
       setHasConfirmation(true);
       setSentPhone(e164);
@@ -215,7 +221,7 @@ export function PhoneOtpSection({
       return true;
     } catch (err) {
       const { code, message } = firebaseErrorParts(err);
-      console.error("[phone-otp] send exception", code, message, err);
+      console.error("[phone-otp] send exception", { code, message, err });
       setError(phoneAuthErrorMessage(code, message));
       await resetRecaptcha();
       return false;
@@ -264,7 +270,6 @@ export function PhoneOtpSection({
 
   async function handleResend() {
     if (secondsLeft > 0 || !localPhone || pending) return;
-    await resetRecaptcha();
     await sendCode(localPhone);
   }
 

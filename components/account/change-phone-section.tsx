@@ -61,22 +61,27 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
       // ignore stale widget clear errors
     }
     recaptchaRef.current = null;
+    const host = document.getElementById(RECAPTCHA_ID);
+    if (host) host.innerHTML = "";
+    await new Promise<void>((resolve) => {
+      window.setTimeout(() => resolve(), 50);
+    });
   }
 
-  async function getRecaptchaVerifier() {
+  async function createFreshRecaptchaVerifier() {
     const auth = getFirebaseAuth();
     if (!auth) throw new Error("Firebase Auth is not available");
-    if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(auth, RECAPTCHA_ID, {
-        size: "invisible",
-        callback: () => undefined,
-        "expired-callback": () => {
-          void resetRecaptcha();
-        },
-      });
-      await recaptchaRef.current.render();
-    }
-    return recaptchaRef.current;
+    await resetRecaptcha();
+    const verifier = new RecaptchaVerifier(auth, RECAPTCHA_ID, {
+      size: "invisible",
+      callback: () => undefined,
+      "expired-callback": () => {
+        void resetRecaptcha();
+      },
+    });
+    recaptchaRef.current = verifier;
+    await verifier.render();
+    return verifier;
   }
 
   function startChange() {
@@ -110,15 +115,16 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
     setError(null);
     setPending(true);
     try {
-      await resetRecaptcha();
-      const verifier = await getRecaptchaVerifier();
+      const verifier = await createFreshRecaptchaVerifier();
       const e164 = formatPakistanMobileE164(localDigits);
+      console.info("[change-phone] preparing send", { e164 });
       const result = await sendChangePhoneOtp(e164, verifier);
       if (!result.ok) {
         setError(result.error);
         await resetRecaptcha();
         return false;
       }
+      await resetRecaptcha();
       verificationIdRef.current = result.verificationId;
       setSentPhone(result.phone);
       setLocalPhone(localDigits);
@@ -129,7 +135,7 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
       return true;
     } catch (err) {
       console.error("[change-phone] send exception", err);
-      setError("Could not send code. Refresh the page and try again.");
+      setError("Something went wrong sending your code. Please try again in a moment.");
       await resetRecaptcha();
       return false;
     } finally {
