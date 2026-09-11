@@ -22,7 +22,6 @@ import {
   onAuthStateChanged,
   reauthenticateWithCredential,
   reauthenticateWithPopup,
-  signInWithCredential,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signInWithPopup,
@@ -49,123 +48,6 @@ import { firebaseErrorParts, phoneAuthErrorMessage } from "@/lib/phone-auth-erro
 import type { User, UserRole } from "@/lib/types";
 import { authEmailFromLoginIdentifier, isSyntheticPhoneEmail } from "@/lib/user-display";
 import { delay } from "@/lib/utils";
-
-/** Public web OAuth client for project bharwana-estate-developer (also in Vercel env). */
-const FIREBASE_GOOGLE_WEB_CLIENT_ID =
-  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID
-    ? process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID.trim()
-    : "") || "911353892662-5k29liiureg8ta163fjt6e3gf1vlhk4s.apps.googleusercontent.com";
-
-type GisTokenClient = {
-  requestAccessToken: (overrideConfig?: { prompt?: string }) => void;
-};
-
-type GisOauth2 = {
-  initTokenClient: (config: {
-    client_id: string;
-    scope: string;
-    callback: (response: { access_token?: string; error?: string; error_description?: string }) => void;
-    error_callback?: (error: { type?: string; message?: string }) => void;
-  }) => GisTokenClient;
-};
-
-declare global {
-  interface Window {
-    google?: { accounts?: { oauth2?: GisOauth2 } };
-  }
-}
-
-function loadGoogleIdentityScript(): Promise<GisOauth2> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") {
-      reject(new Error("Google Sign-In is only available in the browser."));
-      return;
-    }
-    const existing = window.google?.accounts?.oauth2;
-    if (existing) {
-      resolve(existing);
-      return;
-    }
-    const scriptId = "google-identity-services";
-    const previous = document.getElementById(scriptId) as HTMLScriptElement | null;
-    const onReady = () => {
-      const api = window.google?.accounts?.oauth2;
-      if (api) resolve(api);
-      else reject(new Error("Google Sign-In failed to initialize."));
-    };
-    if (previous) {
-      previous.addEventListener("load", onReady, { once: true });
-      previous.addEventListener("error", () => reject(new Error("Could not load Google Sign-In.")), {
-        once: true,
-      });
-      if (window.google?.accounts?.oauth2) onReady();
-      return;
-    }
-    const script = document.createElement("script");
-    script.id = scriptId;
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = onReady;
-    script.onerror = () => reject(new Error("Could not load Google Sign-In."));
-    document.head.appendChild(script);
-  });
-}
-
-/** Google account picker via GIS — avoids Firebase Hosting continueUri / popup issues. */
-function requestGoogleAccessToken(): Promise<string> {
-  return loadGoogleIdentityScript().then(
-    (oauth2) =>
-      new Promise<string>((resolve, reject) => {
-        let settled = false;
-        const timeoutId = window.setTimeout(() => {
-          if (settled) return;
-          settled = true;
-          reject(new Error("Google sign-in timed out. Close any Google window and try again."));
-        }, 90_000);
-
-        const finish = (action: () => void) => {
-          if (settled) return;
-          settled = true;
-          window.clearTimeout(timeoutId);
-          action();
-        };
-
-        try {
-          const client = oauth2.initTokenClient({
-            client_id: FIREBASE_GOOGLE_WEB_CLIENT_ID,
-            scope: "openid email profile",
-            callback: (response) => {
-              if (response.error) {
-                finish(() =>
-                  reject(
-                    new Error(
-                      response.error_description || response.error || "Google sign-in was cancelled.",
-                    ),
-                  ),
-                );
-                return;
-              }
-              if (!response.access_token) {
-                finish(() => reject(new Error("Google did not return an access token.")));
-                return;
-              }
-              finish(() => resolve(response.access_token!));
-            },
-            error_callback: (error) => {
-              const message = error?.message || error?.type || "Google sign-in was cancelled.";
-              finish(() => reject(new Error(message)));
-            },
-          });
-          client.requestAccessToken({ prompt: "select_account" });
-        } catch (error) {
-          finish(() =>
-            reject(error instanceof Error ? error : new Error("Google sign-in failed to start.")),
-          );
-        }
-      }),
-  );
-}
 
 function shouldPreferOAuthRedirect(): boolean {
   if (typeof window === "undefined") return false;
@@ -769,23 +651,15 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: true as const, redirecting: true as const };
     }
 
-    // 1) Prefer Google Identity Services + credential — works on custom domains without
-    // Firebase Hosting continueUri ownership (popup/redirect both struggle on apex today).
-    try {
-      const accessToken = await requestGoogleAccessToken();
-      const credential = GoogleAuthProvider.credential(null, accessToken);
-      const result = await signInWithCredential(firebaseAuth, credential);
+    async function startGooglePopup(): Promise<GoogleLoginResult> {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const result = await signInWithPopup(firebaseAuth, provider);
       return await finishGoogleUser(result.user);
-    } catch (gisError) {
-      console.warn("Google Identity Services sign-in failed; trying Firebase fallback", gisError);
-      const gisMessage = gisError instanceof Error ? gisError.message : String(gisError ?? "");
-      if (/origin_mismatch|redirect_uri_mismatch|unauthorized/i.test(gisMessage)) {
-        // Still try redirect/popup — but surface a clearer hint if those fail too.
-        console.warn("Google OAuth origin may be misconfigured for this URL", gisMessage);
-      }
     }
 
-    // 2) Full-page redirect — avoids Chrome COOP / window.closed popup failures entirely.
+    // Prefer full-page redirect — avoids Chrome COOP / GIS window.closed hangs that
+    // leave the button stuck on "Connecting…". Popup only if redirect fails to start.
     try {
       return await startGoogleRedirect();
     } catch (redirectError) {
@@ -793,8 +667,17 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         redirectError && typeof redirectError === "object" && "code" in redirectError
           ? String((redirectError as { code?: string }).code)
           : "";
-      console.error("Google redirect failed", { code: redirectCode, redirectError });
-      return { ok: false as const, error: googleAuthErrorMessage(redirectCode) };
+      console.warn("Google redirect failed; trying popup", { code: redirectCode, redirectError });
+      try {
+        return await startGooglePopup();
+      } catch (popupError) {
+        const code =
+          popupError && typeof popupError === "object" && "code" in popupError
+            ? String((popupError as { code?: string }).code)
+            : redirectCode;
+        console.error("Google sign-in failed", { code, popupError });
+        return { ok: false as const, error: googleAuthErrorMessage(code) };
+      }
     }
   }, [commitSession, setPendingGoogle]);
 
