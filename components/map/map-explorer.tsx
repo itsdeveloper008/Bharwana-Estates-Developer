@@ -115,19 +115,20 @@ export function MapExplorer() {
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr]">
+      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr]">
         <div
           className={cn(
-            "min-h-0 border-b border-forest/10 lg:block lg:h-[calc(100dvh-9rem)] lg:border-b-0 lg:border-r",
-            mobilePanel === "list" ? "flex h-[calc(100dvh-11rem)] flex-col" : "hidden",
+            "border-b border-forest/10 lg:block lg:min-h-[calc(100dvh-9rem)] lg:border-b-0 lg:border-r",
+            mobilePanel === "list" ? "flex min-h-[70vh] flex-col" : "hidden",
           )}
         >
           {listPanel}
         </div>
         <div
           className={cn(
-            "min-h-0 lg:block lg:h-[calc(100dvh-9rem)]",
-            mobilePanel === "map" ? "block h-[calc(100dvh-11rem)]" : "hidden lg:block",
+            "lg:block lg:min-h-[calc(100dvh-9rem)]",
+            selectedId ? "min-h-[1100px] lg:min-h-[1100px]" : "",
+            mobilePanel === "map" ? "block min-h-[70vh]" : "hidden lg:block",
           )}
         >
           <MapView

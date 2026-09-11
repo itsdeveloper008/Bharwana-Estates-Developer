@@ -43,8 +43,8 @@ export function MapPreviewCard({
   const tags = property.featureTags ?? [];
 
   return (
-    <div className="flex max-h-full w-[min(560px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_24px_60px_rgba(15,46,29,0.3)] sm:w-[580px]">
-      <div className="relative aspect-[16/10] w-full shrink-0 bg-cream">
+    <div className="flex w-[min(560px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_24px_60px_rgba(15,46,29,0.3)] sm:w-[580px]">
+      <div className="relative aspect-[16/10] w-full bg-cream">
         {image.startsWith("data:") || image.startsWith("blob:") ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={image} alt="" className="h-full w-full object-cover" />
@@ -76,7 +76,7 @@ export function MapPreviewCard({
           </button>
         ) : null}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 sm:px-7 sm:py-6">
+      <div className="px-6 py-5 sm:px-7 sm:py-6">
         <p className="font-serif text-2xl leading-snug text-forest sm:text-[1.75rem]">{property.title}</p>
         <p className="mt-2 text-sm text-muted-foreground sm:text-[15px]">
           {property.city}

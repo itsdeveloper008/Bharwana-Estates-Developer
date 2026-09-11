@@ -297,7 +297,7 @@ export function MapView({
   if (!isLoaded) return <MapLoadingSkeleton />;
 
   return (
-    <div className="relative h-full min-h-[420px] w-full">
+    <div className={`relative h-full w-full ${selected ? "min-h-[1100px]" : "min-h-[420px]"}`}>
       {!styleLoaded && (
         <div className="pointer-events-none absolute inset-0 z-10 bg-cream/40">
           <MapLoadingSkeleton />
@@ -410,12 +410,9 @@ export function MapView({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -12 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="pointer-events-none absolute inset-y-0 left-0 z-30 flex items-start p-3 sm:p-4"
+            className="pointer-events-none absolute left-0 top-0 z-30 p-3 sm:p-4"
           >
-            <div
-              className="pointer-events-auto max-h-full"
-              onClick={(event) => event.stopPropagation()}
-            >
+            <div className="pointer-events-auto" onClick={(event) => event.stopPropagation()}>
               <MapPreviewCard property={selected} onClose={() => setSelectedId(null)} />
             </div>
           </motion.div>
