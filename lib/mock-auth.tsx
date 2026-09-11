@@ -173,21 +173,6 @@ function shouldPreferOAuthRedirect(): boolean {
   const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   return narrow || mobileUa;
 }
-
-function isOAuthPopupUnusable(code: string, error: unknown): boolean {
-  if (
-    code === "auth/popup-blocked" ||
-    code === "auth/cancelled-popup-request" ||
-    code === "auth/popup-closed-by-user"
-  ) {
-    return true;
-  }
-  const message =
-    error && typeof error === "object" && "message" in error
-      ? String((error as { message?: string }).message)
-      : String(error ?? "");
-  return /Cross-Origin-Opener-Policy|window\.closed/i.test(message);
-}
 const SESSION_KEY = "bharwana_user_session";
 const USERS_KEY = "bharwana_registered_users";
 const PENDING_GOOGLE_KEY = "bharwana_pending_google_signup";
