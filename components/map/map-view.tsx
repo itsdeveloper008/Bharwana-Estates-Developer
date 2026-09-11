@@ -410,9 +410,12 @@ export function MapView({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -12 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="pointer-events-none absolute inset-y-0 left-0 z-30 flex items-center p-3 sm:p-4"
+            className="pointer-events-none absolute inset-y-0 left-0 z-30 flex items-start p-3 sm:p-4"
           >
-            <div className="pointer-events-auto" onClick={(event) => event.stopPropagation()}>
+            <div
+              className="pointer-events-auto max-h-full"
+              onClick={(event) => event.stopPropagation()}
+            >
               <MapPreviewCard property={selected} onClose={() => setSelectedId(null)} />
             </div>
           </motion.div>
