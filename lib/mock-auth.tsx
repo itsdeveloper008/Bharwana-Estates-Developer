@@ -621,7 +621,6 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     if (!auth) {
       return { ok: false as const, error: "Google sign-in is unavailable right now." };
     }
-    const firebaseAuth = auth;
 
     async function finishGoogleUser(firebaseUser: FirebaseUser): Promise<GoogleLoginResult> {
       const email = (firebaseUser.email ?? "").trim().toLowerCase();
@@ -647,37 +646,53 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
-      await signInWithRedirect(firebaseAuth, provider);
+      await signInWithRedirect(auth, provider);
       return { ok: true as const, redirecting: true as const };
     }
 
-    async function startGooglePopup(): Promise<GoogleLoginResult> {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      const result = await signInWithPopup(firebaseAuth, provider);
-      return await finishGoogleUser(result.user);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    // Mobile: full-page redirect (popups are unreliable).
+    if (shouldPreferOAuthRedirect()) {
+      try {
+        return await startGoogleRedirect();
+      } catch (redirectError) {
+        const redirectCode =
+          redirectError && typeof redirectError === "object" && "code" in redirectError
+            ? String((redirectError as { code?: string }).code)
+            : "";
+        console.error("Google redirect failed", { code: redirectCode, redirectError });
+        return { ok: false as const, error: googleAuthErrorMessage(redirectCode) };
+      }
     }
 
-    // Prefer full-page redirect — avoids Chrome COOP / GIS window.closed hangs that
-    // leave the button stuck on "Connecting…". Popup only if redirect fails to start.
+    // Desktop: open Firebase popup immediately in the click turn so Chrome does not
+    // treat it as a blocked popup. Never try popup AFTER a failed redirect.
     try {
-      return await startGoogleRedirect();
-    } catch (redirectError) {
-      const redirectCode =
-        redirectError && typeof redirectError === "object" && "code" in redirectError
-          ? String((redirectError as { code?: string }).code)
+      const result = await signInWithPopup(auth, provider);
+      return await finishGoogleUser(result.user);
+    } catch (popupError) {
+      const code =
+        popupError && typeof popupError === "object" && "code" in popupError
+          ? String((popupError as { code?: string }).code)
           : "";
-      console.warn("Google redirect failed; trying popup", { code: redirectCode, redirectError });
-      try {
-        return await startGooglePopup();
-      } catch (popupError) {
-        const code =
-          popupError && typeof popupError === "object" && "code" in popupError
-            ? String((popupError as { code?: string }).code)
-            : redirectCode;
-        console.error("Google sign-in failed", { code, popupError });
-        return { ok: false as const, error: googleAuthErrorMessage(code) };
+      // If the browser blocked the popup, fall back to full-page redirect.
+      if (code === "auth/popup-blocked" || code === "auth/cancelled-popup-request") {
+        console.warn("Google popup blocked; using redirect", { code });
+        try {
+          return await startGoogleRedirect();
+        } catch (redirectError) {
+          const redirectCode =
+            redirectError && typeof redirectError === "object" && "code" in redirectError
+              ? String((redirectError as { code?: string }).code)
+              : code;
+          console.error("Google redirect fallback failed", { code: redirectCode, redirectError });
+          return { ok: false as const, error: googleAuthErrorMessage(redirectCode || code) };
+        }
       }
+      console.error("Google sign-in failed", { code, popupError });
+      return { ok: false as const, error: googleAuthErrorMessage(code) };
     }
   }, [commitSession, setPendingGoogle]);
 
