@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useMockAuth } from "@/lib/mock-auth";
 import { passwordCreateSchema } from "@/lib/schemas";
+import { isSyntheticPhoneEmail } from "@/lib/user-display";
 import { cn } from "@/lib/utils";
 
 const schema = z
@@ -47,7 +48,8 @@ export function SetPasswordOptional({
   const [error, setError] = useState<string | null>(null);
 
   const suggested =
-    defaultEmail && !defaultEmail.endsWith("@phone.bharwana.local") ? defaultEmail : "";
+    defaultEmail && !isSyntheticPhoneEmail(defaultEmail) ? defaultEmail : "";
+  const needsEmail = !suggested;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -82,13 +84,18 @@ export function SetPasswordOptional({
             render={({ field, fieldState }) => (
               <FormItem>
                 <FormLabel>Email</FormLabel>
+                {needsEmail ? (
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Add an email so you can also sign in with a password.
+                  </p>
+                ) : null}
                 <FormControl>
                   <Input
                     type="email"
                     placeholder="you@example.com"
                     autoComplete="email"
                     className={cn(
-                      "bg-white",
+                      "bg-white text-sm placeholder:text-sm",
                       fieldState.error && "border-destructive focus-visible:ring-destructive",
                     )}
                     {...field}
@@ -117,7 +124,7 @@ export function SetPasswordOptional({
                     autoComplete="new-password"
                     placeholder="Confirm password"
                     className={cn(
-                      "bg-white",
+                      "bg-white text-sm placeholder:text-sm",
                       fieldState.error && "border-destructive focus-visible:ring-destructive",
                     )}
                     {...field}

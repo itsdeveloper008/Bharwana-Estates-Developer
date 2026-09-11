@@ -197,7 +197,7 @@ export function Footer() {
                     if (successMessage) setSuccessMessage(null);
                   }}
                   placeholder="Your email address"
-                  className="h-12 min-w-0 flex-1 bg-transparent text-[15px] text-[#F4F0E6] caret-[#C2A35A] outline-none placeholder:text-[#F4F0E6]/45 [&:-webkit-autofill]:[-webkit-text-fill-color:#F4F0E6] [&:-webkit-autofill]:[transition:background-color_9999s_ease-in-out_0s]"
+                  className="h-12 min-w-0 flex-1 bg-transparent text-[15px] text-[#F4F0E6] caret-[#C2A35A] outline-none placeholder:text-[15px] placeholder:text-[#F4F0E6]/45 [&:-webkit-autofill]:[-webkit-text-fill-color:#F4F0E6] [&:-webkit-autofill]:[transition:background-color_9999s_ease-in-out_0s]"
                   autoComplete="email"
                   aria-invalid={Boolean(formError)}
                   aria-describedby={formError ? "footer-email-error" : successMessage ? "footer-email-success" : undefined}

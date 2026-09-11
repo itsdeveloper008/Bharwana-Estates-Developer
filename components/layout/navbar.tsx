@@ -22,6 +22,7 @@ import {
   propertyHasUnreadStatusChange,
 } from "@/lib/listings-notifications";
 import { cn } from "@/lib/utils";
+import { displayUserEmail } from "@/lib/user-display";
 
 const publicLinks = [
   { href: "/properties", label: "Properties" },
@@ -338,7 +339,13 @@ export function Navbar() {
                 <DropdownMenuContent align="end" className="w-60 rounded-xl border-forest/10 bg-ivory p-1.5 shadow-[0_20px_40px_-20px_rgba(8,43,29,0.35)]">
                   <DropdownMenuLabel className="px-3 py-2.5 font-normal">
                     <p className="font-serif text-lg text-forest">{user.fullName}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{user.email}</p>
+                    {displayUserEmail(user.email) ? (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {displayUserEmail(user.email)}
+                      </p>
+                    ) : user.phone ? (
+                      <p className="mt-0.5 text-xs text-muted-foreground">{user.phone}</p>
+                    ) : null}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-forest/10" />
                   {accountLinks.map((link) => (

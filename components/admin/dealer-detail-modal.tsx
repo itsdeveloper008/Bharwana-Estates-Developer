@@ -9,6 +9,7 @@ import {
 } from "@/components/admin/admin-detail-modal";
 import { Badge } from "@/components/ui/badge";
 import { formatCommissionRate, formatDate } from "@/lib/format";
+import { displayUserEmail } from "@/lib/user-display";
 import type { Developer, DeveloperOrigin, User } from "@/lib/types";
 
 const originLabel: Record<DeveloperOrigin, string> = {
@@ -77,12 +78,12 @@ export function DealerDetailModal({
         <AdminDetailSection title="Contact">
           <div className="grid gap-4 sm:grid-cols-2">
             <AdminDetailField label="Email">
-              {linkedUser?.email ? (
+              {displayUserEmail(linkedUser?.email) ? (
                 <a
-                  href={`mailto:${linkedUser.email}`}
+                  href={`mailto:${displayUserEmail(linkedUser?.email)!}`}
                   className="text-forest underline-offset-2 hover:underline"
                 >
-                  {linkedUser.email}
+                  {displayUserEmail(linkedUser?.email)}
                 </a>
               ) : (
                 <AdminDetailPlaceholder />

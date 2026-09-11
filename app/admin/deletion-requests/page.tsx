@@ -26,6 +26,7 @@ import {
   updateDeletionRequestStatus,
 } from "@/lib/firestore/deletion";
 import { useMockStore } from "@/lib/mock-store";
+import { displayUserEmail, isSyntheticPhoneEmail } from "@/lib/user-display";
 
 export default function AdminDeletionRequestsPage() {
   const { properties, inquiries, developers, deleteProperty, removeInquiry } = useMockStore();
@@ -183,7 +184,10 @@ export default function AdminDeletionRequestsPage() {
                 {pending.map((request) => (
                   <TableRow key={request.id}>
                     <TableCell>{request.fullName}</TableCell>
-                    <TableCell>{request.email}</TableCell>
+                    <TableCell>
+                      {displayUserEmail(request.email) ??
+                        (isSyntheticPhoneEmail(request.email) ? "Phone only" : "—")}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline">{request.role}</Badge>
                     </TableCell>

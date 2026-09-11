@@ -15,6 +15,7 @@ import {
 import { useAdminAuth } from "@/lib/admin-auth";
 import { isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
 import { deleteUserDoc, subscribeUsers } from "@/lib/firestore/users";
+import { displayUserEmail, isSyntheticPhoneEmail } from "@/lib/user-display";
 import type { User } from "@/lib/types";
 
 export default function AdminUsersPage() {
@@ -78,13 +79,22 @@ export default function AdminUsersPage() {
             </TableHeader>
             <TableBody>
               {users.map((user) => {
+                const shownEmail = displayUserEmail(user.email);
                 const isSelf = Boolean(
-                  admin?.email && admin.email.toLowerCase() === user.email.toLowerCase(),
+                  admin?.email &&
+                    shownEmail &&
+                    admin.email.toLowerCase() === shownEmail.toLowerCase(),
                 );
                 return (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.fullName}</TableCell>
-                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      {shownEmail ?? (
+                        <span className="text-muted-foreground">
+                          {isSyntheticPhoneEmail(user.email) ? "Phone only" : "—"}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>{user.phone || "-"}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{user.role.replaceAll("_", " ")}</Badge>

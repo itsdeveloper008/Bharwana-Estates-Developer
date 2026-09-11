@@ -12,6 +12,7 @@ import { formatDate, formatPrice } from "@/lib/format";
 import { purposeLabel, subtypeLabel } from "@/lib/property-taxonomy";
 import { propertySpecItems } from "@/lib/property-specs";
 import type { Property } from "@/lib/types";
+import { displayUserEmail } from "@/lib/user-display";
 
 const MiniMap = dynamic(() => import("@/components/map/map-canvas").then((mod) => mod.MiniMap), {
   ssr: false,
@@ -82,9 +83,9 @@ export function AdminPropertyDetailBody({
         <AdminDetailSection title="Submission">
           <div className="grid gap-4 sm:grid-cols-2">
             <AdminDetailField label="Submitted by">
-              {submitterEmail ? (
+              {displayUserEmail(submitterEmail) ? (
                 <a
-                  href={`mailto:${submitterEmail}`}
+                  href={`mailto:${displayUserEmail(submitterEmail)!}`}
                   className="text-forest underline-offset-2 hover:underline"
                 >
                   {submitterName}

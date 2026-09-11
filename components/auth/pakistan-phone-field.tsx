@@ -52,7 +52,7 @@ export const PakistanPhoneInput = forwardRef<HTMLInputElement, PakistanPhoneInpu
           value={local}
           onBlur={onBlur}
           onChange={(event) => onChange(toPakistanMobileLocal(event.target.value))}
-          className="min-w-0 flex-1 border-0 bg-transparent px-3 text-base text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
+          className="min-w-0 flex-1 border-0 bg-transparent px-3 text-base text-foreground outline-none placeholder:text-base placeholder:text-muted-foreground md:text-sm md:placeholder:text-sm"
           aria-label="Mobile number without country code"
         />
       </div>

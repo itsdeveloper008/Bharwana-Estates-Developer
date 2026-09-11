@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
+import { displayUserEmail, isSyntheticPhoneEmail } from "@/lib/user-display";
 
 export default function AccountSettingsPage() {
   const router = useRouter();
@@ -36,6 +37,7 @@ export default function AccountSettingsPage() {
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [emailConfirm, setEmailConfirm] = useState("");
+  const [phoneConfirm, setPhoneConfirm] = useState("");
   const [password, setPassword] = useState("");
   const [needsReauth, setNeedsReauth] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -57,7 +59,18 @@ export default function AccountSettingsPage() {
     );
   }
 
-  const emailMatches = emailConfirm.trim().toLowerCase() === user.email.toLowerCase();
+  const visibleEmail = displayUserEmail(user.email);
+  const phoneOnly = isSyntheticPhoneEmail(user.email);
+  const normalizedPhone = user.phone.replace(/\D/g, "");
+  const emailMatches = Boolean(
+    visibleEmail && emailConfirm.trim().toLowerCase() === visibleEmail.toLowerCase(),
+  );
+  const phoneMatches =
+    phoneOnly &&
+    phoneConfirm.replace(/\D/g, "").length >= 10 &&
+    (normalizedPhone.endsWith(phoneConfirm.replace(/\D/g, "")) ||
+      phoneConfirm.replace(/\D/g, "") === normalizedPhone);
+  const confirmMatches = phoneOnly ? phoneMatches : emailMatches;
   const authMethod = getAccountAuthMethod();
 
   async function runDelete() {
@@ -135,7 +148,13 @@ export default function AccountSettingsPage() {
           </div>
           <div>
             <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Email</dt>
-            <dd className="mt-1">{user.email}</dd>
+            <dd className="mt-1">
+              {visibleEmail ? (
+                visibleEmail
+              ) : (
+                <span className="text-muted-foreground">No email added</span>
+              )}
+            </dd>
           </div>
           <ChangePhoneSection currentPhone={user.phone} />
           <AddPasswordSection />
@@ -158,6 +177,7 @@ export default function AccountSettingsPage() {
           className="mt-5 rounded-xl"
           onClick={() => {
             setEmailConfirm("");
+            setPhoneConfirm("");
             setPassword("");
             setNeedsReauth(false);
             setDeleteOpen(true);
@@ -201,24 +221,50 @@ export default function AccountSettingsPage() {
             </AlertDialogTitle>
             <AlertDialogDescription className="text-sm leading-relaxed text-forest/70">
               This permanently deletes your Bharwana account and personal data as described in our
-              deletion policy. Type your email <span className="font-medium text-forest">{user.email}</span>{" "}
-              to confirm.
+              deletion policy.{" "}
+              {phoneOnly ? (
+                <>
+                  Type your phone number{" "}
+                  <span className="font-medium text-forest">{user.phone || "on this account"}</span> to
+                  confirm.
+                </>
+              ) : (
+                <>
+                  Type your email{" "}
+                  <span className="font-medium text-forest">{visibleEmail}</span> to confirm.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           <div className="space-y-3">
-            <div>
-              <Label htmlFor="delete-email">Registered email</Label>
-              <Input
-                id="delete-email"
-                className="mt-1.5"
-                type="email"
-                autoComplete="off"
-                value={emailConfirm}
-                onChange={(event) => setEmailConfirm(event.target.value)}
-                placeholder=""
-              />
-            </div>
+            {phoneOnly ? (
+              <div>
+                <Label htmlFor="delete-phone">Registered phone</Label>
+                <Input
+                  id="delete-phone"
+                  className="mt-1.5"
+                  type="tel"
+                  autoComplete="off"
+                  value={phoneConfirm}
+                  onChange={(event) => setPhoneConfirm(event.target.value)}
+                  placeholder=""
+                />
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="delete-email">Registered email</Label>
+                <Input
+                  id="delete-email"
+                  className="mt-1.5"
+                  type="email"
+                  autoComplete="off"
+                  value={emailConfirm}
+                  onChange={(event) => setEmailConfirm(event.target.value)}
+                  placeholder=""
+                />
+              </div>
+            )}
 
             {needsReauth && authMethod === "password" && (
               <div>
@@ -262,7 +308,7 @@ export default function AccountSettingsPage() {
             <Button
               variant="destructive"
               className="rounded-xl"
-              disabled={!emailMatches || busy || (needsReauth && authMethod === "phone")}
+              disabled={!confirmMatches || busy || (needsReauth && authMethod === "phone")}
               onClick={runDelete}
             >
               {busy

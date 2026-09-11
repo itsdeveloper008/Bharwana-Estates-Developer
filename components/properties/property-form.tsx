@@ -47,6 +47,7 @@ import {
 import { propertyFormSchema, type PropertyFormValues } from "@/lib/schemas";
 import { CITIES, type Property, type PropertyCategory, type PropertyStatus, type User } from "@/lib/types";
 import { CITY_COORDS } from "@/lib/map";
+import { displayUserEmail } from "@/lib/user-display";
 import { cn } from "@/lib/utils";
 
 const MapPicker = dynamic(() => import("@/components/map/map-picker").then((mod) => mod.MapPicker), { ssr: false });
@@ -1070,7 +1071,11 @@ export function PropertyForm({
                       {filteredOwners.map((owner) => (
                         <SelectItem key={owner.id} value={owner.id}>
                           {owner.fullName}
-                          {owner.phone ? ` · ${owner.phone}` : owner.email ? ` · ${owner.email}` : ""}
+                          {owner.phone
+                            ? ` · ${owner.phone}`
+                            : displayUserEmail(owner.email)
+                              ? ` · ${displayUserEmail(owner.email)}`
+                              : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>

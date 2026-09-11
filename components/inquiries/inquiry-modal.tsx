@@ -25,6 +25,7 @@ import { useMockStore } from "@/lib/mock-store";
 import { formatPakistanMobileE164, toPakistanMobileLocal } from "@/lib/phone-format";
 import { inquiryFormSchema, type InquiryFormValues } from "@/lib/schemas";
 import type { InquiryChannel, Property } from "@/lib/types";
+import { displayUserEmail } from "@/lib/user-display";
 import { cn } from "@/lib/utils";
 
 type Step = "auth" | "choice" | "form" | "direct" | "success";
@@ -60,7 +61,7 @@ export function InquiryModal({
     resolver: zodResolver(inquiryFormSchema),
     defaultValues: {
       fullName: user?.fullName ?? "",
-      email: user?.email ?? "",
+      email: user?.email && displayUserEmail(user.email) ? user.email : "",
       phone: toPakistanMobileLocal(user?.phone ?? ""),
       message: isOwnerListing
         ? `I would like Bharwana to assist with ${property.title}.`
@@ -92,7 +93,7 @@ export function InquiryModal({
     if (!user) return;
     form.reset({
       fullName: user.fullName,
-      email: user.email,
+      email: displayUserEmail(user.email) ?? "",
       phone: toPakistanMobileLocal(user.phone),
       message: isOwnerListing
         ? `I would like Bharwana to assist with ${property.title}.`
@@ -376,15 +377,15 @@ export function InquiryModal({
                   {seller.phone}
                 </a>
               )}
-              {seller?.email && (
+              {seller?.email && displayUserEmail(seller.email) ? (
                 <a
-                  href={`mailto:${seller.email}`}
+                  href={`mailto:${displayUserEmail(seller.email)!}`}
                   className="mt-2 flex items-center gap-2 text-sm text-forest hover:text-gold-700"
                 >
                   <Mail className="h-4 w-4 text-gold" />
-                  {seller.email}
+                  {displayUserEmail(seller.email)}
                 </a>
-              )}
+              ) : null}
             </div>
             <Button className="w-full" variant="outline" onClick={() => onOpenChange(false)}>
               Close
