@@ -74,6 +74,21 @@ export function AdminPropertyDetailBody({
           </div>
         </AdminDetailSection>
 
+        {(property.featureTags?.length ?? 0) > 0 ? (
+          <AdminDetailSection title="Features">
+            <div className="flex flex-wrap gap-2">
+              {property.featureTags!.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-forest/10 bg-cream/80 px-3 py-1 text-xs font-medium text-forest/80"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </AdminDetailSection>
+        ) : null}
+
         <AdminDetailSection title="Description">
           <p className="text-sm leading-relaxed text-forest/80">
             {property.description || <AdminDetailPlaceholder />}

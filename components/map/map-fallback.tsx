@@ -43,13 +43,13 @@ export function MapPreviewCard({
   const tags = property.featureTags ?? [];
 
   return (
-    <div className="flex w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_20px_50px_rgba(15,46,29,0.28)] sm:w-[440px]">
-      <div className="relative aspect-[16/11] w-full bg-cream">
+    <div className="flex w-[min(560px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_24px_60px_rgba(15,46,29,0.3)] sm:w-[580px]">
+      <div className="relative aspect-[16/10] w-full bg-cream">
         {image.startsWith("data:") || image.startsWith("blob:") ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={image} alt="" className="h-full w-full object-cover" />
         ) : image ? (
-          <Image src={image} alt="" fill className="object-cover" sizes="440px" />
+          <Image src={image} alt="" fill className="object-cover" sizes="580px" />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-cream text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
             No photo
@@ -76,16 +76,16 @@ export function MapPreviewCard({
           </button>
         ) : null}
       </div>
-      <div className="px-5 py-4 sm:px-6 sm:py-5">
-        <p className="font-serif text-xl leading-snug text-forest sm:text-2xl">{property.title}</p>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+      <div className="px-6 py-5 sm:px-7 sm:py-6">
+        <p className="font-serif text-2xl leading-snug text-forest sm:text-[1.75rem]">{property.title}</p>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-[15px]">
           {property.city}
           {property.address ? ` · ${property.address}` : ""}
         </p>
         {highlights.length > 0 ? (
           <div
             className={cn(
-              "mt-4 grid gap-3 border-y border-forest/10 py-3",
+              "mt-5 grid gap-4 border-y border-forest/10 py-4",
               highlights.length === 1 && "grid-cols-1",
               highlights.length === 2 && "grid-cols-2",
               highlights.length >= 3 && "grid-cols-3",
@@ -94,29 +94,33 @@ export function MapPreviewCard({
             {highlights.map((spec) => (
               <div key={spec.key} className="min-w-0">
                 <spec.icon className="h-4 w-4 text-gold" />
-                <p className="mt-1.5 truncate text-sm font-semibold text-forest">{spec.value}</p>
-                <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{spec.label}</p>
+                <p className="mt-1.5 text-sm font-semibold leading-snug text-forest sm:text-[15px]">
+                  {spec.value}
+                </p>
+                <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                  {spec.label}
+                </p>
               </div>
             ))}
           </div>
         ) : null}
         {tags.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-4 flex flex-wrap gap-2">
             {tags.map((tag) => (
               <span
                 key={tag}
-                className="rounded-full border border-forest/10 bg-cream/80 px-2.5 py-0.5 text-[11px] font-medium text-forest/80"
+                className="rounded-full border border-forest/10 bg-cream/80 px-3 py-1 text-xs font-medium text-forest/80"
               >
                 {tag}
               </span>
             ))}
           </div>
         ) : null}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-base font-semibold text-gold-700 sm:text-lg">{formatPrice(property.price)}</p>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-lg font-semibold text-gold-700 sm:text-xl">{formatPrice(property.price)}</p>
           <Link
             href={href}
-            className="inline-flex items-center rounded-full bg-forest px-4 py-2 text-xs font-medium text-ivory transition hover:bg-[#1a4a30]"
+            className="inline-flex items-center rounded-full bg-forest px-5 py-2.5 text-xs font-medium text-ivory transition hover:bg-[#1a4a30]"
           >
             See more
           </Link>
