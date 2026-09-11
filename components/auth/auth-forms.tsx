@@ -75,11 +75,23 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
 
   useEffect(() => {
     if (!isReady || handledReturn.current) return;
-    // Only auto-open role dialog after an OAuth redirect return — never when the user
-    // simply opens Sign In with a stale incomplete Google/Facebook session.
-    const fromRedirect = consumeGoogleReturn();
+
+    let fromRedirect = false;
+    try {
+      fromRedirect = sessionStorage.getItem("bharwana_google_auth_return") !== null;
+    } catch {
+      fromRedirect = false;
+    }
+    // Only auto-finish after an OAuth redirect return — never for a stale incomplete session.
     if (!fromRedirect) return;
+
+    // Wait until auth boot settled on either a profile or a pending Google draft.
+    // Consuming the return flag too early left users stuck on /login unsigned.
+    if (!user && !pendingGoogleSignup) return;
+
     handledReturn.current = true;
+    consumeGoogleReturn();
+
     if (pendingGoogleSignup) {
       setDraft(pendingGoogleSignup);
       setRoleOpen(true);

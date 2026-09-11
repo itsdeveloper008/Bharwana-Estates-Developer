@@ -350,6 +350,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   userRef.current = user;
 
   const persist = useCallback((next: User | null) => {
+    userRef.current = next;
     setUser(next);
     if (next) localStorage.setItem(SESSION_KEY, JSON.stringify(next));
     else localStorage.removeItem(SESSION_KEY);
@@ -479,6 +480,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
               (pending?.phone && pending.phone === firebaseUser.phoneNumber);
             if (!samePending) setPendingGoogle(draft);
             // Don't clear an already-committed session for this uid (login race).
+            if (syncId !== authSyncGenerationRef.current) return;
             if (userRef.current?.id === firebaseUser.uid) return;
             persist(null);
           } catch (error) {
@@ -490,12 +492,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       });
 
       try {
-        const redirected = await Promise.race([
-          getRedirectResult(auth),
-          new Promise<null>((resolve) => {
-            window.setTimeout(() => resolve(null), 2500);
-          }),
-        ]);
+        // Must await redirect completion — racing a short timeout used to drop the
+        // credential and leave users back on /login with no session.
+        const redirected = await getRedirectResult(auth);
         if (!cancelled && redirected?.user) {
           try {
             sessionStorage.setItem(
@@ -637,38 +636,13 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: true as const, isNewUser: true as const, draft };
     }
 
-    async function startGoogleRedirect(): Promise<GoogleLoginResult> {
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(
-          GOOGLE_RETURN_KEY,
-          `${window.location.pathname}${window.location.search}`,
-        );
-      }
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      await signInWithRedirect(auth, provider);
-      return { ok: true as const, redirecting: true as const };
-    }
-
+    // Popup only. Redirect to firebaseapp.com authDomain then back to the custom
+    // domain drops the session in Chrome (3P storage), so users land on /login unsigned.
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
+    provider.addScope("email");
+    provider.addScope("profile");
 
-    // Mobile: full-page redirect (popups are unreliable).
-    if (shouldPreferOAuthRedirect()) {
-      try {
-        return await startGoogleRedirect();
-      } catch (redirectError) {
-        const redirectCode =
-          redirectError && typeof redirectError === "object" && "code" in redirectError
-            ? String((redirectError as { code?: string }).code)
-            : "";
-        console.error("Google redirect failed", { code: redirectCode, redirectError });
-        return { ok: false as const, error: googleAuthErrorMessage(redirectCode) };
-      }
-    }
-
-    // Desktop: open Firebase popup immediately in the click turn so Chrome does not
-    // treat it as a blocked popup. Never try popup AFTER a failed redirect.
     try {
       const result = await signInWithPopup(auth, provider);
       return await finishGoogleUser(result.user);
@@ -677,20 +651,6 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         popupError && typeof popupError === "object" && "code" in popupError
           ? String((popupError as { code?: string }).code)
           : "";
-      // If the browser blocked the popup, fall back to full-page redirect.
-      if (code === "auth/popup-blocked" || code === "auth/cancelled-popup-request") {
-        console.warn("Google popup blocked; using redirect", { code });
-        try {
-          return await startGoogleRedirect();
-        } catch (redirectError) {
-          const redirectCode =
-            redirectError && typeof redirectError === "object" && "code" in redirectError
-              ? String((redirectError as { code?: string }).code)
-              : code;
-          console.error("Google redirect fallback failed", { code: redirectCode, redirectError });
-          return { ok: false as const, error: googleAuthErrorMessage(redirectCode || code) };
-        }
-      }
       console.error("Google sign-in failed", { code, popupError });
       return { ok: false as const, error: googleAuthErrorMessage(code) };
     }
