@@ -5,7 +5,7 @@ import { SetPasswordOptional } from "@/components/auth/set-password-optional";
 import { Button } from "@/components/ui/button";
 import { useMockAuth } from "@/lib/mock-auth";
 
-/** Lets phone-only accounts add email/password later from Settings. */
+/** Lets phone-only accounts add a password later from Settings. */
 export function AddPasswordSection() {
   const { hasPasswordProvider, getAccountAuthMethod } = useMockAuth();
   const [open, setOpen] = useState(false);
@@ -18,7 +18,7 @@ export function AddPasswordSection() {
     return (
       <div>
         <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Password</dt>
-        <dd className="mt-1 text-sm text-forest/80">Email/password sign-in is enabled for this account.</dd>
+        <dd className="mt-1 text-sm text-forest/80">Password sign-in is enabled for this account.</dd>
       </div>
     );
   }
@@ -47,7 +47,7 @@ export function AddPasswordSection() {
   return (
     <SetPasswordOptional
       title="Add password for faster sign-in"
-      description="Link an email and password to this account so you can skip OTP next time."
+      description="Set a password so you can skip OTP next time. Use your phone number with this password on Sign in."
       showSkip
       onSkip={() => setOpen(false)}
       onDone={() => {

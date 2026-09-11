@@ -47,6 +47,7 @@ import { users as seedUsers } from "@/lib/mock-data/users";
 import { isValidPhoneE164, normalizePhoneE164 } from "@/lib/phone-format";
 import { firebaseErrorParts, phoneAuthErrorMessage } from "@/lib/phone-auth-errors";
 import type { User, UserRole } from "@/lib/types";
+import { authEmailFromLoginIdentifier, isSyntheticPhoneEmail } from "@/lib/user-display";
 import { delay } from "@/lib/utils";
 
 /** Public web OAuth client for project bharwana-estate-developer (also in Vercel env). */
@@ -234,9 +235,9 @@ interface MockAuthContextValue {
   getAccountAuthMethod: () => AccountAuthMethod | null;
   /** True when the signed-in Firebase user has an email/password provider linked. */
   hasPasswordProvider: () => boolean;
-  /** Link email/password to the current user (phone signup → faster email login). */
+  /** Link a password to the current account (phone users keep their hidden internal email). */
   linkEmailPassword: (input: {
-    email: string;
+    email?: string;
     password: string;
   }) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
 }
@@ -608,7 +609,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const normalized = email.trim().toLowerCase();
+      const normalized = authEmailFromLoginIdentifier(email);
 
       if (isFirebaseConfigured()) {
         const auth = getFirebaseAuth();
@@ -1265,16 +1266,23 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const linkEmailPassword = useCallback(
-    async (input: { email: string; password: string }) => {
+    async (input: { email?: string; password: string }) => {
       if (!user) {
         return { ok: false as const, error: "You must be signed in to add a password." };
       }
-      const email = input.email.trim().toLowerCase();
-      if (!email || !email.includes("@") || email.endsWith("@phone.bharwana.local")) {
-        return { ok: false as const, error: "Enter a real email address you can use to sign in." };
-      }
       if (!input.password) {
         return { ok: false as const, error: "Enter a password." };
+      }
+
+      const requested = (input.email ?? "").trim().toLowerCase();
+      // Phone accounts keep their hidden synthetic email; never require a real email in the UI.
+      const email =
+        requested && !isSyntheticPhoneEmail(requested)
+          ? requested
+          : user.email.trim().toLowerCase();
+
+      if (!email || !email.includes("@")) {
+        return { ok: false as const, error: "Could not link a password to this account. Sign in again and retry." };
       }
 
       const auth = getFirebaseAuth();
@@ -1293,16 +1301,21 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       try {
         const credential = EmailAuthProvider.credential(email, input.password);
         await linkWithCredential(firebaseUser, credential);
-        try {
-          await updateUserEmail(user.id, email);
-        } catch (firestoreError) {
-          console.error("Password linked but Firestore email sync failed", firestoreError);
-          return {
-            ok: false as const,
-            error: "Password was linked, but we could not save your email to the profile. Refresh and try again.",
-          };
+
+        const keepSynthetic = isSyntheticPhoneEmail(email);
+        if (!keepSynthetic && email !== user.email.trim().toLowerCase()) {
+          try {
+            await updateUserEmail(user.id, email);
+          } catch (firestoreError) {
+            console.error("Password linked but Firestore email sync failed", firestoreError);
+            return {
+              ok: false as const,
+              error: "Password was linked, but we could not save your email to the profile. Refresh and try again.",
+            };
+          }
         }
-        const nextUser: User = { ...user, email };
+
+        const nextUser: User = keepSynthetic ? { ...user } : { ...user, email };
         commitSession(nextUser);
         return { ok: true as const, user: nextUser };
       } catch (error) {
@@ -1327,7 +1340,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           return { ok: false as const, error: "Choose a stronger password." };
         }
         if (code === "auth/invalid-email") {
-          return { ok: false as const, error: "Enter a valid email address." };
+          return { ok: false as const, error: "Could not link a password to this account." };
         }
         return { ok: false as const, error: emailAuthErrorMessage(code) };
       }

@@ -300,7 +300,7 @@ function EmailField({
   const [unlocked, setUnlocked] = useState(false);
   return (
     <FormItem>
-      <FormLabel className="text-forest/80">Email</FormLabel>
+      <FormLabel className="text-forest/80">Email or phone</FormLabel>
       <FormControl>
         <div className="relative">
           <Mail
@@ -309,7 +309,8 @@ function EmailField({
             aria-hidden
           />
           <Input
-            type="email"
+            type="text"
+            inputMode="email"
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="none"
@@ -317,7 +318,7 @@ function EmailField({
             data-1p-ignore="true"
             data-lpignore="true"
             data-form-type="other"
-            placeholder="Email"
+            placeholder="Email or phone"
             maxLength={50}
             readOnly={!unlocked}
             onFocus={() => setUnlocked(true)}
@@ -392,7 +393,7 @@ export function LoginForm() {
           <form
             onSubmit={form.handleSubmit(onSubmit, (fieldErrors) => {
               console.warn("[login] validation failed", fieldErrors);
-              setError("Enter a valid email and password to continue.");
+              setError("Enter a valid email or phone and password to continue.");
             })}
             className="space-y-4"
             autoComplete="off"
