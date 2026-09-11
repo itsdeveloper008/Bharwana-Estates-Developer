@@ -19,6 +19,20 @@ const nextConfig = {
       },
     ],
   },
+  async headers() {
+    // Allow Firebase Google/Facebook popup auth to call window.closed (Chrome COOP).
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     // Proxy Firebase Auth helper scripts through the custom domain.
     // NOTE: Google redirect continueUri on bharwanaestates.com still requires this

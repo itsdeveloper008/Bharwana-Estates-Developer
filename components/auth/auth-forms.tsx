@@ -94,27 +94,26 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
     if (pendingProvider) return;
     setError(null);
     setPendingProvider(provider);
+    let redirecting = false;
     try {
       const result = provider === "google" ? await loginWithGoogle() : await loginWithFacebook();
       if (!result.ok) {
         setError(result.error);
-        setPendingProvider(null);
         return;
       }
       if ("redirecting" in result && result.redirecting) {
+        redirecting = true;
         return;
       }
       if ("isNewUser" in result && result.isNewUser) {
         setDraft(result.draft);
         setRoleOpen(true);
-        setPendingProvider(null);
         return;
       }
       if ("user" in result) {
         toast.dismiss();
         onSuccess(result.user);
       }
-      setPendingProvider(null);
     } catch (err) {
       console.error(`${provider} continue failed`, err);
       setError(
@@ -122,7 +121,8 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
           ? "Could not sign in with Google. Try again."
           : "Could not sign in with Facebook. Try again.",
       );
-      setPendingProvider(null);
+    } finally {
+      if (!redirecting) setPendingProvider(null);
     }
   }
 

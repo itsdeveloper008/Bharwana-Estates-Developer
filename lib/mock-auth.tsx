@@ -117,30 +117,76 @@ function requestGoogleAccessToken(): Promise<string> {
   return loadGoogleIdentityScript().then(
     (oauth2) =>
       new Promise<string>((resolve, reject) => {
-        const client = oauth2.initTokenClient({
-          client_id: FIREBASE_GOOGLE_WEB_CLIENT_ID,
-          scope: "openid email profile",
-          callback: (response) => {
-            if (response.error) {
-              reject(
-                new Error(response.error_description || response.error || "Google sign-in was cancelled."),
-              );
-              return;
-            }
-            if (!response.access_token) {
-              reject(new Error("Google did not return an access token."));
-              return;
-            }
-            resolve(response.access_token);
-          },
-          error_callback: (error) => {
-            const message = error?.message || error?.type || "Google sign-in was cancelled.";
-            reject(new Error(message));
-          },
-        });
-        client.requestAccessToken({ prompt: "select_account" });
+        let settled = false;
+        const timeoutId = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error("Google sign-in timed out. Close any Google window and try again."));
+        }, 90_000);
+
+        const finish = (action: () => void) => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timeoutId);
+          action();
+        };
+
+        try {
+          const client = oauth2.initTokenClient({
+            client_id: FIREBASE_GOOGLE_WEB_CLIENT_ID,
+            scope: "openid email profile",
+            callback: (response) => {
+              if (response.error) {
+                finish(() =>
+                  reject(
+                    new Error(
+                      response.error_description || response.error || "Google sign-in was cancelled.",
+                    ),
+                  ),
+                );
+                return;
+              }
+              if (!response.access_token) {
+                finish(() => reject(new Error("Google did not return an access token.")));
+                return;
+              }
+              finish(() => resolve(response.access_token!));
+            },
+            error_callback: (error) => {
+              const message = error?.message || error?.type || "Google sign-in was cancelled.";
+              finish(() => reject(new Error(message)));
+            },
+          });
+          client.requestAccessToken({ prompt: "select_account" });
+        } catch (error) {
+          finish(() =>
+            reject(error instanceof Error ? error : new Error("Google sign-in failed to start.")),
+          );
+        }
       }),
   );
+}
+
+function shouldPreferOAuthRedirect(): boolean {
+  if (typeof window === "undefined") return false;
+  const narrow = window.innerWidth > 0 && window.innerWidth < 768;
+  const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  return narrow || mobileUa;
+}
+
+function isOAuthPopupUnusable(code: string, error: unknown): boolean {
+  if (
+    code === "auth/popup-blocked" ||
+    code === "auth/cancelled-popup-request" ||
+    code === "auth/popup-closed-by-user"
+  ) {
+    return true;
+  }
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message?: string }).message)
+      : String(error ?? "");
+  return /Cross-Origin-Opener-Policy|window\.closed/i.test(message);
 }
 const SESSION_KEY = "bharwana_user_session";
 const USERS_KEY = "bharwana_registered_users";
@@ -497,6 +543,15 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       try {
         const redirected = await getRedirectResult(auth);
         if (!cancelled && redirected?.user) {
+          try {
+            sessionStorage.setItem(
+              GOOGLE_RETURN_KEY,
+              sessionStorage.getItem(GOOGLE_RETURN_KEY) ||
+                `${window.location.pathname}${window.location.search}`,
+            );
+          } catch {
+            /* ignore */
+          }
           const profile = await loadFirestoreUser(redirected.user);
           if (profile) {
             persist(profile);
@@ -684,6 +739,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     if (!auth) {
       return { ok: false as const, error: "Google sign-in is unavailable right now." };
     }
+    const firebaseAuth = auth;
 
     async function finishGoogleUser(firebaseUser: FirebaseUser): Promise<GoogleLoginResult> {
       const email = (firebaseUser.email ?? "").trim().toLowerCase();
@@ -700,22 +756,54 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: true as const, isNewUser: true as const, draft };
     }
 
+    async function startGoogleRedirect(): Promise<GoogleLoginResult> {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(
+          GOOGLE_RETURN_KEY,
+          `${window.location.pathname}${window.location.search}`,
+        );
+      }
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      await signInWithRedirect(firebaseAuth, provider);
+      return { ok: true as const, redirecting: true as const };
+    }
+
     // 1) Prefer Google Identity Services + credential — works on custom domains without
     // Firebase Hosting continueUri ownership (popup/redirect both struggle on apex today).
     try {
       const accessToken = await requestGoogleAccessToken();
       const credential = GoogleAuthProvider.credential(null, accessToken);
-      const result = await signInWithCredential(auth, credential);
+      const result = await signInWithCredential(firebaseAuth, credential);
       return await finishGoogleUser(result.user);
     } catch (gisError) {
-      console.warn("Google Identity Services sign-in failed; trying Firebase popup", gisError);
+      console.warn("Google Identity Services sign-in failed; trying Firebase fallback", gisError);
+      const gisMessage = gisError instanceof Error ? gisError.message : String(gisError ?? "");
+      if (/origin_mismatch|redirect_uri_mismatch|unauthorized/i.test(gisMessage)) {
+        // Still try redirect/popup — but surface a clearer hint if those fail too.
+        console.warn("Google OAuth origin may be misconfigured for this URL", gisMessage);
+      }
+    }
+
+    // 2) Mobile / narrow viewports: popup + COOP is unreliable — use full-page redirect.
+    if (shouldPreferOAuthRedirect()) {
+      try {
+        return await startGoogleRedirect();
+      } catch (redirectError) {
+        const redirectCode =
+          redirectError && typeof redirectError === "object" && "code" in redirectError
+            ? String((redirectError as { code?: string }).code)
+            : "";
+        console.error("Google redirect failed", { code: redirectCode, redirectError });
+        return { ok: false as const, error: googleAuthErrorMessage(redirectCode) };
+      }
     }
 
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
 
     try {
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(firebaseAuth, provider);
       return await finishGoogleUser(result.user);
     } catch (error) {
       const code =
@@ -724,16 +812,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           : "";
       console.error("Google sign-in failed", { code, error });
 
-      if (code === "auth/popup-blocked") {
+      if (isOAuthPopupUnusable(code, error)) {
         try {
-          if (typeof window !== "undefined") {
-            sessionStorage.setItem(
-              GOOGLE_RETURN_KEY,
-              `${window.location.pathname}${window.location.search}`,
-            );
-          }
-          await signInWithRedirect(auth, provider);
-          return { ok: true as const, redirecting: true as const };
+          return await startGoogleRedirect();
         } catch (redirectError) {
           const redirectCode =
             redirectError && typeof redirectError === "object" && "code" in redirectError
@@ -759,6 +840,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     if (!auth) {
       return { ok: false as const, error: "Facebook sign-in is unavailable right now." };
     }
+    const firebaseAuth = auth;
 
     async function finishFacebookUser(firebaseUser: FirebaseUser): Promise<GoogleLoginResult> {
       const email = (firebaseUser.email ?? "").trim().toLowerCase();
@@ -785,8 +867,32 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     provider.addScope("public_profile");
     provider.setCustomParameters({ display: "popup" });
 
+    async function startFacebookRedirect(): Promise<GoogleLoginResult> {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(
+          GOOGLE_RETURN_KEY,
+          `${window.location.pathname}${window.location.search}`,
+        );
+      }
+      await signInWithRedirect(firebaseAuth, provider);
+      return { ok: true as const, redirecting: true as const };
+    }
+
+    if (shouldPreferOAuthRedirect()) {
+      try {
+        return await startFacebookRedirect();
+      } catch (redirectError) {
+        const redirectCode =
+          redirectError && typeof redirectError === "object" && "code" in redirectError
+            ? String((redirectError as { code?: string }).code)
+            : "";
+        console.error("Facebook redirect failed", { code: redirectCode, redirectError });
+        return { ok: false as const, error: facebookAuthErrorMessage(redirectCode) };
+      }
+    }
+
     try {
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(firebaseAuth, provider);
       return await finishFacebookUser(result.user);
     } catch (error) {
       const code =
@@ -795,16 +901,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           : "";
       console.error("Facebook sign-in failed", { code, error });
 
-      if (code === "auth/popup-blocked") {
+      if (isOAuthPopupUnusable(code, error)) {
         try {
-          if (typeof window !== "undefined") {
-            sessionStorage.setItem(
-              GOOGLE_RETURN_KEY,
-              `${window.location.pathname}${window.location.search}`,
-            );
-          }
-          await signInWithRedirect(auth, provider);
-          return { ok: true as const, redirecting: true as const };
+          return await startFacebookRedirect();
         } catch (redirectError) {
           const redirectCode =
             redirectError && typeof redirectError === "object" && "code" in redirectError
