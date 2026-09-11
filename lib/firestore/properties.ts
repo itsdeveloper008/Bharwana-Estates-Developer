@@ -14,7 +14,9 @@ import {
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { getDb, getFirebaseAuth, getFirebaseStorage, isFirebaseConfigured } from "@/lib/firebase/client";
 import { FIRESTORE_WRITE_TIMEOUT_MS, PHOTO_UPLOAD_TIMEOUT_MS } from "@/lib/firestore/errors";
-import type { Property, PropertyStatusHistoryEntry } from "@/lib/types";
+import { normalizeFeatureTags, normalizeHighlightKeys } from "@/lib/property-features";
+import { isPersistedPropertyImageUrl } from "@/lib/property-images";
+import type { Property, PropertyHighlightKey, PropertyStatusHistoryEntry } from "@/lib/types";
 import { withTimeout } from "@/lib/utils";
 
 const COLLECTION = "properties";
@@ -25,15 +27,11 @@ function isFieldValueSentinel(value: unknown): boolean {
 }
 
 function isStoredImageUrl(url: string) {
-  return (
-    url.startsWith("https://") ||
-    url.startsWith("http://") ||
-    (url.startsWith("/") && !url.startsWith("//"))
-  );
+  return isPersistedPropertyImageUrl(url);
 }
 
 function isRemoteImageUrl(url: string) {
-  return isStoredImageUrl(url);
+  return isPersistedPropertyImageUrl(url);
 }
 
 /**
@@ -73,6 +71,11 @@ function toFirestorePayload(property: Property): Record<string, unknown> {
   if (property.ownerUserId) payload.ownerUserId = property.ownerUserId;
   if (property.developerId) payload.developerId = property.developerId;
   if (property.contactPhone?.trim()) payload.contactPhone = property.contactPhone.trim();
+  const highlights = normalizeHighlightKeys(property.highlightSpecs, property.category);
+  payload.highlightSpecs = highlights;
+  const tags = normalizeFeatureTags(property.featureTags);
+  if (tags.length) payload.featureTags = tags;
+  else payload.featureTags = deleteField();
   if (property.statusUpdatedAt) payload.statusUpdatedAt = property.statusUpdatedAt;
   if (property.rejectionReason?.trim()) payload.rejectionReason = property.rejectionReason.trim();
   if (property.statusHistory?.length) {
@@ -202,6 +205,11 @@ async function resolvePropertyImages(
       urls.push(image);
       continue;
     }
+    if (/^https?:\/\//i.test(image) && !imageFiles?.[index]) {
+      throw new Error(
+        `Photo ${index + 1} is not from Bharwana Storage. Remove it and upload a real photo.`,
+      );
+    }
 
     let raw: Blob;
     const direct = imageFiles?.[index];
@@ -277,13 +285,22 @@ function createdAtIso(value: unknown): string {
 }
 
 function mapProperty(id: string, data: Record<string, unknown>): Property {
+  const category = data.category ? (data.category as Property["category"]) : undefined;
+  const rawHighlights = Array.isArray(data.highlightSpecs)
+    ? (data.highlightSpecs as PropertyHighlightKey[])
+    : undefined;
+  const rawTags = Array.isArray(data.featureTags) ? (data.featureTags as string[]) : undefined;
+  const images = Array.isArray(data.images)
+    ? (data.images as string[]).filter((url) => typeof url === "string" && isPersistedPropertyImageUrl(url))
+    : [];
+
   return {
     id,
     title: String(data.title ?? ""),
     description: String(data.description ?? ""),
     listingType: (data.listingType as Property["listingType"]) ?? "DIRECT_OWNER",
     purpose: data.purpose ? (data.purpose as Property["purpose"]) : undefined,
-    category: data.category ? (data.category as Property["category"]) : undefined,
+    category,
     subtype: data.subtype ? String(data.subtype) : undefined,
     status: (data.status as Property["status"]) ?? "PUBLISHED",
     price: Number(data.price ?? 0),
@@ -294,7 +311,9 @@ function mapProperty(id: string, data: Record<string, unknown>): Property {
     city: String(data.city ?? ""),
     latitude: Number(data.latitude ?? 0),
     longitude: Number(data.longitude ?? 0),
-    images: Array.isArray(data.images) ? (data.images as string[]) : [],
+    images,
+    highlightSpecs: normalizeHighlightKeys(rawHighlights, category),
+    featureTags: normalizeFeatureTags(rawTags),
     ownerUserId: data.ownerUserId ? String(data.ownerUserId) : undefined,
     developerId: data.developerId ? String(data.developerId) : undefined,
     contactPhone: data.contactPhone ? String(data.contactPhone) : undefined,

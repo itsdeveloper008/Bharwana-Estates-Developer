@@ -5,6 +5,8 @@ import Link from "next/link";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice, listingBadge } from "@/lib/format";
+import { propertyHighlightDisplay } from "@/lib/property-features";
+import { propertyCoverImage } from "@/lib/property-images";
 import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -23,20 +25,22 @@ export function PropertyCard({
 }) {
   const href = `/property/${property.id}`;
   const isList = layout === "list";
+  const cover = propertyCoverImage(property.images) ?? "";
+  const highlights = propertyHighlightDisplay(property).filter((item) => item.key !== "price");
 
   const media = (
     <>
-      {property.images[0] ? (
-        property.images[0].startsWith("data:") || property.images[0].startsWith("blob:") ? (
+      {cover ? (
+        cover.startsWith("data:") || cover.startsWith("blob:") ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={property.images[0]}
+            src={cover}
             alt={property.title}
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
           />
         ) : (
           <Image
-            src={property.images[0]}
+            src={cover}
             alt={property.title}
             fill
             className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
@@ -146,12 +150,38 @@ export function PropertyCard({
               <h3 className="truncate font-serif text-lg leading-snug text-forest">{property.title}</h3>
               <p className="mt-0.5 text-sm text-muted-foreground">{property.city}</p>
               <p className="mt-2 text-sm font-medium text-gold-700">{formatPrice(property.price)}</p>
+              {highlights.length > 0 ? (
+                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-forest/10 pt-3">
+                  {highlights.slice(0, 3).map((spec) => (
+                    <div key={spec.key} className="min-w-0">
+                      <spec.icon className="h-3.5 w-3.5 text-gold" />
+                      <p className="mt-1 truncate text-xs font-semibold text-forest">{spec.value}</p>
+                      <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                        {spec.label}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </button>
           ) : (
             <Link href={href} className="min-w-0 flex-1">
               <h3 className="truncate font-serif text-lg leading-snug text-forest">{property.title}</h3>
               <p className="mt-0.5 text-sm text-muted-foreground">{property.city}</p>
               <p className="mt-2 text-sm font-medium text-gold-700">{formatPrice(property.price)}</p>
+              {highlights.length > 0 ? (
+                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-forest/10 pt-3">
+                  {highlights.slice(0, 3).map((spec) => (
+                    <div key={spec.key} className="min-w-0">
+                      <spec.icon className="h-3.5 w-3.5 text-gold" />
+                      <p className="mt-1 truncate text-xs font-semibold text-forest">{spec.value}</p>
+                      <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                        {spec.label}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </Link>
           )}
           <Link href={href} className={seeMoreClass}>

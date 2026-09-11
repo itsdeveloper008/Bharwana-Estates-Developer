@@ -78,6 +78,8 @@ export type PropertyStatusHistoryEntry = {
   by?: string;
 };
 
+export type PropertyHighlightKey = "bedrooms" | "bathrooms" | "area" | "price";
+
 export interface Property {
   id: string;
   title: string;
@@ -99,6 +101,10 @@ export interface Property {
   latitude: number;
   longitude: number;
   images: string[];
+  /** Which core specs to emphasize on map cards / detail (defaults to all for category). */
+  highlightSpecs?: PropertyHighlightKey[];
+  /** Short custom highlights, e.g. Corner plot — max ~6. */
+  featureTags?: string[];
   ownerUserId?: string;
   developerId?: string;
   /** Seller contact for Admin follow-up on this listing */

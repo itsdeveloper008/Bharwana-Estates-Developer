@@ -54,6 +54,14 @@ export const propertyFormSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   contactPhone: pakistanMobileLocalSchema,
+  highlightSpecs: z
+    .array(z.enum(["bedrooms", "bathrooms", "area", "price"]))
+    .min(1, "Select at least one feature to highlight")
+    .optional(),
+  featureTags: z
+    .array(z.string().trim().min(1).max(40))
+    .max(6, "Up to 6 custom features")
+    .optional(),
 });
 
 export type PropertyFormValues = z.infer<typeof propertyFormSchema>;

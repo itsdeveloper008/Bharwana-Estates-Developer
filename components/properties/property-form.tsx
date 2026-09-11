@@ -44,8 +44,23 @@ import {
   PROPERTY_CATEGORIES,
   PROPERTY_SUBTYPES,
 } from "@/lib/property-taxonomy";
+import {
+  defaultHighlightKeys,
+  FEATURE_TAG_MAX_LENGTH,
+  MAX_FEATURE_TAGS,
+  normalizeFeatureTags,
+  normalizeHighlightKeys,
+} from "@/lib/property-features";
+import { isPersistedPropertyImageUrl } from "@/lib/property-images";
 import { propertyFormSchema, type PropertyFormValues } from "@/lib/schemas";
-import { CITIES, type Property, type PropertyCategory, type PropertyStatus, type User } from "@/lib/types";
+import {
+  CITIES,
+  type Property,
+  type PropertyCategory,
+  type PropertyHighlightKey,
+  type PropertyStatus,
+  type User,
+} from "@/lib/types";
 import { CITY_COORDS } from "@/lib/map";
 import { displayUserEmail } from "@/lib/user-display";
 import { cn } from "@/lib/utils";
@@ -78,6 +93,8 @@ const STEP_FIELDS: Record<number, (keyof PropertyFormValues)[]> = {
     "latitude",
     "longitude",
     "contactPhone",
+    "highlightSpecs",
+    "featureTags",
   ],
 };
 
@@ -245,6 +262,7 @@ export function PropertyForm({
   const [assignError, setAssignError] = useState<string | null>(null);
   const [adminPublishStatus, setAdminPublishStatus] = useState<AdminPublishChoice>("PUBLISHED");
   const [currentStep, setCurrentStep] = useState(0);
+  const [featureTagDraft, setFeatureTagDraft] = useState("");
 
   const houseOwners = useMemo(
     () => users.filter((item) => item.role === "HOUSE_OWNER"),
@@ -290,6 +308,8 @@ export function PropertyForm({
       latitude: CITY_COORDS.Lahore.latitude,
       longitude: CITY_COORDS.Lahore.longitude,
       contactPhone: "",
+      highlightSpecs: defaultHighlightKeys("HOME"),
+      featureTags: [],
     },
   });
 
@@ -314,9 +334,12 @@ export function PropertyForm({
       latitude: editingProperty.latitude,
       longitude: editingProperty.longitude,
       contactPhone: toPakistanMobileLocal(editingProperty.contactPhone ?? ""),
+      highlightSpecs: normalizeHighlightKeys(editingProperty.highlightSpecs, editingProperty.category),
+      featureTags: normalizeFeatureTags(editingProperty.featureTags),
     });
-    setPreviews(editingProperty.images ?? []);
-    setPhotoFiles((editingProperty.images ?? []).map(() => null));
+    const safeImages = (editingProperty.images ?? []).filter((url) => isPersistedPropertyImageUrl(url));
+    setPreviews(safeImages);
+    setPhotoFiles(safeImages.map(() => null));
     setPhotoError(false);
   }, [editingProperty?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -611,6 +634,8 @@ export function PropertyForm({
             developerId: developerId ?? editingProperty.developerId,
             images,
             ownerUserId: resolvedOwnerId ?? editingProperty.ownerUserId,
+            highlightSpecs: normalizeHighlightKeys(values.highlightSpecs, values.category),
+            featureTags: normalizeFeatureTags(values.featureTags),
             ...statusPatch,
             rejectionReason: undefined,
           },
@@ -639,6 +664,8 @@ export function PropertyForm({
           images,
           createdAt: new Date().toISOString(),
           contactPhone: values.contactPhone,
+          highlightSpecs: normalizeHighlightKeys(values.highlightSpecs, values.category),
+          featureTags: normalizeFeatureTags(values.featureTags),
         };
         if (developerId) listing.developerId = developerId;
         if (resolvedOwnerId) listing.ownerUserId = resolvedOwnerId;
@@ -856,6 +883,7 @@ export function PropertyForm({
                               const next = option.id as PropertyCategory;
                               field.onChange(next);
                               form.setValue("subtype", defaultSubtypeFor(next));
+                              form.setValue("highlightSpecs", defaultHighlightKeys(next));
                               if (next === "PLOTS") {
                                 form.setValue("bedrooms", 0);
                                 form.setValue("bathrooms", 0);
@@ -1232,6 +1260,126 @@ export function PropertyForm({
                 )}
               />
             )}
+
+            <div className="rounded-xl border border-forest/10 bg-white/70 px-4 py-4">
+              <p className="text-sm font-medium text-forest">Features to highlight</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Choose which specs stand out on the map and listing cards. Values come from the fields above.
+              </p>
+              <FormField
+                control={form.control}
+                name="highlightSpecs"
+                render={({ field }) => {
+                  const category = form.watch("category");
+                  const allowed = defaultHighlightKeys(category);
+                  const selected = new Set(normalizeHighlightKeys(field.value, category));
+                  const labels: Record<PropertyHighlightKey, string> = {
+                    bedrooms: `Bedrooms (${form.watch("bedrooms")})`,
+                    bathrooms: `Bathrooms (${form.watch("bathrooms")})`,
+                    area: `Area (${form.watch("areaSqft")} sqft)`,
+                    price: `Price`,
+                  };
+                  return (
+                    <FormItem className="mt-3">
+                      <div className="flex flex-wrap gap-2">
+                        {allowed.map((key) => {
+                          const on = selected.has(key);
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              className={cn(
+                                "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                                on
+                                  ? "border-forest bg-forest text-ivory"
+                                  : "border-forest/15 bg-cream/60 text-forest/70 hover:border-forest/30",
+                              )}
+                              onClick={() => {
+                                const next = new Set(selected);
+                                if (on) next.delete(key);
+                                else next.add(key);
+                                const ordered = allowed.filter((item) => next.has(item));
+                                field.onChange(ordered.length ? ordered : allowed);
+                              }}
+                            >
+                              {labels[key]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
+              <FormField
+                control={form.control}
+                name="featureTags"
+                render={({ field }) => {
+                  const tags = normalizeFeatureTags(field.value);
+                  return (
+                    <FormItem className="mt-4">
+                      <FormLabel className="mb-0.5">Extra features (optional)</FormLabel>
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Up to {MAX_FEATURE_TAGS} short tags — e.g. Corner plot, Basement.
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 rounded-full border border-forest/10 bg-cream px-2.5 py-1 text-xs text-forest"
+                          >
+                            {tag}
+                            <button
+                              type="button"
+                              aria-label={`Remove ${tag}`}
+                              className="text-forest/50 hover:text-forest"
+                              onClick={() =>
+                                field.onChange(tags.filter((item) => item !== tag))
+                              }
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      {tags.length < MAX_FEATURE_TAGS ? (
+                        <div className="mt-2 flex gap-2">
+                          <Input
+                            className={cn(fieldFocus, "flex-1")}
+                            placeholder="Add a feature"
+                            value={featureTagDraft}
+                            maxLength={FEATURE_TAG_MAX_LENGTH}
+                            onChange={(event) => setFeatureTagDraft(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key !== "Enter") return;
+                              event.preventDefault();
+                              const next = normalizeFeatureTags([...tags, featureTagDraft]);
+                              field.onChange(next);
+                              setFeatureTagDraft("");
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-xl"
+                            onClick={() => {
+                              const next = normalizeFeatureTags([...tags, featureTagDraft]);
+                              field.onChange(next);
+                              setFeatureTagDraft("");
+                            }}
+                          >
+                            Add
+                          </Button>
+                        </div>
+                      ) : null}
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}

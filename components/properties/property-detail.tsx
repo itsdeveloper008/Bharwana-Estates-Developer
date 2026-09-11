@@ -12,6 +12,7 @@ import { PropertySaveButton } from "@/components/properties/property-save-button
 import { PropertyShareButton } from "@/components/properties/property-share-button";
 import { useMockAuth } from "@/lib/mock-auth";
 import { formatArea, formatDate, formatPrice, formatPriceFull, listingBadge, statusLabel } from "@/lib/format";
+import { propertyHighlightDisplay } from "@/lib/property-features";
 import type { Property } from "@/lib/types";
 
 const MiniMap = dynamic(() => import("@/components/map/map-canvas").then((mod) => mod.MiniMap), { ssr: false });
@@ -29,14 +30,17 @@ function PropertyDetailInner({ property }: { property: Property }) {
     }
   }, [isReady, user, searchParams]);
 
-  const specs = useMemo(
-    () => [
-      { label: "Bedrooms", value: property.bedrooms, icon: BedDouble },
-      { label: "Bathrooms", value: property.bathrooms, icon: Bath },
-      { label: "Area", value: formatArea(property.areaSqft), icon: Maximize2 },
-    ],
-    [property],
-  );
+  const specs = useMemo(() => {
+    const highlighted = propertyHighlightDisplay(property).filter((item) => item.key !== "price");
+    if (highlighted.length > 0) return highlighted;
+    return [
+      { key: "bedrooms", label: "Bedrooms", value: String(property.bedrooms), icon: BedDouble },
+      { key: "bathrooms", label: "Bathrooms", value: String(property.bathrooms), icon: Bath },
+      { key: "area", label: "Area", value: formatArea(property.areaSqft), icon: Maximize2 },
+    ];
+  }, [property]);
+
+  const tags = property.featureTags ?? [];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -64,13 +68,25 @@ function PropertyDetailInner({ property }: { property: Property }) {
           <p className="text-xs text-muted-foreground">{formatPriceFull(property.price)}</p>
           <div className="mt-6 grid grid-cols-3 gap-3 rounded-2xl border-y border-forest/10 py-5">
             {specs.map((spec) => (
-              <div key={spec.label}>
+              <div key={spec.key ?? spec.label}>
                 <spec.icon className="h-4 w-4 text-gold" />
-                <p className="mt-2 text-sm font-medium text-forest">{spec.value}</p>
+                <p className="mt-2 text-sm font-semibold text-forest">{spec.value}</p>
                 <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{spec.label}</p>
               </div>
             ))}
           </div>
+          {tags.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-forest/10 bg-cream/80 px-3 py-1 text-xs font-medium text-forest/80"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <p className="mt-4 text-xs uppercase tracking-[0.14em] text-muted-foreground">
             {statusLabel(property.status)} · Listed {formatDate(property.createdAt)}
           </p>

@@ -1,4 +1,4 @@
-import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
+import { initializeApp, getApps, type FirebaseApp, type FirebaseOptions } from "firebase/app";
 import {
   browserLocalPersistence,
   browserPopupRedirectResolver,
@@ -18,16 +18,32 @@ function sanitizeFirebaseEnv(value: string | undefined): string {
 const projectId = sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
 const configuredAuthDomain = sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN);
 const projectAuthDomain = projectId ? `${projectId}.firebaseapp.com` : "";
-const authDomain = configuredAuthDomain || projectAuthDomain;
 
-const firebaseConfig = {
-  apiKey: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
-  authDomain,
-  projectId,
-  storageBucket: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
-  messagingSenderId: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
-  appId: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
-};
+/**
+ * On the live custom domain, use that host as authDomain so Auth helper iframes
+ * hit same-origin `/__/auth/*` (proxied in next.config) — reduces authorized-domain
+ * / getProjectConfig failures vs always using *.firebaseapp.com.
+ */
+function resolveAuthDomain(): string {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname.toLowerCase();
+    if (host === "bharwanaestates.com" || host === "www.bharwanaestates.com") {
+      return host;
+    }
+  }
+  return configuredAuthDomain || projectAuthDomain;
+}
+
+function buildFirebaseConfig(): FirebaseOptions {
+  return {
+    apiKey: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+    authDomain: resolveAuthDomain(),
+    projectId,
+    storageBucket: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+    messagingSenderId: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+    appId: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
+  };
+}
 
 export const FIREBASE_NOT_CONFIGURED_MESSAGE =
   "Firebase is not configured on this deploy. Add the NEXT_PUBLIC_FIREBASE_* environment variables on the host and redeploy.";
@@ -70,12 +86,13 @@ export function logFirebaseConfigDiagnostics(context?: string) {
 }
 
 export function isFirebaseConfigured() {
+  const config = buildFirebaseConfig();
   return Boolean(
-    firebaseConfig.apiKey &&
-      (configuredAuthDomain || projectAuthDomain) &&
-      firebaseConfig.projectId &&
-      firebaseConfig.appId &&
-      firebaseConfig.storageBucket,
+    config.apiKey &&
+      config.authDomain &&
+      config.projectId &&
+      config.appId &&
+      config.storageBucket,
   );
 }
 
@@ -88,7 +105,7 @@ export function getFirebaseApp() {
   if (!isFirebaseConfigured()) return null;
   try {
     if (!app) {
-      app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+      app = getApps().length ? getApps()[0]! : initializeApp(buildFirebaseConfig());
     }
     return app;
   } catch (error) {

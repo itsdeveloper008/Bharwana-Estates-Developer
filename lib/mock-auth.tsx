@@ -770,8 +770,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // 2) Avoid Firebase popup — Chrome COOP blocks window.closed and leaves users stuck.
-    // Prefer full-page redirect whenever GIS did not complete.
+    // 2) Full-page redirect — avoids Chrome COOP / window.closed popup failures entirely.
     try {
       return await startGoogleRedirect();
     } catch (redirectError) {
@@ -780,25 +779,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           ? String((redirectError as { code?: string }).code)
           : "";
       console.error("Google redirect failed", { code: redirectCode, redirectError });
-
-      // Last resort popup (desktop only) if redirect cannot start.
-      if (shouldPreferOAuthRedirect()) {
-        return { ok: false as const, error: googleAuthErrorMessage(redirectCode) };
-      }
-
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      try {
-        const result = await signInWithPopup(firebaseAuth, provider);
-        return await finishGoogleUser(result.user);
-      } catch (error) {
-        const code =
-          error && typeof error === "object" && "code" in error
-            ? String((error as { code?: string }).code)
-            : redirectCode;
-        console.error("Google popup last-resort failed", { code, error });
-        return { ok: false as const, error: googleAuthErrorMessage(code) };
-      }
+      return { ok: false as const, error: googleAuthErrorMessage(redirectCode) };
     }
   }, [commitSession, setPendingGoogle]);
 
