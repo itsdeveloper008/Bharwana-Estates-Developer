@@ -94,10 +94,14 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
   async function handleOAuth(provider: "google" | "facebook") {
     if (pendingProvider) return;
     setError(null);
-    setPendingProvider(provider);
     let redirecting = false;
     try {
-      const result = provider === "google" ? await loginWithGoogle() : await loginWithFacebook();
+      // Start Google immediately so the popup opens in the same click turn
+      // (setting state first can cost the user-gesture and Chrome blocks the popup).
+      const loginPromise =
+        provider === "google" ? loginWithGoogle() : loginWithFacebook();
+      setPendingProvider(provider);
+      const result = await loginPromise;
       if (!result.ok) {
         setError(result.error);
         return;
