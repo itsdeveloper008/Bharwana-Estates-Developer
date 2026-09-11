@@ -73,6 +73,14 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
 
+  // Warm Auth + Firestore before the click so Google popup isn't waiting on cold init.
+  useEffect(() => {
+    void import("@/lib/firebase/client").then(({ getFirebaseAuth, getDb }) => {
+      getFirebaseAuth();
+      getDb();
+    });
+  }, []);
+
   useEffect(() => {
     if (!isReady || handledReturn.current) return;
 
