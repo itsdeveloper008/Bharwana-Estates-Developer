@@ -102,3 +102,57 @@ export function PasswordCreateField({
     </FormItem>
   );
 }
+
+/** Confirm password with the same show/hide control as PasswordCreateField. */
+export function ConfirmPasswordField({
+  field,
+  fieldState,
+  label = "Confirm password",
+}: {
+  field: FieldBag;
+  fieldState: { error?: { message?: string } };
+  label?: string;
+}) {
+  const [show, setShow] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  const value = field.value ?? "";
+
+  return (
+    <FormItem className="space-y-1">
+      <FormLabel>{label}</FormLabel>
+      <FormControl>
+        <div className="relative">
+          <Input
+            type={show ? "text" : "password"}
+            autoComplete="new-password"
+            data-1p-ignore="true"
+            data-lpignore="true"
+            data-bwignore="true"
+            data-form-type="other"
+            placeholder="Confirm password"
+            readOnly={!unlocked}
+            value={value}
+            name={field.name}
+            ref={field.ref}
+            onFocus={() => setUnlocked(true)}
+            onBlur={field.onBlur}
+            onChange={field.onChange}
+            className={cn(
+              "bg-white pr-10 text-sm placeholder:text-sm",
+              fieldState.error && "border-destructive focus-visible:ring-destructive",
+            )}
+          />
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-forest/50 transition-colors duration-200 hover:text-forest"
+            onClick={() => setShow((current) => !current)}
+            aria-label={show ? "Hide password" : "Show password"}
+          >
+            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  );
+}

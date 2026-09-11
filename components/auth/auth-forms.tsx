@@ -405,7 +405,6 @@ export function LoginForm() {
       if (!result.ok) {
         console.error("[login] rejected", result.error);
         setError(result.error);
-        form.setValue("password", "");
         return;
       }
       toast.success("Signed in.");
@@ -527,7 +526,7 @@ export function RegisterForm() {
     try {
       console.info("[RegisterForm] submit start", { email: values.email, role: values.role });
       const result = await register({
-        fullName: values.fullName,
+        fullName: values.fullName.trim(),
         email: values.email,
         phone: formatPakistanMobileE164(values.phone),
         password: values.password,
@@ -538,7 +537,6 @@ export function RegisterForm() {
       if (!result.ok) {
         console.error("[RegisterForm] rejected", result.error);
         setError(result.error);
-        toast.error(result.error);
         return;
       }
 
@@ -557,7 +555,6 @@ export function RegisterForm() {
         } catch (err) {
           console.error("[RegisterForm] dealer profile save failed", err);
           setError("Account created, but dealer profile failed to save. Open Dealer Desk to retry, or contact support.");
-          toast.error("Account created, but dealer profile failed to save.");
           goAfterAuth(result.user);
           return;
         }
@@ -574,7 +571,6 @@ export function RegisterForm() {
       console.error("[RegisterForm] unexpected failure", err);
       const message = "Could not create your account. Check your connection and try again.";
       setError(message);
-      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -598,7 +594,6 @@ export function RegisterForm() {
               fieldErrors.registrationNumber?.message ||
               "Please fix the highlighted fields and try again.";
             setError(first);
-            toast.error(first);
           })}
           className="space-y-2"
           autoComplete="off"

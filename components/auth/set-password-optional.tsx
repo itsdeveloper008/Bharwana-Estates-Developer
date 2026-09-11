@@ -6,13 +6,11 @@ import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
-import { PasswordCreateField } from "@/components/auth/password-create-field";
+import { PasswordCreateField, ConfirmPasswordField } from "@/components/auth/password-create-field";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form, FormField } from "@/components/ui/form";
 import { useMockAuth } from "@/lib/mock-auth";
 import { passwordCreateSchema } from "@/lib/schemas";
-import { cn } from "@/lib/utils";
 
 const schema = z
   .object({
@@ -82,22 +80,7 @@ export function SetPasswordOptional({
             control={form.control}
             name="confirmPassword"
             render={({ field, fieldState }) => (
-              <FormItem>
-                <FormLabel>Confirm password</FormLabel>
-                <FormControl>
-                  <Input
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="Confirm password"
-                    className={cn(
-                      "bg-white text-sm placeholder:text-sm",
-                      fieldState.error && "border-destructive focus-visible:ring-destructive",
-                    )}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+              <ConfirmPasswordField field={field} fieldState={fieldState} />
             )}
           />
           {error ? (

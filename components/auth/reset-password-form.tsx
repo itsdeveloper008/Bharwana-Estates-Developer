@@ -13,13 +13,12 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
-import { PasswordCreateField } from "@/components/auth/password-create-field";
+import { ConfirmPasswordField, PasswordCreateField } from "@/components/auth/password-create-field";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormField, FormLabel } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { passwordCreateSchema } from "@/lib/schemas";
-import { cn } from "@/lib/utils";
 
 const formSchema = z
   .object({
@@ -209,22 +208,7 @@ export function ResetPasswordForm() {
           control={form.control}
           name="confirmPassword"
           render={({ field, fieldState }) => (
-            <FormItem>
-              <FormLabel>Confirm password</FormLabel>
-              <FormControl>
-                <Input
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Confirm password"
-                  className={cn(
-                    "bg-white",
-                    fieldState.error && "border-destructive focus-visible:ring-destructive",
-                  )}
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+            <ConfirmPasswordField field={field} fieldState={fieldState} label="Confirm password" />
           )}
         />
         {submitError ? (

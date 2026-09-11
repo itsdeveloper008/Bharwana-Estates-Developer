@@ -2,16 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
-import { RecaptchaVerifier, type ConfirmationResult } from "firebase/auth";
+import { fetchSignInMethodsForEmail, RecaptchaVerifier, type ConfirmationResult } from "firebase/auth";
+import { Eye, EyeOff, Loader2, Lock } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 import { GoogleRoleCompletionDialog } from "@/components/auth/google-role-completion-dialog";
 import { OtpDigitInputs } from "@/components/auth/otp-digit-inputs";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { SetPasswordOptional } from "@/components/auth/set-password-optional";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { useMockAuth } from "@/lib/mock-auth";
@@ -24,10 +26,34 @@ import {
   type PhoneOtpVerifyValues,
 } from "@/lib/schemas";
 import type { User } from "@/lib/types";
+import { authEmailFromLoginIdentifier } from "@/lib/user-display";
+import { cn } from "@/lib/utils";
 
-type Step = "phone" | "otp" | "password";
+type Step = "phone" | "password" | "otp" | "setPassword";
 
 const RESEND_SECONDS = 60;
+/** Client-side OTP validity window — invalidate confirmation when this elapses. */
+const OTP_VALID_SECONDS = 180;
+
+const phonePasswordSchema = z.object({
+  password: z.string().min(1, "Password is required"),
+});
+
+type PhonePasswordValues = z.infer<typeof phonePasswordSchema>;
+
+async function phoneAccountHasPassword(localDigits: string): Promise<boolean> {
+  const auth = getFirebaseAuth();
+  if (!auth) return false;
+  const email = authEmailFromLoginIdentifier(localDigits);
+  if (!email.includes("@")) return false;
+  try {
+    const methods = await fetchSignInMethodsForEmail(auth, email);
+    return methods.includes("password");
+  } catch (error) {
+    console.warn("[phone-otp] could not check password methods", error);
+    return false;
+  }
+}
 
 export function PhoneOtpSection({
   onSuccess,
@@ -41,7 +67,7 @@ export function PhoneOtpSection({
   /** Switch Sign In UI to the email/password tab. */
   onPreferPassword?: () => void;
 }) {
-  const { sendPhoneOtp, verifyPhoneOtp, adoptSession } = useMockAuth();
+  const { sendPhoneOtp, verifyPhoneOtp, adoptSession, login } = useMockAuth();
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const confirmationRef = useRef<ConfirmationResult | null>(null);
   const completingRef = useRef(false);
@@ -54,7 +80,11 @@ export function PhoneOtpSection({
   const [sentPhone, setSentPhone] = useState("");
   const [localPhone, setLocalPhone] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(null);
+  const [otpTick, setOtpTick] = useState(0);
+  const [hasConfirmation, setHasConfirmation] = useState(false);
   const [pendingUser, setPendingUser] = useState<User | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const phoneForm = useForm<PhoneOtpRequestValues>({
     resolver: zodResolver(phoneOtpRequestSchema),
@@ -66,6 +96,11 @@ export function PhoneOtpSection({
     defaultValues: { otp: "" },
   });
   const otpValue = useWatch({ control: otpForm.control, name: "otp" }) ?? "";
+
+  const passwordForm = useForm<PhonePasswordValues>({
+    resolver: zodResolver(phonePasswordSchema),
+    defaultValues: { password: "" },
+  });
 
   useEffect(() => {
     return () => {
@@ -85,6 +120,27 @@ export function PhoneOtpSection({
     }, 1000);
     return () => window.clearInterval(id);
   }, [secondsLeft]);
+
+  useEffect(() => {
+    if (step !== "otp" || !otpExpiresAt) return;
+    const remaining = otpExpiresAt - Date.now();
+    if (remaining <= 0) {
+      confirmationRef.current = null;
+      setHasConfirmation(false);
+      setError("Code expired, please resend");
+      return;
+    }
+    const tickId = window.setInterval(() => setOtpTick((n) => n + 1), 1000);
+    const id = window.setTimeout(() => {
+      confirmationRef.current = null;
+      setHasConfirmation(false);
+      setError("Code expired, please resend");
+    }, remaining);
+    return () => {
+      window.clearInterval(tickId);
+      window.clearTimeout(id);
+    };
+  }, [otpExpiresAt, step]);
 
   async function resetRecaptcha() {
     try {
@@ -128,8 +184,11 @@ export function PhoneOtpSection({
     }
     setError(null);
     setPending(true);
+    // Invalidate any previous confirmation before requesting a new code.
+    confirmationRef.current = null;
+    setHasConfirmation(false);
+    setOtpExpiresAt(null);
     try {
-      // Reuse an existing verifier when possible — recreating on every send slows SMS and breaks often.
       let verifier = recaptchaRef.current;
       if (!verifier) {
         verifier = await getRecaptchaVerifier();
@@ -144,10 +203,13 @@ export function PhoneOtpSection({
         return false;
       }
       confirmationRef.current = result.confirmation;
+      setHasConfirmation(true);
       setSentPhone(e164);
       setLocalPhone(localDigits);
       setStep("otp");
       setSecondsLeft(RESEND_SECONDS);
+      setOtpExpiresAt(Date.now() + OTP_VALID_SECONDS * 1000);
+      setOtpTick(0);
       otpForm.reset({ otp: "" });
       toast.success("Verification code sent.");
       return true;
@@ -163,7 +225,41 @@ export function PhoneOtpSection({
   }
 
   async function handleSendOtp(values: PhoneOtpRequestValues) {
+    setLocalPhone(values.phone);
+    if (variant === "login") {
+      setPending(true);
+      setError(null);
+      try {
+        const hasPassword = await phoneAccountHasPassword(values.phone);
+        if (hasPassword) {
+          setStep("password");
+          passwordForm.reset({ password: "" });
+          return;
+        }
+      } finally {
+        setPending(false);
+      }
+    }
     await sendCode(values.phone);
+  }
+
+  async function handlePasswordSignIn(values: PhonePasswordValues) {
+    setError(null);
+    setPending(true);
+    try {
+      const result = await login(localPhone, values.password);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      toast.success("Welcome back");
+      finishWithUser(result.user);
+    } catch (err) {
+      console.error("[phone-password] sign-in failed", err);
+      setError("Could not sign in. Check your password or use OTP.");
+    } finally {
+      setPending(false);
+    }
   }
 
   async function handleResend() {
@@ -179,9 +275,15 @@ export function PhoneOtpSection({
   }
 
   async function handleVerifyOtp(values: PhoneOtpVerifyValues) {
+    if (otpExpiresAt && Date.now() > otpExpiresAt) {
+      confirmationRef.current = null;
+      setHasConfirmation(false);
+      setError("Code expired, please resend");
+      return;
+    }
     const confirmation = confirmationRef.current;
     if (!confirmation) {
-      setError("Request a new code first.");
+      setError("Code expired, please resend");
       return;
     }
     setError(null);
@@ -194,6 +296,10 @@ export function PhoneOtpSection({
         setError(result.error);
         return;
       }
+      // One-time use — drop confirmation so a stale code cannot be replayed.
+      confirmationRef.current = null;
+      setHasConfirmation(false);
+      setOtpExpiresAt(null);
       if (result.isNewUser) {
         setDraft(result.draft);
         setRoleOpen(true);
@@ -214,8 +320,11 @@ export function PhoneOtpSection({
     setStep("phone");
     setError(null);
     confirmationRef.current = null;
+    setHasConfirmation(false);
+    setOtpExpiresAt(null);
     setSecondsLeft(0);
     otpForm.reset({ otp: "" });
+    passwordForm.reset({ password: "" });
     await resetRecaptcha();
   }
 
@@ -227,12 +336,11 @@ export function PhoneOtpSection({
     );
   }
 
-  if (step === "password" && pendingUser) {
+  if (step === "setPassword" && pendingUser) {
     return (
       <SetPasswordOptional
         defaultEmail={pendingUser.email}
         onDone={() => {
-          // linkEmailPassword already committed the updated session
           finishWithUser(pendingUser);
         }}
         onSkip={() => {
@@ -245,6 +353,11 @@ export function PhoneOtpSection({
 
   const sendLabel = "Send code";
   const verifyLabel = variant === "register" ? "Verify & create account" : "Verify & sign in";
+  const otpRemainingDisplay = otpExpiresAt
+    ? Math.max(0, Math.ceil((otpExpiresAt - Date.now()) / 1000))
+    : 0;
+  // otpTick forces a re-render each second while the expiry countdown is active.
+  void otpTick;
 
   return (
     <>
@@ -274,15 +387,14 @@ export function PhoneOtpSection({
               />
               {onPreferPassword ? (
                 <p className="text-xs text-muted-foreground">
-                  Already added a password?{" "}
+                  Prefer email?{" "}
                   <button
                     type="button"
                     className="font-medium text-forest underline-offset-2 hover:text-gold-700 hover:underline"
                     onClick={onPreferPassword}
                   >
                     Sign in with email instead
-                  </button>{" "}
-                  to skip the SMS code.
+                  </button>
                 </p>
               ) : null}
               {error && (
@@ -294,11 +406,83 @@ export function PhoneOtpSection({
                 {pending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Sending code…
+                    Checking…
                   </>
                 ) : (
-                  sendLabel
+                  variant === "login" ? "Continue" : sendLabel
                 )}
+              </Button>
+            </form>
+          </Form>
+        ) : step === "password" ? (
+          <Form {...passwordForm}>
+            <form onSubmit={passwordForm.handleSubmit(handlePasswordSignIn)} className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                This number has a password. Sign in with it, or use an SMS code instead.
+              </p>
+              <FormField
+                control={passwordForm.control}
+                name="password"
+                render={({ field, fieldState }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Lock
+                          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-forest/35"
+                          strokeWidth={1.75}
+                          aria-hidden
+                        />
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          autoComplete="current-password"
+                          placeholder="Password"
+                          className={cn(
+                            "h-12 rounded-xl border-forest/10 bg-[#F4F2ED] pl-10 pr-10 shadow-none focus-visible:ring-forest/30",
+                            fieldState.error && "border-destructive focus-visible:ring-destructive",
+                          )}
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-forest/45 transition-colors hover:text-forest"
+                          onClick={() => setShowPassword((current) => !current)}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {error && (
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" className="w-full" disabled={pending}>
+                {pending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Signing in…
+                  </>
+                ) : (
+                  "Sign in with password"
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={pending}
+                onClick={() => void sendCode(localPhone)}
+              >
+                Send OTP instead
+              </Button>
+              <Button type="button" variant="ghost" className="w-full" onClick={() => void handleChangeNumber()}>
+                Use a different number
               </Button>
             </form>
           </Form>
@@ -326,12 +510,22 @@ export function PhoneOtpSection({
                   </FormItem>
                 )}
               />
+              {otpExpiresAt && otpRemainingDisplay > 0 ? (
+                <p className="text-center text-xs text-muted-foreground">
+                  Code expires in {Math.floor(otpRemainingDisplay / 60)}:
+                  {String(otpRemainingDisplay % 60).padStart(2, "0")}
+                </p>
+              ) : null}
               {error && (
                 <p className="text-sm text-destructive" role="alert">
                   {error}
                 </p>
               )}
-              <Button type="submit" className="w-full" disabled={pending || otpValue.length !== 6}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={pending || otpValue.length !== 6 || !hasConfirmation}
+              >
                 {pending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -380,7 +574,7 @@ export function PhoneOtpSection({
         onComplete={(user) => {
           setRoleOpen(false);
           setPendingUser(user);
-          setStep("password");
+          setStep("setPassword");
         }}
       />
     </>

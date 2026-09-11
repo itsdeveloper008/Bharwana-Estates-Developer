@@ -685,14 +685,14 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         /* ignore */
       }
       const redirectProvider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, redirectProvider);
+      await signInWithRedirect(auth!, redirectProvider);
       return { ok: true as const, redirecting: true as const };
     }
 
     const provider = new GoogleAuthProvider();
 
     try {
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth!, provider);
       return await finishGoogleUser(result.user);
     } catch (popupError) {
       const code =
