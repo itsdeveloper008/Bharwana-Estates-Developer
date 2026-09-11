@@ -431,11 +431,28 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
               return;
             }
 
-            // Retry once — login/register may still be writing the Firestore profile.
+            // Session already committed (e.g. Google popup just finished) — don't block or
+            // race another profile fetch that Chrome may cancel.
+            if (userRef.current?.id === firebaseUser.uid) {
+              markReady();
+              void loadFirestoreUser(firebaseUser).then((profile) => {
+                if (cancelled || syncId !== authSyncGenerationRef.current) return;
+                if (profile) {
+                  setPendingGoogle(null);
+                  persist(profile);
+                }
+              });
+              return;
+            }
+
             let profile = await loadFirestoreUser(firebaseUser);
             if (!profile) {
-              await delay(350);
-              profile = await loadFirestoreUser(firebaseUser);
+              const providers = firebaseUser.providerData.map((p) => p.providerId);
+              // Only wait/retry for password users whose profile may still be writing.
+              if (providers.includes("password")) {
+                await delay(350);
+                profile = await loadFirestoreUser(firebaseUser);
+              }
             }
             if (cancelled || syncId !== authSyncGenerationRef.current) return;
 
@@ -491,32 +508,36 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         })();
       });
 
+      // Only finish a redirect when we actually started one. Calling getRedirectResult on
+      // every boot races/cancels Google popup sign-in network calls.
+      let expectingRedirect = false;
       try {
-        // Must await redirect completion — racing a short timeout used to drop the
-        // credential and leave users back on /login with no session.
-        const redirected = await getRedirectResult(auth);
-        if (!cancelled && redirected?.user) {
-          try {
-            sessionStorage.setItem(
-              GOOGLE_RETURN_KEY,
-              sessionStorage.getItem(GOOGLE_RETURN_KEY) ||
-                `${window.location.pathname}${window.location.search}`,
-            );
-          } catch {
-            /* ignore */
+        expectingRedirect = sessionStorage.getItem(GOOGLE_RETURN_KEY) !== null;
+      } catch {
+        expectingRedirect = false;
+      }
+      if (expectingRedirect) {
+        try {
+          const redirected = await Promise.race([
+            getRedirectResult(auth),
+            new Promise<null>((resolve) => {
+              window.setTimeout(() => resolve(null), 8000);
+            }),
+          ]);
+          if (!cancelled && redirected?.user) {
+            const profile = await loadFirestoreUser(redirected.user);
+            if (profile) {
+              persist(profile);
+              setPendingGoogle(null);
+            } else {
+              setPendingGoogle(draftFromFirebaseUser(redirected.user));
+            }
+            markReady();
           }
-          const profile = await loadFirestoreUser(redirected.user);
-          if (profile) {
-            persist(profile);
-            setPendingGoogle(null);
-          } else {
-            setPendingGoogle(draftFromFirebaseUser(redirected.user));
-          }
+        } catch (error) {
+          console.error("OAuth redirect result failed", error);
           markReady();
         }
-      } catch (error) {
-        console.error("Google redirect result failed", error);
-        markReady();
       }
     }
 
@@ -621,9 +642,34 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: false as const, error: "Google sign-in is unavailable right now." };
     }
 
-    async function finishGoogleUser(firebaseUser: FirebaseUser): Promise<GoogleLoginResult> {
+    // Minimal provider — no forced account picker / extra scopes (those slow consent).
+    const provider = new GoogleAuthProvider();
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const firebaseUser = result.user;
       const email = (firebaseUser.email ?? "").trim().toLowerCase();
       if (!email) return { ok: false as const, error: "Google account did not return an email." };
+
+      // Cancel competing onAuthStateChanged profile fetches that abort in-flight reads.
+      authSyncGenerationRef.current += 1;
+
+      // Returning visitor: reuse local session immediately, refresh profile in background.
+      try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        if (raw) {
+          const cached = JSON.parse(raw) as User;
+          if (cached?.id === firebaseUser.uid && cached.email) {
+            commitSession(cached);
+            void loadFirestoreUser(firebaseUser).then((profile) => {
+              if (profile) commitSession(profile);
+            });
+            return { ok: true as const, isNewUser: false as const, user: cached };
+          }
+        }
+      } catch {
+        /* ignore bad cache */
+      }
 
       const profile = await loadFirestoreUser(firebaseUser);
       if (profile) {
@@ -634,18 +680,6 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       const draft = draftFromFirebaseUser(firebaseUser);
       setPendingGoogle(draft);
       return { ok: true as const, isNewUser: true as const, draft };
-    }
-
-    // Popup only. Redirect to firebaseapp.com authDomain then back to the custom
-    // domain drops the session in Chrome (3P storage), so users land on /login unsigned.
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
-    provider.addScope("email");
-    provider.addScope("profile");
-
-    try {
-      const result = await signInWithPopup(auth, provider);
-      return await finishGoogleUser(result.user);
     } catch (popupError) {
       const code =
         popupError && typeof popupError === "object" && "code" in popupError
