@@ -260,7 +260,7 @@ function PasswordField({
             data-lpignore="true"
             data-bwignore="true"
             data-form-type="other"
-            placeholder=""
+            placeholder="Password"
             readOnly={!unlocked}
             onFocus={() => setUnlocked(true)}
             value={value}

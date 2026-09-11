@@ -135,7 +135,7 @@ export function PublishAuthDialog({
                       <Input
                         className="bg-white"
                         type="password"
-                        placeholder=""
+                        placeholder="Password"
                         autoComplete="current-password"
                         data-1p-ignore="true"
                         data-lpignore="true"

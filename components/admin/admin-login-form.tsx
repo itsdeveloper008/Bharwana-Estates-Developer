@@ -121,7 +121,7 @@ export function AdminLoginForm() {
                       autoComplete="current-password"
                       data-1p-ignore="true"
                       data-lpignore="true"
-                      placeholder=""
+                      placeholder="Password"
                       readOnly={!passwordUnlocked}
                       onFocus={() => setPasswordUnlocked(true)}
                       value={field.value ?? ""}

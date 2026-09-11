@@ -276,7 +276,7 @@ export default function AccountSettingsPage() {
                   autoComplete="new-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder=""
+                  placeholder="Password"
                 />
               </div>
             )}
