@@ -69,6 +69,7 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
   const [roleOpen, setRoleOpen] = useState(false);
   const [draft, setDraft] = useState<GoogleSignupDraft | null>(null);
   const handledReturn = useRef(false);
+  const signupCompletedRef = useRef(false);
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
 
@@ -184,12 +185,19 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
           setRoleOpen(open);
           if (!open) {
             setDraft(null);
+            // Closing after a successful signup must NOT sign the user out.
+            if (signupCompletedRef.current) {
+              signupCompletedRef.current = false;
+              return;
+            }
             void cancelPendingOAuthSignup();
           }
         }}
         draft={draft}
         onComplete={(completed) => {
+          signupCompletedRef.current = true;
           setRoleOpen(false);
+          setDraft(null);
           onSuccess(completed);
         }}
       />

@@ -785,47 +785,35 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // 2) Mobile / narrow viewports: popup + COOP is unreliable — use full-page redirect.
-    if (shouldPreferOAuthRedirect()) {
-      try {
-        return await startGoogleRedirect();
-      } catch (redirectError) {
-        const redirectCode =
-          redirectError && typeof redirectError === "object" && "code" in redirectError
-            ? String((redirectError as { code?: string }).code)
-            : "";
-        console.error("Google redirect failed", { code: redirectCode, redirectError });
+    // 2) Avoid Firebase popup — Chrome COOP blocks window.closed and leaves users stuck.
+    // Prefer full-page redirect whenever GIS did not complete.
+    try {
+      return await startGoogleRedirect();
+    } catch (redirectError) {
+      const redirectCode =
+        redirectError && typeof redirectError === "object" && "code" in redirectError
+          ? String((redirectError as { code?: string }).code)
+          : "";
+      console.error("Google redirect failed", { code: redirectCode, redirectError });
+
+      // Last resort popup (desktop only) if redirect cannot start.
+      if (shouldPreferOAuthRedirect()) {
         return { ok: false as const, error: googleAuthErrorMessage(redirectCode) };
       }
-    }
 
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
-
-    try {
-      const result = await signInWithPopup(firebaseAuth, provider);
-      return await finishGoogleUser(result.user);
-    } catch (error) {
-      const code =
-        error && typeof error === "object" && "code" in error
-          ? String((error as { code?: string }).code)
-          : "";
-      console.error("Google sign-in failed", { code, error });
-
-      if (isOAuthPopupUnusable(code, error)) {
-        try {
-          return await startGoogleRedirect();
-        } catch (redirectError) {
-          const redirectCode =
-            redirectError && typeof redirectError === "object" && "code" in redirectError
-              ? String((redirectError as { code?: string }).code)
-              : code;
-          console.error("Google redirect fallback failed", { code: redirectCode, redirectError });
-          return { ok: false as const, error: googleAuthErrorMessage(redirectCode || code) };
-        }
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      try {
+        const result = await signInWithPopup(firebaseAuth, provider);
+        return await finishGoogleUser(result.user);
+      } catch (error) {
+        const code =
+          error && typeof error === "object" && "code" in error
+            ? String((error as { code?: string }).code)
+            : redirectCode;
+        console.error("Google popup last-resort failed", { code, error });
+        return { ok: false as const, error: googleAuthErrorMessage(code) };
       }
-
-      return { ok: false as const, error: googleAuthErrorMessage(code) };
     }
   }, [commitSession, setPendingGoogle]);
 
@@ -891,30 +879,26 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Prefer redirect over popup to avoid Chrome COOP / window.closed failures.
     try {
-      const result = await signInWithPopup(firebaseAuth, provider);
-      return await finishFacebookUser(result.user);
-    } catch (error) {
-      const code =
-        error && typeof error === "object" && "code" in error
-          ? String((error as { code?: string }).code)
+      return await startFacebookRedirect();
+    } catch (redirectError) {
+      const redirectCode =
+        redirectError && typeof redirectError === "object" && "code" in redirectError
+          ? String((redirectError as { code?: string }).code)
           : "";
-      console.error("Facebook sign-in failed", { code, error });
-
-      if (isOAuthPopupUnusable(code, error)) {
-        try {
-          return await startFacebookRedirect();
-        } catch (redirectError) {
-          const redirectCode =
-            redirectError && typeof redirectError === "object" && "code" in redirectError
-              ? String((redirectError as { code?: string }).code)
-              : code;
-          console.error("Facebook redirect fallback failed", { code: redirectCode, redirectError });
-          return { ok: false as const, error: facebookAuthErrorMessage(redirectCode || code) };
-        }
+      console.error("Facebook redirect failed; trying popup", { code: redirectCode, redirectError });
+      try {
+        const result = await signInWithPopup(firebaseAuth, provider);
+        return await finishFacebookUser(result.user);
+      } catch (error) {
+        const code =
+          error && typeof error === "object" && "code" in error
+            ? String((error as { code?: string }).code)
+            : redirectCode;
+        console.error("Facebook sign-in failed", { code, error });
+        return { ok: false as const, error: facebookAuthErrorMessage(code) };
       }
-
-      return { ok: false as const, error: facebookAuthErrorMessage(code) };
     }
   }, [commitSession, setPendingGoogle]);
 
@@ -934,8 +918,15 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     const firebaseUser = auth?.currentUser;
     if (!firebaseUser) return;
+    // Profile was just committed — never tear down a finished signup.
+    if (userRef.current?.id === firebaseUser.uid) return;
+
     // Incomplete social signup (no Firestore profile yet) — sign out so login form works.
-    const profile = await loadFirestoreUser(firebaseUser).catch(() => null);
+    let profile = await loadFirestoreUser(firebaseUser).catch(() => null);
+    if (!profile) {
+      await delay(500);
+      profile = await loadFirestoreUser(firebaseUser).catch(() => null);
+    }
     if (!profile) {
       authSyncGenerationRef.current += 1;
       persist(null);

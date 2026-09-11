@@ -129,7 +129,8 @@ export function GoogleRoleCompletionDialog({
         }
       }
       toast.success(role === "DEALER" ? "Dealer account created. Pending review." : "Account created");
-      onOpenChange(false);
+      // Parent closes the dialog and navigates — do not call onOpenChange(false) first
+      // (that used to cancel the OAuth session and bounce users back to Sign in).
       onComplete(result.user);
     } finally {
       setPending(false);
