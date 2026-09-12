@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { RecaptchaVerifier } from "firebase/auth";
+import type { RecaptchaVerifier } from "firebase/auth";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { OtpDigitInputs } from "@/components/auth/otp-digit-inputs";
@@ -15,6 +15,11 @@ import {
   isValidPakistanMobileLocal,
   toPakistanMobileLocal,
 } from "@/lib/phone-format";
+import {
+  clearRecaptchaContainer,
+  createPhoneRecaptchaVerifier,
+  ensureRecaptchaScript,
+} from "@/lib/phone-recaptcha";
 
 const RESEND_SECONDS = 60;
 const RECAPTCHA_ID = "change-phone-recaptcha";
@@ -54,33 +59,53 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
     return () => window.clearInterval(id);
   }, [secondsLeft]);
 
-  async function resetRecaptcha() {
-    try {
-      recaptchaRef.current?.clear();
-    } catch {
-      // ignore stale widget clear errors
-    }
-    recaptchaRef.current = null;
-    const host = document.getElementById(RECAPTCHA_ID);
-    if (host) host.innerHTML = "";
-    await new Promise<void>((resolve) => {
-      window.setTimeout(() => resolve(), 50);
+  const needsRecaptchaWidget = step === "phone" || (step === "otp" && secondsLeft === 0);
+
+  useEffect(() => {
+    if (!needsRecaptchaWidget) return;
+    void ensureRecaptchaScript().catch((err) => {
+      console.warn("[change-phone] reCAPTCHA preload failed", err);
     });
+    let cancelled = false;
+    void (async () => {
+      try {
+        const auth = getFirebaseAuth();
+        if (!auth || cancelled) return;
+        const verifier = await createPhoneRecaptchaVerifier(auth, RECAPTCHA_ID, recaptchaRef.current);
+        if (cancelled) {
+          try {
+            verifier.clear();
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
+        recaptchaRef.current = verifier;
+      } catch (err) {
+        console.warn("[change-phone] reCAPTCHA widget mount failed", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      try {
+        recaptchaRef.current?.clear();
+      } catch {
+        /* ignore */
+      }
+      recaptchaRef.current = null;
+    };
+  }, [needsRecaptchaWidget]);
+
+  async function resetRecaptcha() {
+    await clearRecaptchaContainer(RECAPTCHA_ID, recaptchaRef.current);
+    recaptchaRef.current = null;
   }
 
   async function createFreshRecaptchaVerifier() {
     const auth = getFirebaseAuth();
     if (!auth) throw new Error("Firebase Auth is not available");
-    await resetRecaptcha();
-    const verifier = new RecaptchaVerifier(auth, RECAPTCHA_ID, {
-      size: "invisible",
-      callback: () => undefined,
-      "expired-callback": () => {
-        void resetRecaptcha();
-      },
-    });
+    const verifier = await createPhoneRecaptchaVerifier(auth, RECAPTCHA_ID, recaptchaRef.current);
     recaptchaRef.current = verifier;
-    await verifier.render();
     return verifier;
   }
 
@@ -115,13 +140,18 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
     setError(null);
     setPending(true);
     try {
-      const verifier = await createFreshRecaptchaVerifier();
+      const verifier = recaptchaRef.current ?? (await createFreshRecaptchaVerifier());
       const e164 = formatPakistanMobileE164(localDigits);
       console.info("[change-phone] preparing send", { e164 });
       const result = await sendChangePhoneOtp(e164, verifier);
       if (!result.ok) {
         setError(result.error);
         await resetRecaptcha();
+        try {
+          await createFreshRecaptchaVerifier();
+        } catch {
+          /* user can refresh */
+        }
         return false;
       }
       await resetRecaptcha();
@@ -137,6 +167,11 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
       console.error("[change-phone] send exception", err);
       setError("Something went wrong sending your code. Please try again in a moment.");
       await resetRecaptcha();
+      try {
+        await createFreshRecaptchaVerifier();
+      } catch {
+        /* user can refresh */
+      }
       return false;
     } finally {
       setPending(false);
@@ -234,32 +269,6 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
                   {error}
                 </p>
               ) : null}
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Button
-                  type="button"
-                  className="w-full sm:flex-1"
-                  disabled={pending || !isValidPakistanMobileLocal(localPhone)}
-                  onClick={() => void handleSend()}
-                >
-                  {pending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Sending code…
-                    </>
-                  ) : (
-                    "Send Verification Code"
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full sm:w-auto"
-                  disabled={pending}
-                  onClick={cancel}
-                >
-                  Cancel
-                </Button>
-              </div>
             </>
           ) : (
             <>
@@ -299,29 +308,76 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
                   "Confirm phone number"
                 )}
               </Button>
-              <div className="flex flex-col gap-2">
-                {secondsLeft > 0 ? (
-                  <p className="text-center text-xs text-muted-foreground">
-                    Resend code in {secondsLeft}s
-                  </p>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    disabled={pending}
-                    onClick={() => void handleResend()}
-                  >
-                    Resend OTP
-                  </Button>
-                )}
-                <Button type="button" variant="ghost" className="w-full" disabled={pending} onClick={cancel}>
-                  Cancel
-                </Button>
-              </div>
+              {secondsLeft > 0 ? (
+                <p className="text-center text-xs text-muted-foreground">
+                  Resend code in {secondsLeft}s
+                </p>
+              ) : null}
             </>
           )}
-          <div id={RECAPTCHA_ID} />
+
+          <div
+            className={
+              needsRecaptchaWidget
+                ? "space-y-1"
+                : "pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0"
+            }
+          >
+            <div className="flex justify-center py-1">
+              <div id={RECAPTCHA_ID} className="min-h-[78px]" />
+            </div>
+            {needsRecaptchaWidget ? (
+              <p className="text-center text-[11px] text-muted-foreground">
+                Complete the security check above, then continue.
+              </p>
+            ) : null}
+          </div>
+
+          {step === "phone" ? (
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                className="w-full sm:flex-1"
+                disabled={pending || !isValidPakistanMobileLocal(localPhone)}
+                onClick={() => void handleSend()}
+              >
+                {pending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending code…
+                  </>
+                ) : (
+                  "Send Verification Code"
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full sm:w-auto"
+                disabled={pending}
+                onClick={cancel}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {secondsLeft <= 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={pending}
+                  onClick={() => void handleResend()}
+                >
+                  Resend OTP
+                </Button>
+              ) : null}
+              <Button type="button" variant="ghost" className="w-full" disabled={pending} onClick={cancel}>
+                Cancel
+              </Button>
+            </div>
+          )}
         </div>
       ) : null}
     </div>

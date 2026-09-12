@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { fetchSignInMethodsForEmail, RecaptchaVerifier, type ConfirmationResult } from "firebase/auth";
+import { fetchSignInMethodsForEmail, type ConfirmationResult } from "firebase/auth";
 import { Eye, EyeOff, Loader2, Lock } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -20,6 +20,11 @@ import { useMockAuth } from "@/lib/mock-auth";
 import { firebaseErrorParts, phoneAuthErrorMessage } from "@/lib/phone-auth-errors";
 import { formatPakistanMobileE164 } from "@/lib/phone-format";
 import {
+  clearRecaptchaContainer,
+  createPhoneRecaptchaVerifier,
+  ensureRecaptchaScript,
+} from "@/lib/phone-recaptcha";
+import {
   phoneOtpRequestSchema,
   phoneOtpVerifySchema,
   type PhoneOtpRequestValues,
@@ -28,6 +33,7 @@ import {
 import type { User } from "@/lib/types";
 import { authEmailFromLoginIdentifier } from "@/lib/user-display";
 import { cn } from "@/lib/utils";
+import type { RecaptchaVerifier } from "firebase/auth";
 
 type Step = "phone" | "password" | "otp" | "setPassword";
 
@@ -113,6 +119,49 @@ export function PhoneOtpSection({
     };
   }, []);
 
+  // Preload reCAPTCHA while the user types their number — avoids cold-start failures on Continue.
+  useEffect(() => {
+    void ensureRecaptchaScript().catch((err) => {
+      console.warn("[phone-otp] reCAPTCHA preload failed", err);
+    });
+  }, []);
+
+  // Mount a visible widget whenever the challenge UI is on screen (including OTP resend).
+  const needsRecaptchaWidget =
+    step === "phone" || step === "password" || (step === "otp" && secondsLeft === 0);
+
+  useEffect(() => {
+    if (!needsRecaptchaWidget) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const auth = getFirebaseAuth();
+        if (!auth || cancelled) return;
+        const verifier = await createPhoneRecaptchaVerifier(auth, recaptchaId, recaptchaRef.current);
+        if (cancelled) {
+          try {
+            verifier.clear();
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
+        recaptchaRef.current = verifier;
+      } catch (err) {
+        console.warn("[phone-otp] reCAPTCHA widget mount failed", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      try {
+        recaptchaRef.current?.clear();
+      } catch {
+        /* ignore */
+      }
+      recaptchaRef.current = null;
+    };
+  }, [needsRecaptchaWidget, recaptchaId]);
+
   useEffect(() => {
     if (secondsLeft <= 0) return;
     const id = window.setInterval(() => {
@@ -143,43 +192,15 @@ export function PhoneOtpSection({
   }, [otpExpiresAt, step]);
 
   async function resetRecaptcha() {
-    try {
-      recaptchaRef.current?.clear();
-    } catch {
-      // ignore stale widget clear errors
-    }
+    await clearRecaptchaContainer(recaptchaId, recaptchaRef.current);
     recaptchaRef.current = null;
-    const host = document.getElementById(recaptchaId);
-    if (host) host.innerHTML = "";
-    // Allow the DOM to settle before a new RecaptchaVerifier binds the same container.
-    await new Promise<void>((resolve) => {
-      window.setTimeout(() => resolve(), 50);
-    });
   }
 
   async function createFreshRecaptchaVerifier() {
     const auth = getFirebaseAuth();
     if (!auth) throw new Error("Firebase Auth is not available");
-
-    // Always destroy any prior widget — reusing a spent invisible verifier causes auth/internal-error.
-    await resetRecaptcha();
-
-    const host = document.getElementById(recaptchaId);
-    if (!host) {
-      throw Object.assign(new Error("reCAPTCHA container is missing from the page."), {
-        code: "auth/argument-error",
-      });
-    }
-
-    const verifier = new RecaptchaVerifier(auth, recaptchaId, {
-      size: "invisible",
-      callback: () => undefined,
-      "expired-callback": () => {
-        void resetRecaptcha();
-      },
-    });
+    const verifier = await createPhoneRecaptchaVerifier(auth, recaptchaId, recaptchaRef.current);
     recaptchaRef.current = verifier;
-    await verifier.render();
     return verifier;
   }
 
@@ -197,13 +218,18 @@ export function PhoneOtpSection({
     try {
       const e164 = formatPakistanMobileE164(localDigits);
       console.info("[phone-otp] preparing send", { localDigits, e164 });
-      // Fresh invisible reCAPTCHA on every send (including retries) — required by Firebase.
-      const verifier = await createFreshRecaptchaVerifier();
+      // Reuse the on-screen widget if present; otherwise create a fresh visible challenge.
+      const verifier = recaptchaRef.current ?? (await createFreshRecaptchaVerifier());
       const result = await sendPhoneOtp(e164, verifier);
       if (!result.ok) {
         console.error("[phone-otp] send failed", result.error);
         setError(result.error);
         await resetRecaptcha();
+        try {
+          await createFreshRecaptchaVerifier();
+        } catch {
+          /* user can refresh */
+        }
         return false;
       }
       // Verifier is spent after a successful challenge — drop it so the next send is fresh.
@@ -224,6 +250,13 @@ export function PhoneOtpSection({
       console.error("[phone-otp] send exception", { code, message, err });
       setError(phoneAuthErrorMessage(code, message));
       await resetRecaptcha();
+      try {
+        if (step === "phone" || step === "password") {
+          await createFreshRecaptchaVerifier();
+        }
+      } catch {
+        /* user can refresh */
+      }
       return false;
     } finally {
       setPending(false);
@@ -369,7 +402,11 @@ export function PhoneOtpSection({
       <div className="space-y-4">
         {step === "phone" ? (
           <Form {...phoneForm}>
-            <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-3">
+            <form
+              id="phone-otp-request-form"
+              onSubmit={phoneForm.handleSubmit(handleSendOtp)}
+              className="space-y-3"
+            >
               <FormField
                 control={phoneForm.control}
                 name="phone"
@@ -407,21 +444,15 @@ export function PhoneOtpSection({
                   {error}
                 </p>
               )}
-              <Button type="submit" className="w-full" disabled={pending}>
-                {pending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Checking…
-                  </>
-                ) : (
-                  variant === "login" ? "Continue" : sendLabel
-                )}
-              </Button>
             </form>
           </Form>
         ) : step === "password" ? (
           <Form {...passwordForm}>
-            <form onSubmit={passwordForm.handleSubmit(handlePasswordSignIn)} className="space-y-3">
+            <form
+              id="phone-otp-password-form"
+              onSubmit={passwordForm.handleSubmit(handlePasswordSignIn)}
+              className="space-y-3"
+            >
               <p className="text-sm text-muted-foreground">
                 This number has a password. Sign in with it, or use an SMS code instead.
               </p>
@@ -467,28 +498,6 @@ export function PhoneOtpSection({
                   {error}
                 </p>
               )}
-              <Button type="submit" className="w-full" disabled={pending}>
-                {pending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Signing in…
-                  </>
-                ) : (
-                  "Sign in with password"
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                disabled={pending}
-                onClick={() => void sendCode(localPhone)}
-              >
-                Send OTP instead
-              </Button>
-              <Button type="button" variant="ghost" className="w-full" onClick={() => void handleChangeNumber()}>
-                Use a different number
-              </Button>
             </form>
           </Form>
         ) : (
@@ -545,25 +554,96 @@ export function PhoneOtpSection({
                   <p className="text-center text-xs text-muted-foreground">
                     Resend code in {secondsLeft}s
                   </p>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    disabled={pending}
-                    onClick={() => void handleResend()}
-                  >
-                    Resend OTP
-                  </Button>
-                )}
-                <Button type="button" variant="ghost" className="w-full" onClick={() => void handleChangeNumber()}>
-                  Use a different number
-                </Button>
+                ) : null}
               </div>
             </form>
           </Form>
         )}
-        <div id={recaptchaId} />
+
+        {/* Always mounted so Resend can recreate a challenge without losing the DOM node. */}
+        <div
+          className={cn(
+            "space-y-1",
+            !needsRecaptchaWidget && "pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0",
+          )}
+        >
+          <div className="flex justify-center py-1">
+            <div id={recaptchaId} className="min-h-[78px]" />
+          </div>
+          {needsRecaptchaWidget ? (
+            <p className="text-center text-[11px] text-muted-foreground">
+              Complete the security check above, then continue.
+            </p>
+          ) : null}
+        </div>
+        {step === "phone" ? (
+          <Button
+            type="submit"
+            form="phone-otp-request-form"
+            className="w-full"
+            disabled={pending}
+          >
+            {pending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Checking…
+              </>
+            ) : (
+              variant === "login" ? "Continue" : sendLabel
+            )}
+          </Button>
+        ) : null}
+
+        {step === "password" ? (
+          <div className="space-y-2">
+            <Button
+              type="submit"
+              form="phone-otp-password-form"
+              className="w-full"
+              disabled={pending}
+            >
+              {pending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Signing in…
+                </>
+              ) : (
+                "Sign in with password"
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={pending}
+              onClick={() => void sendCode(localPhone)}
+            >
+              Send OTP instead
+            </Button>
+            <Button type="button" variant="ghost" className="w-full" onClick={() => void handleChangeNumber()}>
+              Use a different number
+            </Button>
+          </div>
+        ) : null}
+
+        {step === "otp" ? (
+          <div className="flex flex-col gap-2">
+            {secondsLeft <= 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={pending}
+                onClick={() => void handleResend()}
+              >
+                Resend OTP
+              </Button>
+            ) : null}
+            <Button type="button" variant="ghost" className="w-full" onClick={() => void handleChangeNumber()}>
+              Use a different number
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <GoogleRoleCompletionDialog

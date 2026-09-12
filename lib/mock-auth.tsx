@@ -508,8 +508,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         })();
       });
 
-      // Only finish a redirect when we actually started one. Calling getRedirectResult on
-      // every boot races/cancels Google popup sign-in network calls.
+      // Only finish a redirect when we started one (Google / Facebook same-tab OAuth).
       let expectingRedirect = false;
       try {
         expectingRedirect = sessionStorage.getItem(GOOGLE_RETURN_KEY) !== null;
@@ -642,40 +641,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: false as const, error: "Google sign-in is unavailable right now." };
     }
 
-    async function finishGoogleUser(firebaseUser: FirebaseUser): Promise<GoogleLoginResult> {
-      const email = (firebaseUser.email ?? "").trim().toLowerCase();
-      if (!email) return { ok: false as const, error: "Google account did not return an email." };
-
-      authSyncGenerationRef.current += 1;
-
-      try {
-        const raw = localStorage.getItem(SESSION_KEY);
-        if (raw) {
-          const cached = JSON.parse(raw) as User;
-          if (cached?.id === firebaseUser.uid && cached.email) {
-            commitSession(cached);
-            void loadFirestoreUser(firebaseUser).then((profile) => {
-              if (profile) commitSession(profile);
-            });
-            return { ok: true as const, isNewUser: false as const, user: cached };
-          }
-        }
-      } catch {
-        /* ignore bad cache */
-      }
-
-      const profile = await loadFirestoreUser(firebaseUser);
-      if (profile) {
-        commitSession(profile);
-        return { ok: true as const, isNewUser: false as const, user: profile };
-      }
-
-      const draft = draftFromFirebaseUser(firebaseUser);
-      setPendingGoogle(draft);
-      return { ok: true as const, isNewUser: true as const, draft };
-    }
-
-    async function startGoogleRedirect(): Promise<GoogleLoginResult> {
+    // Same-tab redirect only — avoids a second tab/popup leaving OAuth URLs open.
+    try {
       try {
         sessionStorage.setItem(
           GOOGLE_RETURN_KEY,
@@ -684,43 +651,17 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       } catch {
         /* ignore */
       }
-      const redirectProvider = new GoogleAuthProvider();
-      await signInWithRedirect(auth!, redirectProvider);
+      await signInWithRedirect(auth, new GoogleAuthProvider());
       return { ok: true as const, redirecting: true as const };
-    }
-
-    const provider = new GoogleAuthProvider();
-
-    try {
-      const result = await signInWithPopup(auth!, provider);
-      return await finishGoogleUser(result.user);
-    } catch (popupError) {
+    } catch (error) {
       const code =
-        popupError && typeof popupError === "object" && "code" in popupError
-          ? String((popupError as { code?: string }).code)
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code?: string }).code)
           : "";
-      // Chrome often reports popup-closed when COOP blocks window.closed — use redirect.
-      if (
-        code === "auth/popup-closed-by-user" ||
-        code === "auth/cancelled-popup-request" ||
-        code === "auth/popup-blocked"
-      ) {
-        console.warn("Google popup interrupted; falling back to redirect", { code });
-        try {
-          return await startGoogleRedirect();
-        } catch (redirectError) {
-          const redirectCode =
-            redirectError && typeof redirectError === "object" && "code" in redirectError
-              ? String((redirectError as { code?: string }).code)
-              : code;
-          console.error("Google redirect fallback failed", { code: redirectCode, redirectError });
-          return { ok: false as const, error: googleAuthErrorMessage(redirectCode || code) };
-        }
-      }
-      console.error("Google sign-in failed", { code, popupError });
+      console.error("Google redirect sign-in failed", { code, error });
       return { ok: false as const, error: googleAuthErrorMessage(code) };
     }
-  }, [commitSession, setPendingGoogle]);
+  }, []);
 
   const loginWithFacebook = useCallback(async () => {
     if (!isFirebaseConfigured()) {

@@ -46,12 +46,14 @@ function messageHints(rawMessage: string): string {
     return "SMS is not enabled for Pakistan (+92) on this Firebase project. Add PK under Authentication → Settings → SMS region policy.";
   }
   if (
+    message.includes("could not connect to the recaptcha") ||
+    message.includes("reload to get a recaptcha") ||
     message.includes("recaptcha") ||
     message.includes("captcha") ||
     message.includes("app credential") ||
     message.includes("already been rendered")
   ) {
-    return "Security check failed. Refresh the page and try again.";
+    return "Could not reach the security check (reCAPTCHA). Disable ad blockers for this site, allow google.com / recaptcha.net, refresh, then try again — or sign in with email.";
   }
   if (message.includes("api key") || message.includes("api_key") || message.includes("identity toolkit")) {
     return "Phone sign-in is blocked by API key settings. Ask the project owner to allow Identity Toolkit API on the Firebase web key.";
@@ -89,7 +91,7 @@ export function phoneAuthErrorMessage(code: string, rawMessage = "") {
       return "Too many attempts. Wait a moment and try again.";
     case "auth/captcha-check-failed":
     case "auth/invalid-app-credential":
-      return "Security check failed. Refresh the page and try again. If this persists, confirm this domain is listed under Firebase Authentication → Settings → Authorized domains.";
+      return "Could not reach the security check (reCAPTCHA). Disable ad blockers for this site, refresh, then try again — or sign in with email.";
     case "auth/invalid-verification-code":
       return "Incorrect code. Check the SMS and try again.";
     case "auth/code-expired":
@@ -99,7 +101,7 @@ export function phoneAuthErrorMessage(code: string, rawMessage = "") {
     case "auth/quota-exceeded":
       return "SMS limit reached. Try again later or use email sign-in.";
     case "auth/network-request-failed":
-      return "Could not reach Firebase Auth. Check your internet, disable ad blockers for this site, or try another browser/network.";
+      return "Could not reach Firebase / reCAPTCHA. Check your internet, disable ad blockers for this site, or try another browser/network. You can also sign in with email.";
     case "auth/app-not-authorized":
       return "This domain is not authorized for phone auth. Add it under Firebase Authentication → Settings → Authorized domains.";
     case "auth/argument-error":
