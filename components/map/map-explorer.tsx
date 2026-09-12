@@ -1,16 +1,23 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FilterBar } from "@/components/properties/filter-bar";
 import { PropertyCard } from "@/components/properties/property-card";
 import { filtersFromSearchParams, filterProperties } from "@/lib/api/properties";
+import { preloadGoogleMaps } from "@/lib/map";
 import { useMockStore } from "@/lib/mock-store";
 import type { MapBounds } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+// Kick off Maps API + MapView chunk immediately (parallel with hydration).
+if (typeof window !== "undefined") {
+  void preloadGoogleMaps();
+  void import("@/components/map/map-view");
+}
 
 const MapView = dynamic(() => import("@/components/map/map-view").then((mod) => mod.MapView), {
   ssr: false,
@@ -31,6 +38,10 @@ export function MapExplorer() {
   const [focusKey, setFocusKey] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<"list" | "map">("list");
+
+  useEffect(() => {
+    void preloadGoogleMaps();
+  }, []);
 
   const barFilters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
   const filters = useMemo(() => ({ ...barFilters, bounds }), [barFilters, bounds]);

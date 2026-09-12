@@ -45,6 +45,8 @@ const mapOptions: google.maps.MapOptions = {
   clickableIcons: false,
   isFractionalZoomEnabled: false,
   keyboardShortcuts: false,
+  // Show brand surface while tiles stream in (feels faster than blank white).
+  backgroundColor: "#F4F2ED",
 };
 
 function MapLoadingSkeleton({ message = "Loading map" }: { message?: string }) {
@@ -112,6 +114,8 @@ export function MapView({
   const { isLoaded, loadError } = useJsApiLoader({
     id: "bharwana-google-maps",
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    // Skip Roboto / Google fonts fetch — meaningful win on slow networks.
+    preventGoogleFontsLoading: true,
   });
 
   useEffect(() => {
@@ -502,6 +506,7 @@ export function MiniMap({ property }: { property: Property }) {
   const { isLoaded } = useJsApiLoader({
     id: "bharwana-google-maps",
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    preventGoogleFontsLoading: true,
   });
 
   if (!hasGoogleMapsKey() || !isLoaded) {

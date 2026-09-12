@@ -23,6 +23,7 @@ import {
 } from "@/lib/listings-notifications";
 import { cn } from "@/lib/utils";
 import { displayUserEmail } from "@/lib/user-display";
+import { preloadGoogleMaps } from "@/lib/map";
 
 const publicLinks = [
   { href: "/properties", label: "Properties" },
@@ -217,6 +218,11 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  onMouseEnter={() => {
+                    if (link.href !== "/map") return;
+                    void preloadGoogleMaps();
+                    void import("@/components/map/map-view");
+                  }}
                   className={cn(
                     "group relative shrink-0 px-2.5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors duration-300 2xl:px-3.5 2xl:text-[11px] 2xl:tracking-[0.2em]",
                     overHero
@@ -467,6 +473,11 @@ export function Navbar() {
                       <Link
                         href={link.href}
                         onClick={() => setOpen(false)}
+                        onTouchStart={() => {
+                          if (link.href !== "/map") return;
+                          void preloadGoogleMaps();
+                          void import("@/components/map/map-view");
+                        }}
                         className={cn(
                           "block py-2 font-serif text-[2rem] leading-tight tracking-tight text-[#F5F1E8] transition-colors hover:text-[#B89545] sm:text-[2.5rem]",
                           active && "text-[#B89545]",

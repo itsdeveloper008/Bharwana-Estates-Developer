@@ -28,6 +28,34 @@ export function warnMissingMapKeys() {
   }
 }
 
+const GOOGLE_MAPS_LOADER_ID = "bharwana-google-maps";
+let googleMapsPreload: Promise<unknown> | null = null;
+
+/**
+ * Start downloading the Maps JS API as early as possible (same loader id as useJsApiLoader).
+ * Call from /map mount so it runs in parallel with the MapView chunk download.
+ */
+export function preloadGoogleMaps() {
+  if (typeof window === "undefined" || !hasGoogleMapsKey()) {
+    return Promise.resolve();
+  }
+  if (googleMapsPreload) return googleMapsPreload;
+
+  googleMapsPreload = import("@googlemaps/js-api-loader")
+    .then(({ Loader }) =>
+      new Loader({
+        apiKey: GOOGLE_MAPS_API_KEY,
+        id: GOOGLE_MAPS_LOADER_ID,
+      }).load(),
+    )
+    .catch((error) => {
+      googleMapsPreload = null;
+      console.warn("[Bharwana] Google Maps preload failed", error);
+    });
+
+  return googleMapsPreload;
+}
+
 /** @deprecated Kept for any MapLibre fallbacks; primary map uses Google Maps. */
 export const MAP_STYLE = {
   version: 8 as const,
