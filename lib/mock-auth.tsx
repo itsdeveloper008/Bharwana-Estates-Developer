@@ -641,27 +641,52 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: false as const, error: "Google sign-in is unavailable right now." };
     }
 
-    // Same-tab redirect only — avoids a second tab/popup leaving OAuth URLs open.
-    try {
+    async function finishGoogleUser(firebaseUser: FirebaseUser): Promise<GoogleLoginResult> {
+      const email = (firebaseUser.email ?? "").trim().toLowerCase();
+      if (!email) return { ok: false as const, error: "Google account did not return an email." };
+
+      authSyncGenerationRef.current += 1;
+
       try {
-        sessionStorage.setItem(
-          GOOGLE_RETURN_KEY,
-          `${window.location.pathname}${window.location.search}`,
-        );
+        const raw = localStorage.getItem(SESSION_KEY);
+        if (raw) {
+          const cached = JSON.parse(raw) as User;
+          if (cached?.id === firebaseUser.uid && cached.email) {
+            commitSession(cached);
+            void loadFirestoreUser(firebaseUser).then((profile) => {
+              if (profile) commitSession(profile);
+            });
+            return { ok: true as const, isNewUser: false as const, user: cached };
+          }
+        }
       } catch {
-        /* ignore */
+        /* ignore bad cache */
       }
-      await signInWithRedirect(auth, new GoogleAuthProvider());
-      return { ok: true as const, redirecting: true as const };
+
+      const profile = await loadFirestoreUser(firebaseUser);
+      if (profile) {
+        commitSession(profile);
+        return { ok: true as const, isNewUser: false as const, user: profile };
+      }
+
+      const draft = draftFromFirebaseUser(firebaseUser);
+      setPendingGoogle(draft);
+      return { ok: true as const, isNewUser: true as const, draft };
+    }
+
+    // Popup only — stay on this page; no same-tab / new-tab redirect.
+    try {
+      const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      return await finishGoogleUser(result.user);
     } catch (error) {
       const code =
         error && typeof error === "object" && "code" in error
           ? String((error as { code?: string }).code)
           : "";
-      console.error("Google redirect sign-in failed", { code, error });
+      console.error("Google popup sign-in failed", { code, error });
       return { ok: false as const, error: googleAuthErrorMessage(code) };
     }
-  }, []);
+  }, [commitSession, setPendingGoogle]);
 
   const loginWithFacebook = useCallback(async () => {
     if (!isFirebaseConfigured()) {
