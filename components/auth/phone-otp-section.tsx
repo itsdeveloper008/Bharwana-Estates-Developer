@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { fetchSignInMethodsForEmail, type ConfirmationResult } from "firebase/auth";
+import { type ConfirmationResult } from "firebase/auth";
 import { Eye, EyeOff, Loader2, Lock } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -14,14 +14,16 @@ import { SetPasswordOptional } from "@/components/auth/set-password-optional";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { fetchSignInMethodsForIdentifier } from "@/lib/auth-sign-in-methods";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { useMockAuth } from "@/lib/mock-auth";
-import { firebaseErrorParts, phoneAuthErrorMessage } from "@/lib/phone-auth-errors";
+import { firebaseErrorParts, logFirebaseAuthError, phoneAuthErrorMessage } from "@/lib/phone-auth-errors";
 import { formatPakistanMobileE164 } from "@/lib/phone-format";
 import {
   clearRecaptchaContainer,
   createPhoneRecaptchaVerifier,
+  ensureRecaptchaScript,
 } from "@/lib/phone-recaptcha";
 import {
   phoneOtpRequestSchema,
@@ -47,14 +49,15 @@ const phonePasswordSchema = z.object({
 type PhonePasswordValues = z.infer<typeof phonePasswordSchema>;
 
 async function phoneAccountHasPassword(localDigits: string): Promise<boolean> {
-  const auth = getFirebaseAuth();
-  if (!auth) return false;
   const email = authEmailFromLoginIdentifier(localDigits);
   if (!email.includes("@")) return false;
   try {
-    const methods = await fetchSignInMethodsForEmail(auth, email);
+    // Use Identity Toolkit with firebaseapp.com continueUri — NOT fetchSignInMethodsForEmail
+    // (that API uses window.location and fails with auth/invalid-continue-uri on this host).
+    const methods = await fetchSignInMethodsForIdentifier(email);
     return methods.includes("password");
   } catch (error) {
+    logFirebaseAuthError("phone-otp-password-check", error, { email });
     console.warn("[phone-otp] could not check password methods", error);
     return false;
   }
@@ -118,7 +121,12 @@ export function PhoneOtpSection({
     };
   }, []);
 
-  // Firebase loads grecaptcha with RecaptchaVerifier — do not preload a competing script.
+  // Warm recaptcha.net (not google.com) while the user types — avoids ERR_CONNECTION_CLOSED on google.com.
+  useEffect(() => {
+    void ensureRecaptchaScript().catch((err) => {
+      console.warn("[phone-otp] reCAPTCHA preload failed", err);
+    });
+  }, []);
 
   useEffect(() => {
     if (secondsLeft <= 0) return;

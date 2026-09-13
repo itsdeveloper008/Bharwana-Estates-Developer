@@ -18,8 +18,15 @@ function sanitizeFirebaseEnv(value: string | undefined): string {
 const projectId = sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
 const configuredAuthDomain = sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN);
 const projectAuthDomain = projectId ? `${projectId}.firebaseapp.com` : "";
-/** Always use the Firebase Hosting auth domain — custom apex authDomain breaks the Auth iframe / getProjectConfig. */
-const authDomain = configuredAuthDomain || projectAuthDomain;
+/**
+ * Always use `{projectId}.firebaseapp.com` as authDomain.
+ * Custom apex (bharwanaestates.com) as authDomain breaks Auth iframe / createAuthUri
+ * with auth/invalid-continue-uri when Hosting ownership doesn't match the API key project.
+ * Custom domain is still fine as the app origin + Authorized domains + /__/auth rewrite.
+ */
+const authDomain =
+  projectAuthDomain ||
+  (configuredAuthDomain.endsWith(".firebaseapp.com") ? configuredAuthDomain : "");
 
 const firebaseConfig = {
   apiKey: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
@@ -29,6 +36,20 @@ const firebaseConfig = {
   messagingSenderId: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
   appId: sanitizeFirebaseEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
 };
+
+/** Safe continue URI for Identity Toolkit createAuthUri (same Hosting project as the API key). */
+export function getFirebaseAuthContinueUri(): string {
+  const domain = firebaseConfig.authDomain || projectAuthDomain;
+  return domain ? `https://${domain}` : "https://bharwana-estate-developer.firebaseapp.com";
+}
+
+export function getFirebaseWebApiKey(): string {
+  return firebaseConfig.apiKey;
+}
+
+export function getFirebaseProjectId(): string {
+  return firebaseConfig.projectId;
+}
 
 export const FIREBASE_NOT_CONFIGURED_MESSAGE =
   "Firebase is not configured on this deploy. Add the NEXT_PUBLIC_FIREBASE_* environment variables on the host and redeploy.";

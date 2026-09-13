@@ -19,6 +19,7 @@ import { firebaseErrorParts, logFirebaseAuthError, phoneAuthErrorMessage } from 
 import {
   clearRecaptchaContainer,
   createPhoneRecaptchaVerifier,
+  ensureRecaptchaScript,
 } from "@/lib/phone-recaptcha";
 
 const RESEND_SECONDS = 60;
@@ -58,6 +59,12 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
     }, 1000);
     return () => window.clearInterval(id);
   }, [secondsLeft]);
+
+  useEffect(() => {
+    void ensureRecaptchaScript().catch((err) => {
+      console.warn("[change-phone] reCAPTCHA preload failed", err);
+    });
+  }, []);
 
   async function resetRecaptcha() {
     await clearRecaptchaContainer(RECAPTCHA_ID, recaptchaRef.current);

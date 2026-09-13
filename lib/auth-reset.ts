@@ -9,8 +9,10 @@ export function getPublicSiteOrigin(): string {
 
 /** Continue URL after the password-reset action (custom page handles the oobCode). */
 export function passwordResetActionCodeSettings() {
+  // Use the live site origin; domain must be in Firebase Authorized domains.
+  const origin = getPublicSiteOrigin();
   return {
-    url: `${getPublicSiteOrigin()}/login`,
+    url: `${origin}/login`,
     handleCodeInApp: false as const,
   };
 }
