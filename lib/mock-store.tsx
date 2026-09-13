@@ -449,7 +449,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       setUsers((current) =>
         current.map((user) =>
           user.id === existing.dealerUserId && user.role === "DEALER"
-            ? { ...user, role: "BUYER" }
+            ? { ...user, role: "INDIVIDUAL" }
             : user,
         ),
       );
@@ -459,7 +459,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     try {
       await deleteDeveloperDoc(id);
       if (existing?.dealerUserId) {
-        await updateUserRole(existing.dealerUserId, "BUYER");
+        await updateUserRole(existing.dealerUserId, "INDIVIDUAL");
       }
     } catch (error) {
       console.error(error);

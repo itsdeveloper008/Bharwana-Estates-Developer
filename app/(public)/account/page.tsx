@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { displayUserEmail, isSyntheticPhoneEmail } from "@/lib/user-display";
+import { formatUserRole } from "@/lib/user-role";
 
 export default function AccountSettingsPage() {
   const router = useRouter();
@@ -158,7 +159,7 @@ export default function AccountSettingsPage() {
           <ChangePhoneSection currentPhone={user.phone} />
           <div>
             <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Role</dt>
-            <dd className="mt-1">{user.role.replaceAll("_", " ")}</dd>
+            <dd className="mt-1">{formatUserRole(user.role)}</dd>
           </div>
         </dl>
       </section>

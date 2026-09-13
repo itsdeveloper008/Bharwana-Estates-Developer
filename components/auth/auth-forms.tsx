@@ -515,7 +515,7 @@ export function RegisterForm() {
       email: "",
       phone: "",
       password: "",
-      role: "HOUSE_OWNER",
+      role: "INDIVIDUAL",
       agencyName: "",
       registrationNumber: "",
     },

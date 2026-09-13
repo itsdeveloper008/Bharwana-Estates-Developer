@@ -3,14 +3,14 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useMockAuth } from "@/lib/mock-auth";
+import { isIndividualRole } from "@/lib/user-role";
 
-/** Protects owner routes — owners (and buyers listing a home) may enter. */
+/** Protects owner routes — individuals (and legacy buyer/owner) may enter. */
 export function OwnerGate({ children }: { children: React.ReactNode }) {
   const { user, isReady } = useMockAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const canList =
-    user?.role === "HOUSE_OWNER" || user?.role === "BUYER";
+  const canList = isIndividualRole(user?.role);
 
   useEffect(() => {
     if (!isReady) return;

@@ -71,8 +71,8 @@ export async function clearRecaptchaContainer(containerId: string, existing?: Re
 }
 
 /**
- * Create a visible reCAPTCHA widget for Firebase Phone Auth.
- * Visible is more reliable than invisible when domains / network block silent challenges.
+ * Invisible reCAPTCHA for Firebase Phone Auth.
+ * Container must be a dedicated empty element outside inputs (zero visual footprint).
  */
 export async function createPhoneRecaptchaVerifier(
   auth: Auth,
@@ -90,7 +90,7 @@ export async function createPhoneRecaptchaVerifier(
   }
 
   const verifier = new RecaptchaVerifier(auth, containerId, {
-    size: "normal",
+    size: "invisible",
     callback: () => undefined,
     "expired-callback": () => undefined,
     "error-callback": () => {

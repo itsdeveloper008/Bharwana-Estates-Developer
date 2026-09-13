@@ -1,4 +1,4 @@
-export type UserRole = "BUYER" | "HOUSE_OWNER" | "DEALER" | "SALES_REP" | "ADMIN";
+export type UserRole = "INDIVIDUAL" | "BUYER" | "HOUSE_OWNER" | "DEALER" | "SALES_REP" | "ADMIN";
 
 export type ListingType = "DIRECT_OWNER" | "BUSINESS";
 

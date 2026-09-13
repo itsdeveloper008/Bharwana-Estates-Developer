@@ -63,6 +63,7 @@ import {
 } from "@/lib/types";
 import { CITY_COORDS } from "@/lib/map";
 import { displayUserEmail } from "@/lib/user-display";
+import { isIndividualRole } from "@/lib/user-role";
 import { cn } from "@/lib/utils";
 
 const MapPicker = dynamic(() => import("@/components/map/map-picker").then((mod) => mod.MapPicker), { ssr: false });
@@ -265,7 +266,7 @@ export function PropertyForm({
   const [featureTagDraft, setFeatureTagDraft] = useState("");
 
   const houseOwners = useMemo(
-    () => users.filter((item) => item.role === "HOUSE_OWNER"),
+    () => users.filter((item) => isIndividualRole(item.role)),
     [users],
   );
   const filteredOwners = useMemo(() => {
@@ -557,7 +558,7 @@ export function PropertyForm({
       fullName: name,
       email: `${name.toLowerCase().replace(/\s+/g, ".")}@owner.local`,
       phone: contact,
-      role: "HOUSE_OWNER",
+      role: "INDIVIDUAL",
     };
     await addUser(owner);
     setAssignOwnerId(owner.id);

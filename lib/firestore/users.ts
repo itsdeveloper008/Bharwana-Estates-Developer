@@ -14,6 +14,7 @@ import {
 import { getDb } from "@/lib/firebase/client";
 import { FIRESTORE_WRITE_TIMEOUT_MS } from "@/lib/firestore/errors";
 import type { User, UserRole } from "@/lib/types";
+import { normalizeStoredRole } from "@/lib/user-role";
 import { delay, withTimeout } from "@/lib/utils";
 
 const COLLECTION = "users";
@@ -34,7 +35,7 @@ function mapUser(id: string, data: Record<string, unknown>): User {
     fullName: String(data.fullName ?? ""),
     email: String(data.email ?? ""),
     phone: String(data.phone ?? ""),
-    role: (data.role as User["role"]) ?? "BUYER",
+    role: normalizeStoredRole(data.role),
     avatarUrl: data.avatarUrl ? String(data.avatarUrl) : undefined,
     agencyName: data.agencyName ? String(data.agencyName) : undefined,
     registrationNumber: data.registrationNumber ? String(data.registrationNumber) : undefined,

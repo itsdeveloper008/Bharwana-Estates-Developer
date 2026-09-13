@@ -27,11 +27,11 @@ service cloud.firestore {
     }
 
     function isPublicRole(role) {
-      return role in ['BUYER', 'HOUSE_OWNER', 'DEALER'];
+      return role in ['INDIVIDUAL', 'BUYER', 'HOUSE_OWNER', 'DEALER'];
     }
 
     function isValidUserRole(role) {
-      return role in ['BUYER', 'HOUSE_OWNER', 'DEALER', 'SALES_REP', 'ADMIN'];
+      return role in ['INDIVIDUAL', 'BUYER', 'HOUSE_OWNER', 'DEALER', 'SALES_REP', 'ADMIN'];
     }
 
     // —— User profiles (Firebase Auth UID) ——

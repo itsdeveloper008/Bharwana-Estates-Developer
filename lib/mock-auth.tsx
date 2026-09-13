@@ -316,7 +316,7 @@ async function repairMissingProfile(
       fullName: defaults.fullName?.trim() || firebaseUser.displayName?.trim() || email.split("@")[0] || "Member",
       email,
       phone: defaults.phone?.trim() || firebaseUser.phoneNumber || "",
-      role: defaults.role ?? "BUYER",
+      role: defaults.role ?? "INDIVIDUAL",
       avatarUrl: defaults.avatarUrl ?? firebaseUser.photoURL ?? undefined,
       agencyName: defaults.agencyName,
       registrationNumber: defaults.registrationNumber,
@@ -579,7 +579,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
                 email: normalized,
                 fullName: pending?.email === normalized ? pending.fullName : undefined,
                 phone: pending?.email === normalized ? pending.phone : undefined,
-                role: pending?.email === normalized ? pending.role : "BUYER",
+                role: pending?.email === normalized ? pending.role : "INDIVIDUAL",
                 agencyName: pending?.email === normalized ? pending.agencyName : undefined,
                 registrationNumber:
                   pending?.email === normalized ? pending.registrationNumber : undefined,
@@ -1062,7 +1062,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       registrationNumber?: string;
     }) => {
       const email = input.email.trim().toLowerCase();
-      const role = input.role ?? "HOUSE_OWNER";
+      const role = input.role ?? "INDIVIDUAL";
       const profileInput: UserDocInput = {
         fullName: input.fullName.trim(),
         email,

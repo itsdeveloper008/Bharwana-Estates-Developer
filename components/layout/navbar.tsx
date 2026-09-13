@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { displayUserEmail } from "@/lib/user-display";
 import { preloadGoogleMaps } from "@/lib/map";
+import { isIndividualRole } from "@/lib/user-role";
 
 const publicLinks = [
   { href: "/properties", label: "Properties" },
@@ -129,7 +130,7 @@ export function Navbar() {
   const accountLinks = signedIn && user
     ? [
         { href: "/saved", label: "Saved Residences" },
-        ...(user.role === "HOUSE_OWNER"
+        ...(isIndividualRole(user.role)
           ? [
               { href: "/owner", label: "My Listings" },
               { href: "/owner/add-property", label: "Add Property" },

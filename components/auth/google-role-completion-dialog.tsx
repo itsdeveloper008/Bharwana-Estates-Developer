@@ -51,7 +51,7 @@ export function GoogleRoleCompletionDialog({
 }) {
   const { completeGoogleSignup } = useMockAuth();
   const { addDeveloper } = useMockStore();
-  const [role, setRole] = useState<"BUYER" | "HOUSE_OWNER" | "DEALER">("BUYER");
+  const [role, setRole] = useState<"INDIVIDUAL" | "DEALER">("INDIVIDUAL");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [agencyName, setAgencyName] = useState("");
@@ -69,7 +69,7 @@ export function GoogleRoleCompletionDialog({
     setAgencyName("");
     setRegistrationNumber("");
     setError(null);
-    setRole("BUYER");
+    setRole("INDIVIDUAL");
   }, [open, draft]);
 
   async function handleSubmit() {

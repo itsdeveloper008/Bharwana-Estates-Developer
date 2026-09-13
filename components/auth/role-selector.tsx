@@ -1,13 +1,24 @@
 "use client";
 
-import { Briefcase, Home, UserRound } from "lucide-react";
+import { Briefcase, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const ROLE_OPTIONS = [
-  { id: "BUYER" as const, label: "Buyer", hint: "Browse and inquire", icon: UserRound },
-  { id: "HOUSE_OWNER" as const, label: "House Owner", hint: "List your residence", icon: Home },
-  { id: "DEALER" as const, label: "Dealer", hint: "List inventory, earn through Bharwana", icon: Briefcase },
+  {
+    id: "INDIVIDUAL" as const,
+    label: "Individual",
+    hint: "Buy, save, inquire, and list your own property",
+    icon: UserRound,
+  },
+  {
+    id: "DEALER" as const,
+    label: "Dealer",
+    hint: "List inventory, earn through Bharwana",
+    icon: Briefcase,
+  },
 ];
+
+export type SelectableRole = (typeof ROLE_OPTIONS)[number]["id"];
 
 /** Segmented role control — same pill shell as AuthMethodToggle (Email/Phone). */
 export function RoleSelector({
@@ -15,8 +26,8 @@ export function RoleSelector({
   onChange,
   compact = false,
 }: {
-  value: "BUYER" | "HOUSE_OWNER" | "DEALER";
-  onChange: (role: "BUYER" | "HOUSE_OWNER" | "DEALER") => void;
+  value: SelectableRole;
+  onChange: (role: SelectableRole) => void;
   /** Kept for call-site compatibility; segments stay compact either way. */
   compact?: boolean;
 }) {
@@ -39,7 +50,7 @@ export function RoleSelector({
             aria-checked={active}
             onClick={() => onChange(option.id)}
             className={cn(
-              "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 transition-colors duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5",
+              "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2.5 transition-colors duration-200 sm:gap-1.5 sm:px-3 sm:py-3",
               active
                 ? "bg-gold/15 text-forest shadow-sm ring-1 ring-inset ring-gold/55"
                 : "text-forest/55 hover:text-forest",
@@ -50,7 +61,7 @@ export function RoleSelector({
               strokeWidth={1.5}
               aria-hidden
             />
-            <span className="max-w-full text-center text-[10px] font-semibold leading-tight tracking-wide sm:text-[11px]">
+            <span className="max-w-full text-center text-[11px] font-semibold leading-tight tracking-wide sm:text-xs">
               {option.label}
             </span>
           </button>

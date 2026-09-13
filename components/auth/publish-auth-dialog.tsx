@@ -58,7 +58,7 @@ export function PublishAuthDialog({
       email: "",
       phone: "",
       password: "",
-      role: "HOUSE_OWNER",
+      role: "INDIVIDUAL",
     },
   });
 
@@ -80,7 +80,7 @@ export function PublishAuthDialog({
       email: values.email,
       phone: formatPakistanMobileE164(values.phone),
       password: values.password,
-      role: "HOUSE_OWNER",
+      role: "INDIVIDUAL",
     });
     if (!result.ok) {
       setError(result.error);

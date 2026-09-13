@@ -16,6 +16,7 @@ import { useAdminAuth } from "@/lib/admin-auth";
 import { isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
 import { deleteUserDoc, subscribeUsers } from "@/lib/firestore/users";
 import { displayUserEmail, isSyntheticPhoneEmail } from "@/lib/user-display";
+import { formatUserRole } from "@/lib/user-role";
 import type { User } from "@/lib/types";
 
 export default function AdminUsersPage() {
@@ -97,7 +98,7 @@ export default function AdminUsersPage() {
                     </TableCell>
                     <TableCell>{user.phone || "-"}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{user.role.replaceAll("_", " ")}</Badge>
+                      <Badge variant="outline">{formatUserRole(user.role)}</Badge>
                     </TableCell>
                     <TableCell>
                       <ConfirmDeleteButton

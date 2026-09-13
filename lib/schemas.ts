@@ -90,7 +90,7 @@ export const registerSchema = z
       .email("Enter a valid email"),
     phone: pakistanMobileLocalSchema,
     password: passwordCreateSchema,
-    role: z.enum(["BUYER", "HOUSE_OWNER", "DEALER"]),
+    role: z.enum(["INDIVIDUAL", "DEALER"]),
     agencyName: z.string().optional(),
     registrationNumber: z.string().optional(),
   })

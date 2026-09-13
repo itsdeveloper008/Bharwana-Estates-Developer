@@ -11,15 +11,20 @@ import { Button } from "@/components/ui/button";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import type { UserRole } from "@/lib/types";
+import { isIndividualRole } from "@/lib/user-role";
 
 const roleCopy: Record<UserRole, { title: string; description: string }> = {
+  INDIVIDUAL: {
+    title: "My listings",
+    description: "Manage homes you list and the conversations they attract.",
+  },
   BUYER: {
-    title: "Buyer desk",
-    description: "Saved homes and inquiry history will live here once accounts are wired.",
+    title: "My listings",
+    description: "Manage homes you list and the conversations they attract.",
   },
   HOUSE_OWNER: {
-    title: "Owner atelier",
-    description: "Manage listings and the conversations they attract.",
+    title: "My listings",
+    description: "Manage homes you list and the conversations they attract.",
   },
   DEALER: {
     title: "Dealer desk",
@@ -48,7 +53,7 @@ export function DashboardShell({
   const copy = roleCopy[role];
   const demoUser = users.find((item) => item.role === role);
 
-  if (role === "HOUSE_OWNER" || role === "DEALER") {
+  if (isIndividualRole(role) || role === "DEALER") {
     const Gate = role === "DEALER" ? DealerGate : OwnerGate;
     return (
       <div className="min-h-screen bg-ivory">

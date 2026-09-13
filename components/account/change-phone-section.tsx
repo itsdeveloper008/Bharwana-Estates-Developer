@@ -59,42 +59,11 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
     return () => window.clearInterval(id);
   }, [secondsLeft]);
 
-  const needsRecaptchaWidget = step === "phone" || (step === "otp" && secondsLeft === 0);
-
   useEffect(() => {
-    if (!needsRecaptchaWidget) return;
     void ensureRecaptchaScript().catch((err) => {
       console.warn("[change-phone] reCAPTCHA preload failed", err);
     });
-    let cancelled = false;
-    void (async () => {
-      try {
-        const auth = getFirebaseAuth();
-        if (!auth || cancelled) return;
-        const verifier = await createPhoneRecaptchaVerifier(auth, RECAPTCHA_ID, recaptchaRef.current);
-        if (cancelled) {
-          try {
-            verifier.clear();
-          } catch {
-            /* ignore */
-          }
-          return;
-        }
-        recaptchaRef.current = verifier;
-      } catch (err) {
-        console.warn("[change-phone] reCAPTCHA widget mount failed", err);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      try {
-        recaptchaRef.current?.clear();
-      } catch {
-        /* ignore */
-      }
-      recaptchaRef.current = null;
-    };
-  }, [needsRecaptchaWidget]);
+  }, []);
 
   async function resetRecaptcha() {
     await clearRecaptchaContainer(RECAPTCHA_ID, recaptchaRef.current);
@@ -140,18 +109,13 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
     setError(null);
     setPending(true);
     try {
-      const verifier = recaptchaRef.current ?? (await createFreshRecaptchaVerifier());
+      const verifier = await createFreshRecaptchaVerifier();
       const e164 = formatPakistanMobileE164(localDigits);
       console.info("[change-phone] preparing send", { e164 });
       const result = await sendChangePhoneOtp(e164, verifier);
       if (!result.ok) {
         setError(result.error);
         await resetRecaptcha();
-        try {
-          await createFreshRecaptchaVerifier();
-        } catch {
-          /* user can refresh */
-        }
         return false;
       }
       await resetRecaptcha();
@@ -167,11 +131,6 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
       console.error("[change-phone] send exception", err);
       setError("Something went wrong sending your code. Please try again in a moment.");
       await resetRecaptcha();
-      try {
-        await createFreshRecaptchaVerifier();
-      } catch {
-        /* user can refresh */
-      }
       return false;
     } finally {
       setPending(false);
@@ -317,21 +276,10 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
           )}
 
           <div
-            className={
-              needsRecaptchaWidget
-                ? "space-y-1"
-                : "pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0"
-            }
-          >
-            <div className="flex justify-center py-1">
-              <div id={RECAPTCHA_ID} className="min-h-[78px]" />
-            </div>
-            {needsRecaptchaWidget ? (
-              <p className="text-center text-[11px] text-muted-foreground">
-                Complete the security check above, then continue.
-              </p>
-            ) : null}
-          </div>
+            id={RECAPTCHA_ID}
+            className="pointer-events-none fixed left-0 top-0 -z-10 h-px w-px overflow-hidden opacity-0"
+            aria-hidden
+          />
 
           {step === "phone" ? (
             <div className="flex flex-col gap-2 sm:flex-row">

@@ -71,7 +71,7 @@ function mapDeletionRequest(id: string, data: Record<string, unknown>): Deletion
     uid: String(data.uid ?? ""),
     email: String(data.email ?? ""),
     fullName: String(data.fullName ?? ""),
-    role: String(data.role ?? "BUYER"),
+    role: String(data.role ?? "INDIVIDUAL"),
     status: (data.status as DeletionRequestStatus) ?? "PENDING",
     createdAt: createdAtIso(data),
     note: data.note ? String(data.note) : undefined,

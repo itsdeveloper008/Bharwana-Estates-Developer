@@ -27,6 +27,7 @@ import {
 } from "@/lib/firestore/deletion";
 import { useMockStore } from "@/lib/mock-store";
 import { displayUserEmail, isSyntheticPhoneEmail } from "@/lib/user-display";
+import { formatUserRole } from "@/lib/user-role";
 
 export default function AdminDeletionRequestsPage() {
   const { properties, inquiries, developers, deleteProperty, removeInquiry } = useMockStore();
@@ -189,7 +190,7 @@ export default function AdminDeletionRequestsPage() {
                         (isSyntheticPhoneEmail(request.email) ? "Phone only" : "—")}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{request.role}</Badge>
+                      <Badge variant="outline">{formatUserRole(String(request.role))}</Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {new Date(request.createdAt).toLocaleDateString()}
