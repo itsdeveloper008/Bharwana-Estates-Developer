@@ -75,8 +75,8 @@ export function GoogleRoleCompletionDialog({
   async function handleSubmit() {
     if (!draft) return;
     const resolvedName = requireFullName ? fullName.trim() : draft.fullName.trim();
-    if (requireFullName && resolvedName.length < 2) {
-      setError("Enter your full name.");
+    if (requireFullName && resolvedName.replace(/\s+/g, " ").trim().length < 2) {
+      setError("Please enter your name.");
       return;
     }
     const localPhone = toPakistanMobileLocal(phone || draft.phone || "");

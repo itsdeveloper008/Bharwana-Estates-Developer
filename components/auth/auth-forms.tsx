@@ -301,7 +301,7 @@ function PasswordField({
             onChange={field.onChange}
             ref={field.ref}
             className={cn(
-              "h-12 rounded-xl border-forest/10 bg-[#F4F2ED] pl-10 pr-10 shadow-none focus-visible:ring-forest/30",
+              "h-12 rounded-xl border-forest/10 bg-[#F4F2ED] pl-10 pr-10 text-sm shadow-none placeholder:text-sm focus-visible:ring-forest/30",
               fieldState.error && "border-destructive focus-visible:ring-destructive",
             )}
           />
@@ -385,14 +385,16 @@ export function LoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
+  // Mount-only autofill wipe. Do NOT depend on `form` — its identity can change and
+  // would clear the password after a failed sign-in (setError re-render).
   useEffect(() => {
     form.reset({ email: "", password: "" });
-    // Clear any browser-injected autofill after paint.
     const timer = window.setTimeout(() => {
       form.reset({ email: "", password: "" });
     }, 50);
     return () => window.clearTimeout(timer);
-  }, [form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only
+  }, []);
 
   function goAfterAuth(nextUser?: User) {
     router.push(pathAfterAuth(safeReturnTo(searchParams.get("returnTo")), nextUser?.role));
@@ -405,6 +407,9 @@ export function LoginForm() {
       if (!result.ok) {
         console.error("[login] rejected", result.error);
         setError(result.error);
+        // Keep typed credentials so the user can correct and retry.
+        form.setValue("password", values.password, { shouldDirty: true });
+        form.setValue("email", values.email, { shouldDirty: true });
         return;
       }
       toast.success("Signed in.");
@@ -412,6 +417,8 @@ export function LoginForm() {
     } catch (err) {
       console.error("[login] unexpected failure", err);
       setError("Could not sign in. Check your connection and try again.");
+      form.setValue("password", values.password, { shouldDirty: true });
+      form.setValue("email", values.email, { shouldDirty: true });
     }
   }
 

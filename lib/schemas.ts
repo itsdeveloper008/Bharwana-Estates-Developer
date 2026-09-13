@@ -80,7 +80,9 @@ export const registerSchema = z
       .string()
       .trim()
       .min(1, "Please enter your name.")
-      .min(2, "Please enter your name.")
+      .refine((value) => value.replace(/\s+/g, " ").trim().length >= 2, {
+        message: "Please enter your name.",
+      })
       .max(50, "Name must be 50 characters or fewer"),
     email: z
       .string()

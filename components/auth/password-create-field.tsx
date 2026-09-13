@@ -56,7 +56,7 @@ export function PasswordCreateField({
             }}
             onChange={field.onChange}
             className={cn(
-              "bg-white pr-10",
+              "bg-white pr-10 text-sm placeholder:text-sm",
               fieldState.error && "border-destructive focus-visible:ring-destructive",
             )}
             aria-describedby="password-requirements"

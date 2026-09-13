@@ -36,7 +36,8 @@ export function AdminLoginForm() {
     form.reset({ email: "", password: "" });
     setEmailUnlocked(false);
     setPasswordUnlocked(false);
-  }, [form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only (avoid clearing after failed login)
+  }, []);
 
   async function onSubmit(values: AdminLoginValues) {
     setFormError(null);

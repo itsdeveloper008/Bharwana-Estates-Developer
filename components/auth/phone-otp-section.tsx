@@ -289,6 +289,7 @@ export function PhoneOtpSection({
       const result = await login(localPhone, values.password);
       if (!result.ok) {
         setError(result.error);
+        passwordForm.setValue("password", values.password, { shouldDirty: true });
         return;
       }
       toast.success("Welcome back");
@@ -296,6 +297,7 @@ export function PhoneOtpSection({
     } catch (err) {
       console.error("[phone-password] sign-in failed", err);
       setError("Could not sign in. Check your password or use OTP.");
+      passwordForm.setValue("password", values.password, { shouldDirty: true });
     } finally {
       setPending(false);
     }
