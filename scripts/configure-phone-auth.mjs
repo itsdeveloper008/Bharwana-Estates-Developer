@@ -381,13 +381,19 @@ const patchBody = {
       allowedRegions: ALLOWED_REGIONS,
     },
   },
+  // Keep classic reCAPTCHA v2 for web Phone Auth (matches RecaptchaVerifier in the app).
+  // OFF = do not enforce Enterprise / SMS Defense bot score for phone.
+  recaptchaConfig: {
+    phoneEnforcementState: "OFF",
+    useSmsTollFraudProtection: false,
+  },
 };
 
-console.log("Enabling Phone provider, PK SMS region, and test numbers…");
+console.log("Enabling Phone provider, PK SMS region, test numbers, and classic reCAPTCHA v2…");
 let updated;
 try {
   updated = await api(
-    "?updateMask=signIn.phoneNumber.enabled,signIn.phoneNumber.testPhoneNumbers,smsRegionConfig",
+    "?updateMask=signIn.phoneNumber.enabled,signIn.phoneNumber.testPhoneNumbers,smsRegionConfig,recaptchaConfig.phoneEnforcementState,recaptchaConfig.useSmsTollFraudProtection",
     { method: "PATCH", body: JSON.stringify(patchBody) },
   );
 } catch (err) {
@@ -406,6 +412,7 @@ if (updated.status !== 200) {
 
 const phone = updated.body?.signIn?.phoneNumber;
 const sms = updated.body?.smsRegionConfig;
+const recaptcha = updated.body?.recaptchaConfig;
 const regions =
   sms?.allowlistOnly?.allowedRegions ??
   sms?.allowlistOnly?.allowed_regions ??
@@ -418,6 +425,10 @@ console.log(`✅ SMS region policy updated for ${PROJECT_ID}`);
 console.log(`   Allowed regions: ${Array.isArray(regions) ? regions.join(", ") : JSON.stringify(regions)}`);
 console.log(`   Phone enabled: ${phone?.enabled ?? "(unknown)"}`);
 console.log(`   Test numbers: ${JSON.stringify(phone?.testPhoneNumbers ?? TEST_NUMBERS)}`);
+console.log(
+  `   reCAPTCHA phone enforcement: ${recaptcha?.phoneEnforcementState ?? "(unknown)"} (want OFF for classic v2)`,
+);
+console.log(`   SMS toll fraud protection: ${recaptcha?.useSmsTollFraudProtection ?? false}`);
 console.log(`   Verify at: ${SETTINGS_URL}`);
 console.log("");
 
@@ -433,9 +444,13 @@ if (probe.skipped) {
   console.log("Probe HTTP", probe.status);
   const errMsg = probe.body?.error?.message ?? "";
   if (probe.status === 200 || !probe.body?.error) {
-    console.log("Probe OK — phone send endpoint accepted the request.");
+    console.log("Probe OK — phone send endpoint accepted the request (test number path).");
   } else if (errMsg.includes("region enabled")) {
     console.warn("Still blocked by SMS region policy. Check Console → Authentication → SMS regions.");
+  } else if (errMsg.includes("Error code: 39") || errMsg.includes("39")) {
+    console.warn(
+      "Probe hit Error code 39 (quota / anti-abuse). Wait ~1h, use a Firebase test number, or try another device/network.",
+    );
   } else if (errMsg.toLowerCase().includes("recaptcha")) {
     console.log("Probe reached phone auth (reCAPTCHA rejected probe token — expected in scripts).");
   } else {

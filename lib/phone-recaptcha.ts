@@ -92,8 +92,14 @@ export async function clearRecaptchaContainer(containerId: string, existing?: Re
 }
 
 /**
- * Invisible reCAPTCHA for Firebase Phone Auth.
+ * Invisible reCAPTCHA **v2** for Firebase Phone Auth (`RecaptchaVerifier`).
  * Serializes creates so we never fire two competing script/verifier inits.
+ *
+ * Note: Firebase Auth may log
+ * "Failed to initialize reCAPTCHA Enterprise config. Triggering the reCAPTCHA v2 verification."
+ * That is normal when Enterprise is not enforced for Phone — the SDK intentionally falls back to v2.
+ * It is NOT itself an error. HTTP 503 + `auth/error-code:-39` after a solved v2 challenge is usually
+ * SMS quota / anti-abuse, not an Enterprise key mismatch.
  */
 export async function createPhoneRecaptchaVerifier(
   auth: Auth,

@@ -74,8 +74,14 @@ function messageHints(rawMessage: string): string {
   if (message.includes("app check") || message.includes("appcheck")) {
     return "Phone sign-in is blocked by App Check. Ask the project owner to review Firebase App Check enforcement.";
   }
-  if (message.includes("quota") || message.includes("too many")) {
-    return "SMS limit reached. Try again later or use email sign-in.";
+  if (
+    message.includes("quota") ||
+    message.includes("too many") ||
+    message.includes("error code: 39") ||
+    message.includes("error-code:-39") ||
+    message.includes("error code:-39")
+  ) {
+    return "SMS temporarily blocked (Firebase rate limit / anti-abuse). Wait about an hour, try a different number or network, or use a Firebase test phone number. You can also sign in with email.";
   }
   if (message.includes("invalid phone") || message.includes("phone number")) {
     return "That phone number looks invalid. Use a Pakistani mobile starting with 3 (10 digits).";
@@ -112,7 +118,9 @@ export function phoneAuthErrorMessage(code: string, rawMessage = "") {
     case "auth/missing-verification-code":
       return "Enter the 6-digit code from your SMS.";
     case "auth/quota-exceeded":
-      return "SMS limit reached. Try again later or use email sign-in.";
+    case "auth/error-code:-39":
+      // Identity Toolkit maps QuotaExceeded / anti-abuse to opaque "Error code: 39" + HTTP 503.
+      return "SMS temporarily blocked (Firebase rate limit / anti-abuse). Wait about an hour, try a different number or network, or use a Firebase test phone number. You can also sign in with email.";
     case "auth/network-request-failed":
       return "Could not reach Firebase / reCAPTCHA. Check your internet, disable ad blockers for this site, or try another browser/network. You can also sign in with email.";
     case "auth/app-not-authorized":
@@ -131,6 +139,9 @@ export function phoneAuthErrorMessage(code: string, rawMessage = "") {
       // Never surface the raw code — not user-actionable.
       return "Something went wrong sending your code. Please try again in a moment, or sign in with email instead.";
     default:
+      if (code.includes("error-code:-39") || code.includes("error-code:39")) {
+        return "SMS temporarily blocked (Firebase rate limit / anti-abuse). Wait about an hour, try a different number or network, or use a Firebase test phone number. You can also sign in with email.";
+      }
       return "Something went wrong with phone verification. Please try again, or sign in with email instead.";
   }
 }

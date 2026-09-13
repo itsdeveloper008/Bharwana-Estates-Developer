@@ -81,6 +81,13 @@ async function getAuthorizedDomains() {
   return res.json();
 }
 
+async function getPublicRecaptchaConfig() {
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v2/recaptchaConfig?key=${apiKey}&clientType=CLIENT_TYPE_WEB&version=RECAPTCHA_ENTERPRISE`,
+  );
+  return { status: res.status, body: await res.json() };
+}
+
 section("Environment");
 console.log("Project ID:", PROJECT_ID);
 console.log("API key present:", Boolean(apiKey));
@@ -95,6 +102,45 @@ try {
   console.error("Could not read authorized domains:", error.message);
 }
 
+section("reCAPTCHA Enterprise / Phone enforcement (public)");
+if (!apiKey) {
+  console.log("SKIP — no API key");
+} else {
+  try {
+    const cfg = await getPublicRecaptchaConfig();
+    console.log("HTTP", cfg.status);
+    console.log(JSON.stringify(cfg.body, null, 2));
+    const phoneState = (cfg.body?.recaptchaEnforcementState ?? []).find(
+      (e) => e.provider === "PHONE_PROVIDER",
+    )?.enforcementState;
+    console.log("\nPHONE_PROVIDER enforcement:", phoneState ?? "(missing)");
+    console.log("useSmsBotScore:", cfg.body?.useSmsBotScore ?? false);
+    console.log("useSmsTollFraudProtection:", cfg.body?.useSmsTollFraudProtection ?? false);
+    if (
+      !phoneState ||
+      phoneState === "ENFORCEMENT_STATE_UNSPECIFIED" ||
+      phoneState === "OFF"
+    ) {
+      console.log(
+        "\nNOTE: Enterprise is NOT enforced for Phone. The browser log",
+      );
+      console.log(
+        '  "Failed to initialize reCAPTCHA Enterprise config. Triggering the reCAPTCHA v2 verification."',
+      );
+      console.log(
+        "is normal SDK fallback to classic RecaptchaVerifier (v2) — not a misconfiguration by itself.",
+      );
+    } else if (phoneState === "ENFORCE") {
+      console.log(
+        "\nWARNING: Phone provider is ENFORCE (Enterprise). Classic v2 may fail until Enterprise is configured or set OFF.",
+      );
+      console.log("Fix: npm run phone-auth:configure (sets phoneEnforcementState OFF).");
+    }
+  } catch (error) {
+    console.error("Could not read recaptchaConfig:", error.message);
+  }
+}
+
 section("Phone send probe (public API)");
 if (!apiKey) {
   console.log("SKIP — set NEXT_PUBLIC_FIREBASE_API_KEY in .env.local");
@@ -103,7 +149,17 @@ if (!apiKey) {
   console.log("HTTP", probe.status);
   console.log(JSON.stringify(probe.body, null, 2));
   const msg = probe.body?.error?.message ?? "";
-  if (msg.includes("region enabled")) {
+  if (probe.status === 200 && probe.body?.sessionInfo) {
+    console.log(
+      "\nOK: sendVerificationCode accepted a test-number probe (Phone + PK region + billing path look healthy).",
+    );
+    console.log(
+      "If the live site still returns HTTP 503 + Error code: 39 on a *real* number, that is usually",
+    );
+    console.log(
+      "Firebase SMS quota / IP anti-abuse — wait ~1h, try another number/network, or use a Console test number.",
+    );
+  } else if (msg.includes("region enabled")) {
     console.log(
       "\nLIKELY CAUSE: Pakistan (PK) is not in the Firebase SMS region allowlist.",
     );
@@ -118,6 +174,13 @@ if (!apiKey) {
     console.log(
       `Manual step: https://console.firebase.google.com/project/${PROJECT_ID}/usage/details`,
     );
+  } else if (msg.includes("Error code: 39") || msg.includes("39")) {
+    console.log(
+      "\nLIKELY CAUSE: QuotaExceeded / anti-abuse (opaque Error code: 39 → auth/error-code:-39).",
+    );
+    console.log(
+      "Not an Enterprise key bug when PHONE_PROVIDER enforcement is OFF/UNSPECIFIED (see section above).",
+    );
   } else if (msg.includes("OPERATION_NOT_ALLOWED")) {
     console.log("\nLIKELY CAUSE: Phone provider disabled or SMS region blocked.");
   }
@@ -130,9 +193,11 @@ if (token) {
   if (config.status === 200) {
     const phone = config.body?.signIn?.phoneNumber;
     const sms = config.body?.smsRegionConfig;
+    const recaptcha = config.body?.recaptchaConfig;
     console.log("Phone enabled:", phone?.enabled ?? "(unknown)");
     console.log("Test numbers:", phone?.testPhoneNumbers ?? {});
     console.log("SMS region config:", JSON.stringify(sms ?? {}, null, 2));
+    console.log("recaptchaConfig:", JSON.stringify(recaptcha ?? {}, null, 2));
   } else {
     console.log(JSON.stringify(config.body, null, 2));
   }
