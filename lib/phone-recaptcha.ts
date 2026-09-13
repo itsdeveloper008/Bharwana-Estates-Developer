@@ -2,63 +2,10 @@
 
 import { RecaptchaVerifier, type Auth } from "firebase/auth";
 
-const RECAPTCHA_SCRIPT_ID = "bharwana-recaptcha-api";
-
-declare global {
-  interface Window {
-    grecaptcha?: {
-      ready?: (cb: () => void) => void;
-      reset?: (widgetId?: number) => void;
-      render?: (...args: unknown[]) => number;
-    };
-  }
-}
-
-/** Load grecaptcha from recaptcha.net (works when google.com is blocked / flaky). */
-export function ensureRecaptchaScript(): Promise<void> {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("reCAPTCHA is only available in the browser."));
-  }
-  if (window.grecaptcha?.render || window.grecaptcha?.ready) {
-    return new Promise((resolve) => {
-      if (window.grecaptcha?.ready) window.grecaptcha.ready(() => resolve());
-      else resolve();
-    });
-  }
-
-  const existing = document.getElementById(RECAPTCHA_SCRIPT_ID) as HTMLScriptElement | null;
-  if (existing) {
-    return new Promise((resolve, reject) => {
-      existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener(
-        "error",
-        () => reject(new Error("Could not connect to the reCAPTCHA service.")),
-        { once: true },
-      );
-    });
-  }
-
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.id = RECAPTCHA_SCRIPT_ID;
-    script.async = true;
-    script.defer = true;
-    // Prefer recaptcha.net — same API as google.com but more reachable in restricted networks.
-    script.src = "https://www.recaptcha.net/recaptcha/api.js?render=explicit";
-    script.onload = () => {
-      if (window.grecaptcha?.ready) window.grecaptcha.ready(() => resolve());
-      else resolve();
-    };
-    script.onerror = () =>
-      reject(
-        Object.assign(new Error("Could not connect to the reCAPTCHA service."), {
-          code: "auth/network-request-failed",
-        }),
-      );
-    document.head.appendChild(script);
-  });
-}
-
+/**
+ * Clear any prior Firebase RecaptchaVerifier bound to this container.
+ * Do not preload grecaptcha ourselves — Firebase Auth injects the correct script.
+ */
 export async function clearRecaptchaContainer(containerId: string, existing?: RecaptchaVerifier | null) {
   try {
     existing?.clear();
@@ -72,14 +19,13 @@ export async function clearRecaptchaContainer(containerId: string, existing?: Re
 
 /**
  * Invisible reCAPTCHA for Firebase Phone Auth.
- * Container must be a dedicated empty element outside inputs (zero visual footprint).
+ * Pass a dedicated empty DOM node that is never nested inside an input wrapper.
  */
 export async function createPhoneRecaptchaVerifier(
   auth: Auth,
   containerId: string,
   previous?: RecaptchaVerifier | null,
 ): Promise<RecaptchaVerifier> {
-  await ensureRecaptchaScript();
   await clearRecaptchaContainer(containerId, previous);
 
   const host = document.getElementById(containerId);
@@ -89,14 +35,38 @@ export async function createPhoneRecaptchaVerifier(
     });
   }
 
+  console.info("[phone-recaptcha] creating invisible RecaptchaVerifier", { containerId });
+
   const verifier = new RecaptchaVerifier(auth, containerId, {
     size: "invisible",
-    callback: () => undefined,
-    "expired-callback": () => undefined,
-    "error-callback": () => {
-      console.error("[phone-recaptcha] widget error-callback fired");
+    callback: () => {
+      console.info("[phone-recaptcha] challenge solved");
+    },
+    "expired-callback": () => {
+      console.warn("[phone-recaptcha] challenge expired");
+    },
+    "error-callback": (err: unknown) => {
+      console.error("[phone-recaptcha] widget error-callback", err);
     },
   });
-  await verifier.render();
+
+  try {
+    const widgetId = await verifier.render();
+    console.info("[phone-recaptcha] rendered", { containerId, widgetId });
+  } catch (error) {
+    console.error("[phone-recaptcha] render failed", error);
+    try {
+      verifier.clear();
+    } catch {
+      /* ignore */
+    }
+    throw error;
+  }
+
   return verifier;
+}
+
+/** @deprecated No-op — Firebase loads grecaptcha. Kept so older call sites compile. */
+export function ensureRecaptchaScript(): Promise<void> {
+  return Promise.resolve();
 }

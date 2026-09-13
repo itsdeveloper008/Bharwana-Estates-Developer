@@ -15,10 +15,10 @@ import {
   isValidPakistanMobileLocal,
   toPakistanMobileLocal,
 } from "@/lib/phone-format";
+import { firebaseErrorParts, logFirebaseAuthError, phoneAuthErrorMessage } from "@/lib/phone-auth-errors";
 import {
   clearRecaptchaContainer,
   createPhoneRecaptchaVerifier,
-  ensureRecaptchaScript,
 } from "@/lib/phone-recaptcha";
 
 const RESEND_SECONDS = 60;
@@ -58,12 +58,6 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
     }, 1000);
     return () => window.clearInterval(id);
   }, [secondsLeft]);
-
-  useEffect(() => {
-    void ensureRecaptchaScript().catch((err) => {
-      console.warn("[change-phone] reCAPTCHA preload failed", err);
-    });
-  }, []);
 
   async function resetRecaptcha() {
     await clearRecaptchaContainer(RECAPTCHA_ID, recaptchaRef.current);
@@ -128,8 +122,9 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
       toast.success("Verification code sent.");
       return true;
     } catch (err) {
-      console.error("[change-phone] send exception", err);
-      setError("Something went wrong sending your code. Please try again in a moment.");
+      logFirebaseAuthError("change-phone-send-ui", err);
+      const { code, message } = firebaseErrorParts(err);
+      setError(phoneAuthErrorMessage(code, message));
       await resetRecaptcha();
       return false;
     } finally {
@@ -207,7 +202,7 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
       </div>
 
       {step !== "idle" ? (
-        <div className="mt-4 space-y-3 rounded-2xl border border-forest/10 bg-ivory px-4 py-4">
+        <div className="relative mt-4 space-y-3 rounded-2xl border border-forest/10 bg-ivory px-4 py-4">
           {step === "phone" ? (
             <>
               <div className="space-y-1.5">
@@ -277,7 +272,7 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
 
           <div
             id={RECAPTCHA_ID}
-            className="pointer-events-none fixed left-0 top-0 -z-10 h-px w-px overflow-hidden opacity-0"
+            className="absolute -left-[9999px] h-0 w-0 overflow-hidden"
             aria-hidden
           />
 

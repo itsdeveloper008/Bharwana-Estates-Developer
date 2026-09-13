@@ -888,15 +888,18 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
 
       const normalized = normalizePhoneE164(phone);
-      if (!isValidPhoneE164(normalized)) {
-        return { ok: false as const, error: "Enter a valid phone number (e.g. +92 300 1234567)." };
+      if (!isValidPhoneE164(normalized) || !/^\+923\d{9}$/.test(normalized)) {
+        return {
+          ok: false as const,
+          error: "Enter a valid Pakistani mobile number (10 digits starting with 3).",
+        };
       }
       if (firebaseUser.phoneNumber === normalized || user.phone === normalized) {
         return { ok: false as const, error: "That is already your current phone number." };
       }
 
       try {
-        console.info("[change-phone] verifyPhoneNumber", { e164: normalized });
+        console.info("[change-phone] verifyPhoneNumber", { e164: normalized, length: normalized.length });
         const provider = new PhoneAuthProvider(auth);
         const verificationId = await provider.verifyPhoneNumber(normalized, verifier);
         return { ok: true as const, verificationId, phone: normalized };
@@ -1104,26 +1107,13 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
                 : "";
             console.error("[register] Failed", { code, error });
 
-            // Auth succeeded earlier but profile write failed — complete signup on retry.
+            // Duplicate email — never silently sign the user in (looked like a second account).
             if (code === "auth/email-already-in-use") {
-              try {
-                console.info("[register] Email exists — signing in to finish profile", { email });
-                const credential = await signInWithEmailAndPassword(auth, email, input.password);
-                const existing = await loadFirestoreUser(credential.user);
-                if (existing) {
-                  commitSession(existing);
-                  writePendingRegister(null);
-                  return { ok: true as const, user: existing };
-                }
-                return await finishWithProfile(credential.user.uid, credential.user);
-              } catch (recoverError) {
-                console.error("[register] Could not finish existing Auth account", recoverError);
-                return {
-                  ok: false as const,
-                  error:
-                    "This email is already registered. Sign in with your password, or use a different email.",
-                };
-              }
+              return {
+                ok: false as const,
+                error:
+                  "This email is already registered. Sign in with your password, or use a different email.",
+              };
             }
 
             if (code.startsWith("auth/")) {

@@ -324,15 +324,19 @@ function EmailField({
   field,
   fieldState,
   className,
+  label = "Email",
+  placeholder = "Email",
 }: {
   field: { value: string; onChange: (...args: unknown[]) => void; onBlur: () => void; name: string; ref: Ref<HTMLInputElement> };
   fieldState: { error?: { message?: string } };
   className?: string;
+  label?: string;
+  placeholder?: string;
 }) {
   const [unlocked, setUnlocked] = useState(false);
   return (
     <FormItem>
-      <FormLabel className="text-forest/80">Email or phone</FormLabel>
+      <FormLabel className="text-forest/80">{label}</FormLabel>
       <FormControl>
         <div className="relative">
           <Mail
@@ -341,7 +345,7 @@ function EmailField({
             aria-hidden
           />
           <Input
-            type="text"
+            type="email"
             inputMode="email"
             autoComplete="off"
             autoCorrect="off"
@@ -350,7 +354,7 @@ function EmailField({
             data-1p-ignore="true"
             data-lpignore="true"
             data-form-type="other"
-            placeholder="Email or phone"
+            placeholder={placeholder}
             maxLength={50}
             readOnly={!unlocked}
             onFocus={() => setUnlocked(true)}
@@ -431,7 +435,7 @@ export function LoginForm() {
           <form
             onSubmit={form.handleSubmit(onSubmit, (fieldErrors) => {
               console.warn("[login] validation failed", fieldErrors);
-              setError("Enter a valid email or phone and password to continue.");
+              setError("Enter a valid email and password to continue.");
             })}
             className="space-y-4"
             autoComplete="off"

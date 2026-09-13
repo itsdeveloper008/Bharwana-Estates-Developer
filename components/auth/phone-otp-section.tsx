@@ -22,7 +22,6 @@ import { formatPakistanMobileE164 } from "@/lib/phone-format";
 import {
   clearRecaptchaContainer,
   createPhoneRecaptchaVerifier,
-  ensureRecaptchaScript,
 } from "@/lib/phone-recaptcha";
 import {
   phoneOtpRequestSchema,
@@ -119,12 +118,7 @@ export function PhoneOtpSection({
     };
   }, []);
 
-  // Preload reCAPTCHA while the user types their number — avoids cold-start failures on Continue.
-  useEffect(() => {
-    void ensureRecaptchaScript().catch((err) => {
-      console.warn("[phone-otp] reCAPTCHA preload failed", err);
-    });
-  }, []);
+  // Firebase loads grecaptcha with RecaptchaVerifier — do not preload a competing script.
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
@@ -353,7 +347,7 @@ export function PhoneOtpSection({
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="relative space-y-4">
         {step === "phone" ? (
           <Form {...phoneForm}>
             <form
@@ -515,11 +509,7 @@ export function PhoneOtpSection({
         )}
 
         {/* Dedicated invisible reCAPTCHA host — never overlaps inputs. */}
-        <div
-          id={recaptchaId}
-          className="pointer-events-none fixed left-0 top-0 -z-10 h-px w-px overflow-hidden opacity-0"
-          aria-hidden
-        />
+        <div id={recaptchaId} className="absolute -left-[9999px] h-0 w-0 overflow-hidden" aria-hidden />
 
         {step === "phone" ? (
           <Button

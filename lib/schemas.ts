@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { digitsOnly, isValidPakistanMobileLocal, toPakistanMobileLocal } from "@/lib/phone-format";
+import { digitsOnly, isValidPakistanMobileLocal } from "@/lib/phone-format";
 import { passwordMeetsPolicy } from "@/lib/password-policy";
 
 /** Pakistani CNIC: 13 digits, displayed as XXXXX-XXXXXXX-X (15 chars). */
@@ -115,19 +115,14 @@ export const registerSchema = z
 
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 
-/** Sign-in only — do not enforce create-password complexity on existing credentials. */
+/** Sign-in email tab — email only (phone uses the Phone tab). */
 export const userLoginSchema = z.object({
   email: z
     .string()
-    .min(1, "Email or phone is required")
-    .max(50, "Must be 50 characters or fewer")
-    .refine((value) => {
-      const trimmed = value.trim();
-      if (trimmed.includes("@")) {
-        return z.string().email().safeParse(trimmed).success;
-      }
-      return isValidPakistanMobileLocal(toPakistanMobileLocal(trimmed));
-    }, "Enter a valid email or phone number"),
+    .trim()
+    .min(1, "Email is required")
+    .max(50, "Email must be 50 characters or fewer")
+    .email("Please enter a valid email"),
   password: z.string().min(1, "Password is required"),
 });
 

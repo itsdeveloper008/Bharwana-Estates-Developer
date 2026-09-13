@@ -20,17 +20,30 @@ export function firebaseErrorParts(error: unknown): {
   return { code, message, customData, serverResponse };
 }
 
-/** Log the full Auth error so auth/internal-error is diagnosable. */
+/** Log the full Auth error so phone / reCAPTCHA failures are diagnosable without screenshots. */
 export function logFirebaseAuthError(context: string, error: unknown, extra?: Record<string, unknown>) {
   const parts = firebaseErrorParts(error);
-  console.error(`[${context}] Firebase Auth failure`, {
+  let stringified = "";
+  try {
+    stringified = JSON.stringify(error, Object.getOwnPropertyNames(error as object));
+  } catch {
+    stringified = String(error);
+  }
+  const payload = {
+    context,
     code: parts.code,
     message: parts.message,
     customData: parts.customData,
     serverResponse: parts.serverResponse,
+    stringified,
     ...extra,
     raw: error,
-  });
+  };
+  console.error(`[${context}] Firebase Auth failure`, payload);
+  if (typeof window !== "undefined") {
+    (window as Window & { __BHARWANA_LAST_PHONE_AUTH_ERROR__?: unknown }).__BHARWANA_LAST_PHONE_AUTH_ERROR__ =
+      payload;
+  }
 }
 
 function messageHints(rawMessage: string): string {
