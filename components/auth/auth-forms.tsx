@@ -454,19 +454,19 @@ export function LoginForm() {
                 <PasswordField field={field} fieldState={fieldState} />
               )}
             />
-            <div className="-mt-1 flex justify-end">
+            <div className="-mt-1 flex flex-col items-end gap-1">
               <Link
                 href="/forgot-password"
                 className="text-xs font-medium text-[#1F6B4F] underline-offset-2 transition-colors hover:text-forest hover:underline"
               >
                 Forgot password?
               </Link>
+              {error ? (
+                <p className="text-right text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              ) : null}
             </div>
-            {error && (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
-            )}
             <Button
               type="submit"
               className="h-12 w-full rounded-xl bg-forest text-ivory hover:bg-forest-800"
