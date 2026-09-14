@@ -77,6 +77,8 @@ export function PhoneOtpSection({
 }) {
   const { sendPhoneOtp, verifyPhoneOtp, adoptSession, login } = useMockAuth();
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
+  /** Prevents double-click / overlapping sends from creating two verifiers for one container. */
+  const sendInFlightRef = useRef(false);
   const confirmationRef = useRef<ConfirmationResult | null>(null);
   const completingRef = useRef(false);
 
@@ -112,14 +114,11 @@ export function PhoneOtpSection({
 
   useEffect(() => {
     return () => {
-      try {
-        recaptchaRef.current?.clear();
-      } catch {
-        // ignore
-      }
+      const previous = recaptchaRef.current;
       recaptchaRef.current = null;
+      void clearRecaptchaContainer(recaptchaId, previous);
     };
-  }, []);
+  }, [recaptchaId]);
 
   // Warm recaptcha.net (not google.com) while the user types — avoids ERR_CONNECTION_CLOSED on google.com.
   useEffect(() => {
@@ -158,14 +157,18 @@ export function PhoneOtpSection({
   }, [otpExpiresAt, step]);
 
   async function resetRecaptcha() {
-    await clearRecaptchaContainer(recaptchaId, recaptchaRef.current);
+    const previous = recaptchaRef.current;
     recaptchaRef.current = null;
+    await clearRecaptchaContainer(recaptchaId, previous);
   }
 
   async function createFreshRecaptchaVerifier() {
     const auth = getFirebaseAuth();
     if (!auth) throw new Error("Firebase Auth is not available");
-    const verifier = await createPhoneRecaptchaVerifier(auth, recaptchaId, recaptchaRef.current);
+    // Clear-before-recreate: never leave a rendered widget in the same DOM node.
+    const previous = recaptchaRef.current;
+    recaptchaRef.current = null;
+    const verifier = await createPhoneRecaptchaVerifier(auth, recaptchaId, previous);
     recaptchaRef.current = verifier;
     return verifier;
   }
@@ -175,6 +178,8 @@ export function PhoneOtpSection({
       setError("Phone sign-in needs Firebase on this deploy.");
       return false;
     }
+    if (sendInFlightRef.current) return false;
+    sendInFlightRef.current = true;
     setError(null);
     setPending(true);
     // Invalidate any previous confirmation before requesting a new code.
@@ -213,6 +218,7 @@ export function PhoneOtpSection({
       await resetRecaptcha();
       return false;
     } finally {
+      sendInFlightRef.current = false;
       setPending(false);
     }
   }

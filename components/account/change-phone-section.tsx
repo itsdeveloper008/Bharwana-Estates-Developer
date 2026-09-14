@@ -31,6 +31,7 @@ type Step = "idle" | "phone" | "otp";
 export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
   const { sendChangePhoneOtp, confirmChangePhone } = useMockAuth();
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
+  const sendInFlightRef = useRef(false);
   const verificationIdRef = useRef<string | null>(null);
 
   const [step, setStep] = useState<Step>("idle");
@@ -43,12 +44,9 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
 
   useEffect(() => {
     return () => {
-      try {
-        recaptchaRef.current?.clear();
-      } catch {
-        // ignore
-      }
+      const previous = recaptchaRef.current;
       recaptchaRef.current = null;
+      void clearRecaptchaContainer(RECAPTCHA_ID, previous);
     };
   }, []);
 
@@ -67,14 +65,17 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
   }, []);
 
   async function resetRecaptcha() {
-    await clearRecaptchaContainer(RECAPTCHA_ID, recaptchaRef.current);
+    const previous = recaptchaRef.current;
     recaptchaRef.current = null;
+    await clearRecaptchaContainer(RECAPTCHA_ID, previous);
   }
 
   async function createFreshRecaptchaVerifier() {
     const auth = getFirebaseAuth();
     if (!auth) throw new Error("Firebase Auth is not available");
-    const verifier = await createPhoneRecaptchaVerifier(auth, RECAPTCHA_ID, recaptchaRef.current);
+    const previous = recaptchaRef.current;
+    recaptchaRef.current = null;
+    const verifier = await createPhoneRecaptchaVerifier(auth, RECAPTCHA_ID, previous);
     recaptchaRef.current = verifier;
     return verifier;
   }
@@ -106,6 +107,8 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
       setError("Enter a valid 10-digit mobile number");
       return false;
     }
+    if (sendInFlightRef.current) return false;
+    sendInFlightRef.current = true;
 
     setError(null);
     setPending(true);
@@ -135,6 +138,7 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
       await resetRecaptcha();
       return false;
     } finally {
+      sendInFlightRef.current = false;
       setPending(false);
     }
   }

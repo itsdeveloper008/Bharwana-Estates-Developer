@@ -16,7 +16,10 @@ declare global {
 }
 
 let ensureScriptPromise: Promise<void> | null = null;
+/** Serialize all create/clear work so concurrent retries never double-render one container. */
 let createLock: Promise<unknown> = Promise.resolve();
+/** Last live verifier per container id — survives lost React refs. */
+const verifiersByContainer = new Map<string, RecaptchaVerifier>();
 
 /**
  * Load grecaptcha from recaptcha.net (not google.com).
@@ -80,26 +83,62 @@ export function ensureRecaptchaScript(): Promise<void> {
   return ensureScriptPromise;
 }
 
-export async function clearRecaptchaContainer(containerId: string, existing?: RecaptchaVerifier | null) {
+function safeClearVerifier(verifier: RecaptchaVerifier | null | undefined) {
+  if (!verifier) return;
   try {
-    existing?.clear();
+    verifier.clear();
   } catch {
-    /* ignore */
+    /* already cleared / disposed */
   }
+}
+
+/**
+ * grecaptcha tracks render state on the *element node*, not its children.
+ * Emptying innerHTML is not enough — replace the node so a new render is allowed.
+ */
+function replaceRecaptchaHost(containerId: string): HTMLElement | null {
   const host = document.getElementById(containerId);
-  if (host) host.innerHTML = "";
-  await new Promise<void>((resolve) => window.setTimeout(resolve, 40));
+  if (!host) return null;
+  const parent = host.parentNode;
+  if (!parent) {
+    host.innerHTML = "";
+    return host;
+  }
+  const fresh = host.cloneNode(false) as HTMLElement;
+  fresh.id = containerId;
+  fresh.innerHTML = "";
+  parent.replaceChild(fresh, host);
+  return fresh;
+}
+
+/**
+ * Tear down any verifier bound to this container and replace the DOM host.
+ * Always safe to call (retries, unmount, failed sends).
+ */
+export async function clearRecaptchaContainer(
+  containerId: string,
+  existing?: RecaptchaVerifier | null,
+) {
+  const tracked = verifiersByContainer.get(containerId) ?? null;
+  verifiersByContainer.delete(containerId);
+
+  safeClearVerifier(existing);
+  if (tracked && tracked !== existing) {
+    safeClearVerifier(tracked);
+  }
+
+  replaceRecaptchaHost(containerId);
+  // Brief yield so grecaptcha finishes disposing the previous widget.
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
 }
 
 /**
  * Invisible reCAPTCHA **v2** for Firebase Phone Auth (`RecaptchaVerifier`).
- * Serializes creates so we never fire two competing script/verifier inits.
+ * Exactly one live instance per container: clear + replace host before every recreate.
  *
  * Note: Firebase Auth may log
  * "Failed to initialize reCAPTCHA Enterprise config. Triggering the reCAPTCHA v2 verification."
  * That is normal when Enterprise is not enforced for Phone — the SDK intentionally falls back to v2.
- * It is NOT itself an error. HTTP 503 + `auth/error-code:-39` after a solved v2 challenge is usually
- * SMS quota / anti-abuse, not an Enterprise key mismatch.
  */
 export async function createPhoneRecaptchaVerifier(
   auth: Auth,
@@ -108,7 +147,8 @@ export async function createPhoneRecaptchaVerifier(
 ): Promise<RecaptchaVerifier> {
   const run = createLock.then(async () => {
     await ensureRecaptchaScript();
-    await clearRecaptchaContainer(containerId, previous);
+    // Prefer the passed ref, but always clear whatever is tracked for this id.
+    await clearRecaptchaContainer(containerId, previous ?? verifiersByContainer.get(containerId));
 
     const host = document.getElementById(containerId);
     if (!host) {
@@ -135,16 +175,17 @@ export async function createPhoneRecaptchaVerifier(
       },
     });
 
+    verifiersByContainer.set(containerId, verifier);
+
     try {
       const widgetId = await verifier.render();
       console.info("[phone-recaptcha] rendered", { containerId, widgetId });
     } catch (error) {
       console.error("[phone-recaptcha] render failed", error);
-      try {
-        verifier.clear();
-      } catch {
-        /* ignore */
-      }
+      verifiersByContainer.delete(containerId);
+      safeClearVerifier(verifier);
+      // Hard-reset the host so the next attempt does not hit "already been rendered".
+      replaceRecaptchaHost(containerId);
       throw error;
     }
 
