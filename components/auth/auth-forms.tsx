@@ -116,7 +116,7 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
     setError(null);
     let redirecting = false;
     try {
-      // Start Google immediately so the popup opens in the same click turn
+      // Start immediately so the popup opens in the same click turn
       // (setting state first can cost the user-gesture and Chrome blocks the popup).
       const loginPromise =
         provider === "google" ? loginWithGoogle() : loginWithFacebook();
@@ -128,6 +128,8 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
       }
       if ("redirecting" in result && result.redirecting) {
         redirecting = true;
+        // Keep spinner briefly while navigation starts; clear if we somehow stay put.
+        window.setTimeout(() => setPendingProvider(null), 20_000);
         return;
       }
       if ("isNewUser" in result && result.isNewUser) {
@@ -144,7 +146,7 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
       setError(
         provider === "google"
           ? "Could not sign in with Google. Try again."
-          : "Could not sign in with Facebook. Try again.",
+          : "Could not connect to Facebook. Please check your connection and try again, or use another sign-in method.",
       );
     } finally {
       if (!redirecting) setPendingProvider(null);

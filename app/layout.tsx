@@ -41,6 +41,11 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://maps.googleapis.com" />
         <link rel="preconnect" href="https://www.recaptcha.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://www.gstatic.com" />
+        <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
+        <link rel="preconnect" href="https://securetoken.googleapis.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://www.facebook.com" />
+        <link rel="dns-prefetch" href="https://connect.facebook.net" />
       </head>
       <body className={`${montserrat.variable} font-sans font-light`}>
         <Providers>{children}</Providers>

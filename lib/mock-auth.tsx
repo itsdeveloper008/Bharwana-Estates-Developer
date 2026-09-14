@@ -289,12 +289,36 @@ function facebookAuthErrorMessage(code: string) {
     case "auth/account-exists-with-different-credential":
       return "An account already exists with this email using a different sign-in method. Sign in with that method first.";
     case "auth/network-request-failed":
-      return "Could not reach Facebook/Firebase Auth. Check your internet, disable ad blockers, or try another browser/network.";
+    case "auth/timeout":
+      return "Could not connect to Facebook. Please check your connection and try again, or use another sign-in method.";
     default:
       return code
         ? `Could not sign in with Facebook (${code}).`
         : "Could not sign in with Facebook. Try again.";
   }
+}
+
+/** Reject if an OAuth call never settles (e.g. identitytoolkit hang / ERR_CONNECTION_CLOSED). */
+function withAuthTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(
+        Object.assign(new Error(`${label} timed out after ${ms}ms`), {
+          code: "auth/network-request-failed",
+        }),
+      );
+    }, ms);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 async function loadFirestoreUser(firebaseUser: FirebaseUser): Promise<User | null> {
@@ -721,6 +745,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      authSyncGenerationRef.current += 1;
+
       const profile = await loadFirestoreUser(firebaseUser);
       if (profile) {
         commitSession(profile);
@@ -737,6 +763,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     provider.addScope("public_profile");
     provider.setCustomParameters({ display: "popup" });
 
+    const OAUTH_TIMEOUT_MS = 18_000;
+
     async function startFacebookRedirect(): Promise<GoogleLoginResult> {
       if (typeof window !== "undefined") {
         sessionStorage.setItem(
@@ -744,10 +772,26 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           `${window.location.pathname}${window.location.search}`,
         );
       }
-      await signInWithRedirect(firebaseAuth, provider);
+      // If identitytoolkit never responds, stay on this page — don't spin forever.
+      await withAuthTimeout(
+        signInWithRedirect(firebaseAuth, provider),
+        OAUTH_TIMEOUT_MS,
+        "Facebook redirect",
+      );
       return { ok: true as const, redirecting: true as const };
     }
 
+    async function startFacebookPopup(): Promise<GoogleLoginResult> {
+      const result = await withAuthTimeout(
+        signInWithPopup(firebaseAuth, provider),
+        OAUTH_TIMEOUT_MS,
+        "Facebook popup",
+      );
+      return await finishFacebookUser(result.user);
+    }
+
+    // Mobile: redirect (more reliable than popups in in-app browsers).
+    // Desktop: popup first — same pattern as Google; avoids endless "Connecting…" on hung redirects.
     if (shouldPreferOAuthRedirect()) {
       try {
         return await startFacebookRedirect();
@@ -756,31 +800,42 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           redirectError && typeof redirectError === "object" && "code" in redirectError
             ? String((redirectError as { code?: string }).code)
             : "";
-        console.error("Facebook redirect failed", { code: redirectCode, redirectError });
-        return { ok: false as const, error: facebookAuthErrorMessage(redirectCode) };
+        console.error("Facebook redirect failed; trying popup", { code: redirectCode, redirectError });
+        try {
+          return await startFacebookPopup();
+        } catch (error) {
+          const code =
+            error && typeof error === "object" && "code" in error
+              ? String((error as { code?: string }).code)
+              : redirectCode;
+          console.error("Facebook sign-in failed", { code, error });
+          return { ok: false as const, error: facebookAuthErrorMessage(code) };
+        }
       }
     }
 
-    // Prefer redirect over popup to avoid Chrome COOP / window.closed failures.
     try {
-      return await startFacebookRedirect();
-    } catch (redirectError) {
-      const redirectCode =
-        redirectError && typeof redirectError === "object" && "code" in redirectError
-          ? String((redirectError as { code?: string }).code)
+      return await startFacebookPopup();
+    } catch (popupError) {
+      const popupCode =
+        popupError && typeof popupError === "object" && "code" in popupError
+          ? String((popupError as { code?: string }).code)
           : "";
-      console.error("Facebook redirect failed; trying popup", { code: redirectCode, redirectError });
-      try {
-        const result = await signInWithPopup(firebaseAuth, provider);
-        return await finishFacebookUser(result.user);
-      } catch (error) {
-        const code =
-          error && typeof error === "object" && "code" in error
-            ? String((error as { code?: string }).code)
-            : redirectCode;
-        console.error("Facebook sign-in failed", { code, error });
-        return { ok: false as const, error: facebookAuthErrorMessage(code) };
+      console.error("Facebook popup failed; trying redirect", { code: popupCode, popupError });
+      // Popup blocked or network — try same-tab redirect once.
+      if (popupCode === "auth/popup-blocked" || popupCode === "auth/popup-closed-by-user") {
+        try {
+          return await startFacebookRedirect();
+        } catch (redirectError) {
+          const redirectCode =
+            redirectError && typeof redirectError === "object" && "code" in redirectError
+              ? String((redirectError as { code?: string }).code)
+              : popupCode;
+          console.error("Facebook redirect fallback failed", { code: redirectCode, redirectError });
+          return { ok: false as const, error: facebookAuthErrorMessage(redirectCode) };
+        }
       }
+      return { ok: false as const, error: facebookAuthErrorMessage(popupCode) };
     }
   }, [commitSession, setPendingGoogle]);
 
