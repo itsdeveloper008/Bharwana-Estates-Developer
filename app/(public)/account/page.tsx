@@ -294,8 +294,8 @@ export default function AccountSettingsPage() {
 
             {needsReauth && authMethod === "phone" && (
               <p className="text-sm text-forest/70">
-                Phone accounts need a fresh sign-in. Sign out, sign back in with OTP, then try again —
-                or submit a deletion request below.
+                Phone accounts need a fresh sign-in. Sign out, then sign back in with your phone number and
+                password, or submit a deletion request below.
               </p>
             )}
           </div>

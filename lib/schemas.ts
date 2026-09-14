@@ -115,14 +115,33 @@ export const registerSchema = z
 
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 
-/** Sign-in email tab — email only (phone uses the Phone tab). */
+function looksLikeEmail(value: string) {
+  return value.includes("@");
+}
+
+function looksLikeLoginPhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  // 03XXXXXXXXX, 3XXXXXXXXX, 92XXXXXXXXXX, +92…
+  if (digits.length === 10 && digits.startsWith("3")) return true;
+  if (digits.length === 11 && digits.startsWith("03")) return true;
+  if (digits.length === 12 && digits.startsWith("92") && digits[2] === "3") return true;
+  if (digits.length === 13 && digits.startsWith("923")) return true;
+  return false;
+}
+
+/** Unified Sign In — email or Pakistani mobile + password. */
 export const userLoginSchema = z.object({
   email: z
     .string()
     .trim()
-    .min(1, "Email is required")
-    .max(50, "Email must be 50 characters or fewer")
-    .email("Please enter a valid email"),
+    .min(1, "Email or phone is required")
+    .max(80, "Email or phone is too long")
+    .refine((value) => {
+      if (looksLikeEmail(value)) {
+        return z.string().email().safeParse(value).success;
+      }
+      return looksLikeLoginPhone(value);
+    }, "Enter a valid email or Pakistani mobile number"),
   password: z.string().min(1, "Password is required"),
 });
 

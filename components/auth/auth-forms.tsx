@@ -326,12 +326,16 @@ function EmailField({
   className,
   label = "Email",
   placeholder = "Email",
+  inputType = "email",
+  inputMode = "email",
 }: {
   field: { value: string; onChange: (...args: unknown[]) => void; onBlur: () => void; name: string; ref: Ref<HTMLInputElement> };
   fieldState: { error?: { message?: string } };
   className?: string;
   label?: string;
   placeholder?: string;
+  inputType?: "email" | "text";
+  inputMode?: "email" | "text" | "tel";
 }) {
   const [unlocked, setUnlocked] = useState(false);
   return (
@@ -345,8 +349,8 @@ function EmailField({
             aria-hidden
           />
           <Input
-            type="email"
-            inputMode="email"
+            type={inputType}
+            inputMode={inputMode}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="none"
@@ -355,11 +359,11 @@ function EmailField({
             data-lpignore="true"
             data-form-type="other"
             placeholder={placeholder}
-            maxLength={50}
+            maxLength={80}
             readOnly={!unlocked}
             onFocus={() => setUnlocked(true)}
             value={field.value ?? ""}
-            name="bharwana-login-email"
+            name="bharwana-login-identifier"
             onBlur={field.onBlur}
             onChange={field.onChange}
             ref={field.ref}
@@ -380,7 +384,6 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useMockAuth();
-  const [authMethod, setAuthMethod] = useState<AuthMethod>("email");
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<UserLoginValues>({
@@ -428,72 +431,68 @@ export function LoginForm() {
 
   return (
     <div className="space-y-4">
-      <AuthMethodToggle value={authMethod} onChange={setAuthMethod} />
-
-      {authMethod === "email" ? (
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit, (fieldErrors) => {
-              console.warn("[login] validation failed", fieldErrors);
-              setError("Enter a valid email and password to continue.");
-            })}
-            className="space-y-4"
-            autoComplete="off"
-          >
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field, fieldState }) => (
-                <EmailField field={field} fieldState={fieldState} />
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field, fieldState }) => (
-                <PasswordField field={field} fieldState={fieldState} />
-              )}
-            />
-            <div className="-mt-1 flex flex-col items-end gap-1">
-              <Link
-                href="/forgot-password"
-                className="text-xs font-medium text-[#1F6B4F] underline-offset-2 transition-colors hover:text-forest hover:underline"
-              >
-                Forgot password?
-              </Link>
-              {error ? (
-                <p className="text-right text-sm text-destructive" role="alert">
-                  {error}
-                </p>
-              ) : null}
-            </div>
-            <Button
-              type="submit"
-              className="h-12 w-full rounded-xl bg-forest text-ivory hover:bg-forest-800"
-              disabled={form.formState.isSubmitting}
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit, (fieldErrors) => {
+            console.warn("[login] validation failed", fieldErrors);
+            setError("Enter a valid email or phone and password to continue.");
+          })}
+          className="space-y-4"
+          autoComplete="off"
+        >
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field, fieldState }) => (
+              <EmailField
+                field={field}
+                fieldState={fieldState}
+                label="Email or phone"
+                placeholder="Email or phone"
+                inputMode="text"
+                inputType="text"
+              />
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field, fieldState }) => (
+              <PasswordField field={field} fieldState={fieldState} />
+            )}
+          />
+          <div className="-mt-1 flex flex-col items-end gap-1">
+            <Link
+              href="/forgot-password"
+              className="text-xs font-medium text-[#1F6B4F] underline-offset-2 transition-colors hover:text-forest hover:underline"
             >
-              {form.formState.isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Signing in…
-                </>
-              ) : (
-                <>
-                  Sign in
-                  <ArrowRight className="h-4 w-4" strokeWidth={2} />
-                </>
-              )}
-            </Button>
-          </form>
-        </Form>
-      ) : (
-        <PhoneOtpSection
-          variant="login"
-          recaptchaId="phone-auth-recaptcha-login"
-          onSuccess={(user) => goAfterAuth(user)}
-          onPreferPassword={() => setAuthMethod("email")}
-        />
-      )}
+              Forgot password?
+            </Link>
+            {error ? (
+              <p className="text-right text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            ) : null}
+          </div>
+          <Button
+            type="submit"
+            className="h-12 w-full rounded-xl bg-forest text-ivory hover:bg-forest-800"
+            disabled={form.formState.isSubmitting}
+          >
+            {form.formState.isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Signing in…
+              </>
+            ) : (
+              <>
+                Sign in
+                <ArrowRight className="h-4 w-4" strokeWidth={2} />
+              </>
+            )}
+          </Button>
+        </form>
+      </Form>
 
       <OrDivider />
       <ContinueWithGoogle onSuccess={(user) => goAfterAuth(user)} />
@@ -763,7 +762,7 @@ export function RegisterForm() {
       ) : (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Verify your mobile number to create an account. First-time sign-in will ask for your role, same as Google or Facebook.
+            Verify your mobile number once to create an account, then set a password. Next time, sign in with your phone number and password.
           </p>
           <PhoneOtpSection
             variant="register"

@@ -603,6 +603,15 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
                 ? String((error as { code?: string }).code)
                 : "";
             console.error("Firebase login failed", error);
+            // Never reveal whether the identifier or password was wrong (email or phone).
+            if (
+              code === "auth/invalid-credential" ||
+              code === "auth/wrong-password" ||
+              code === "auth/user-not-found" ||
+              code === "auth/invalid-email"
+            ) {
+              return { ok: false as const, error: "Invalid email or password." };
+            }
             return { ok: false as const, error: emailAuthErrorMessage(code) };
           }
         }

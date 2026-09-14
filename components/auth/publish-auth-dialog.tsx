@@ -111,12 +111,13 @@ export function PublishAuthDialog({
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Email or phone</FormLabel>
                     <FormControl>
                       <Input
                         className="bg-white"
-                        type="email"
-                        placeholder=""
+                        type="text"
+                        inputMode="text"
+                        placeholder="Email or phone"
                         autoComplete="off"
                         {...field}
                       />
