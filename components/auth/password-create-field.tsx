@@ -37,6 +37,9 @@ export function PasswordCreateField({
           <Input
             type={show ? "text" : "password"}
             autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             data-1p-ignore="true"
             data-lpignore="true"
             data-bwignore="true"
@@ -44,7 +47,7 @@ export function PasswordCreateField({
             placeholder="Password"
             readOnly={!unlocked}
             value={value}
-            name={field.name}
+            name="bharwana-new-pass"
             ref={field.ref}
             onFocus={() => {
               setUnlocked(true);
@@ -124,7 +127,10 @@ export function ConfirmPasswordField({
         <div className="relative">
           <Input
             type={show ? "text" : "password"}
-            autoComplete="new-password"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             data-1p-ignore="true"
             data-lpignore="true"
             data-bwignore="true"
@@ -132,7 +138,7 @@ export function ConfirmPasswordField({
             placeholder="Confirm password"
             readOnly={!unlocked}
             value={value}
-            name={field.name}
+            name="bharwana-confirm-pass"
             ref={field.ref}
             onFocus={() => setUnlocked(true)}
             onBlur={field.onBlur}

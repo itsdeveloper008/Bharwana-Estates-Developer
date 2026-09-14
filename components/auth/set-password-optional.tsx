@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormField } from "@/components/ui/form";
 import { useMockAuth } from "@/lib/mock-auth";
 import { passwordCreateSchema } from "@/lib/schemas";
+import type { User } from "@/lib/types";
 
 const schema = z
   .object({
@@ -24,21 +25,28 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-/** Optional password link after phone signup (or from Settings). No email field. */
+/** Password link after phone signup (or from Settings). No email field. */
 export function SetPasswordOptional({
   onDone,
   onSkip,
+  profile,
   title = "Add a password for faster sign-in",
   description = "Avoid entering a code every time you log in. You can still use phone OTP whenever you want.",
-  showSkip = true,
+  showSkip = false,
+  submitLabel = "Sign in",
+  successToast = "Password saved. You are signed in.",
 }: {
   /** @deprecated Ignored — phone accounts never collect email here. */
   defaultEmail?: string;
-  onDone?: () => void;
+  /** Pending profile when app session is not committed yet (post-phone signup). */
+  profile?: User | null;
+  onDone?: (user: User) => void;
   onSkip?: () => void;
   title?: string;
   description?: string;
   showSkip?: boolean;
+  submitLabel?: string;
+  successToast?: string;
 }) {
   const { linkEmailPassword } = useMockAuth();
   const [error, setError] = useState<string | null>(null);
@@ -52,13 +60,14 @@ export function SetPasswordOptional({
     setError(null);
     const result = await linkEmailPassword({
       password: values.password,
+      profile: profile ?? undefined,
     });
     if (!result.ok) {
       setError(result.error);
       return;
     }
-    toast.success("Password added. Use your phone number and password on the Email tab next time.");
-    onDone?.();
+    toast.success(successToast);
+    onDone?.(result.user);
   }
 
   return (
@@ -68,7 +77,13 @@ export function SetPasswordOptional({
         <p className="mt-1.5 text-sm leading-relaxed text-forest/70">{description}</p>
       </div>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3" autoComplete="off">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-3"
+          autoComplete="off"
+          data-1p-ignore="true"
+          data-lpignore="true"
+        >
           <FormField
             control={form.control}
             name="password"
@@ -92,10 +107,10 @@ export function SetPasswordOptional({
             {form.formState.isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Saving…
+                Signing in…
               </>
             ) : (
-              "Save password"
+              submitLabel
             )}
           </Button>
           {showSkip && onSkip ? (

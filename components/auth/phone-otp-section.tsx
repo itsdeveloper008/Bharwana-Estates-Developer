@@ -75,7 +75,7 @@ export function PhoneOtpSection({
   /** Switch Sign In UI to the email/password tab. */
   onPreferPassword?: () => void;
 }) {
-  const { sendPhoneOtp, verifyPhoneOtp, adoptSession, login } = useMockAuth();
+  const { sendPhoneOtp, verifyPhoneOtp, login } = useMockAuth();
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   /** Prevents double-click / overlapping sends from creating two verifiers for one container. */
   const sendInFlightRef = useRef(false);
@@ -339,13 +339,14 @@ export function PhoneOtpSection({
   if (step === "setPassword" && pendingUser) {
     return (
       <SetPasswordOptional
-        defaultEmail={pendingUser.email}
-        onDone={() => {
-          finishWithUser(pendingUser);
-        }}
-        onSkip={() => {
-          adoptSession(pendingUser);
-          finishWithUser(pendingUser);
+        profile={pendingUser}
+        showSkip={false}
+        submitLabel="Sign in"
+        title="Add a password for faster sign-in"
+        description="Create your own password to finish signing in. You can still use phone OTP whenever you want."
+        successToast="Welcome — you are signed in."
+        onDone={(user) => {
+          finishWithUser(user);
         }}
       />
     );

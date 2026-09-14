@@ -49,6 +49,8 @@ export function AddPasswordSection() {
       title="Add password for faster sign-in"
       description="Set a password so you can skip OTP next time. Use your phone number with this password on Sign in."
       showSkip
+      submitLabel="Save password"
+      successToast="Password added. Use your phone number and password on the Email tab next time."
       onSkip={() => setOpen(false)}
       onDone={() => {
         setDone(true);

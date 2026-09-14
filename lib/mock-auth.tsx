@@ -148,10 +148,12 @@ interface MockAuthContextValue {
   getAccountAuthMethod: () => AccountAuthMethod | null;
   /** True when the signed-in Firebase user has an email/password provider linked. */
   hasPasswordProvider: () => boolean;
-  /** Link a password to the current account (phone users keep their hidden internal email). */
+  /** Link a password to the current Firebase account (phone users keep their hidden internal email). */
   linkEmailPassword: (input: {
     email?: string;
     password: string;
+    /** When app session is not committed yet (post-phone signup), pass the pending profile. */
+    profile?: User;
   }) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
 }
 
@@ -1201,12 +1203,35 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const linkEmailPassword = useCallback(
-    async (input: { email?: string; password: string }) => {
-      if (!user) {
-        return { ok: false as const, error: "You must be signed in to add a password." };
-      }
+    async (input: { email?: string; password: string; profile?: User }) => {
       if (!input.password) {
         return { ok: false as const, error: "Enter a password." };
+      }
+
+      const auth = getFirebaseAuth();
+      const firebaseUser = auth?.currentUser;
+      // Phone OTP already created a Firebase session; app `user` may still be null until adoptSession.
+      if (!auth || !firebaseUser) {
+        return {
+          ok: false as const,
+          error: "Session expired. Verify your phone again, then set a password.",
+        };
+      }
+
+      let sessionUser = user ?? input.profile ?? null;
+      if (!sessionUser || sessionUser.id !== firebaseUser.uid) {
+        try {
+          const doc = await getUserDoc(firebaseUser.uid);
+          if (doc) sessionUser = doc;
+        } catch (err) {
+          console.error("[linkEmailPassword] profile load failed", err);
+        }
+      }
+      if (!sessionUser || sessionUser.id !== firebaseUser.uid) {
+        return {
+          ok: false as const,
+          error: "Could not find your account profile. Verify your phone again and retry.",
+        };
       }
 
       const requested = (input.email ?? "").trim().toLowerCase();
@@ -1214,19 +1239,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       const email =
         requested && !isSyntheticPhoneEmail(requested)
           ? requested
-          : user.email.trim().toLowerCase();
+          : sessionUser.email.trim().toLowerCase();
 
       if (!email || !email.includes("@")) {
         return { ok: false as const, error: "Could not link a password to this account. Sign in again and retry." };
-      }
-
-      const auth = getFirebaseAuth();
-      const firebaseUser = auth?.currentUser;
-      if (!auth || !firebaseUser || firebaseUser.uid !== user.id) {
-        return {
-          ok: false as const,
-          error: "Session expired. Sign in again, then try adding a password.",
-        };
       }
 
       if (firebaseUser.providerData.some((p) => p.providerId === "password")) {
@@ -1238,9 +1254,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         await linkWithCredential(firebaseUser, credential);
 
         const keepSynthetic = isSyntheticPhoneEmail(email);
-        if (!keepSynthetic && email !== user.email.trim().toLowerCase()) {
+        if (!keepSynthetic && email !== sessionUser.email.trim().toLowerCase()) {
           try {
-            await updateUserEmail(user.id, email);
+            await updateUserEmail(sessionUser.id, email);
           } catch (firestoreError) {
             console.error("Password linked but Firestore email sync failed", firestoreError);
             return {
@@ -1250,7 +1266,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        const nextUser: User = keepSynthetic ? { ...user } : { ...user, email };
+        const nextUser: User = keepSynthetic ? { ...sessionUser } : { ...sessionUser, email };
         commitSession(nextUser);
         return { ok: true as const, user: nextUser };
       } catch (error) {
