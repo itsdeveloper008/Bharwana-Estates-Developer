@@ -3,12 +3,37 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { RequirePathModule } from "@/components/admin/require-module";
 import { useAdminAuth } from "@/lib/admin-auth";
+import type { AdminModule } from "@/lib/admin/modules";
+
+function firstAllowedPath(
+  hasModule: (m: AdminModule) => boolean,
+  isSuperAdmin: boolean,
+): string {
+  if (isSuperAdmin || hasModule("dashboard")) return "/admin/dashboard";
+  const order: Array<{ module: AdminModule; href: string }> = [
+    { module: "submissions", href: "/admin/submissions" },
+    { module: "properties", href: "/admin/properties" },
+    { module: "dealers", href: "/admin/developers" },
+    { module: "commissions", href: "/admin/commissions" },
+    { module: "inquiries", href: "/admin/inquiries" },
+    { module: "newsletter", href: "/admin/newsletter" },
+    { module: "team", href: "/admin/team" },
+    { module: "users", href: "/admin/users" },
+    { module: "deletion", href: "/admin/deletion-requests" },
+    { module: "reports", href: "/admin/reports" },
+  ];
+  for (const item of order) {
+    if (hasModule(item.module)) return item.href;
+  }
+  return "/admin/login";
+}
 
 export function AdminGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, isReady } = useAdminAuth();
+  const { isAuthenticated, isReady, hasModule, isSuperAdmin } = useAdminAuth();
   const isLogin = pathname === "/admin/login";
 
   useEffect(() => {
@@ -17,11 +42,10 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
       router.replace("/admin/login");
     }
     if (isLogin && isAuthenticated) {
-      router.replace("/admin/dashboard");
+      router.replace(firstAllowedPath(hasModule, isSuperAdmin));
     }
-  }, [isReady, isLogin, isAuthenticated, router]);
+  }, [isReady, isLogin, isAuthenticated, router, hasModule, isSuperAdmin]);
 
-  // Login page: never block on Firebase restore.
   if (isLogin) {
     if (isReady && isAuthenticated) {
       return (
@@ -33,10 +57,12 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Protected admin: if we already have a session (incl. restored from localStorage),
-  // render the shell immediately — Firebase still re-verifies in the background.
   if (isAuthenticated) {
-    return <AdminShell>{children}</AdminShell>;
+    return (
+      <AdminShell>
+        <RequirePathModule>{children}</RequirePathModule>
+      </AdminShell>
+    );
   }
 
   if (!isReady) {

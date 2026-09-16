@@ -1,4 +1,10 @@
 import { doc, getDoc } from "firebase/firestore";
+import {
+  ALL_ADMIN_MODULES,
+  normalizePermissions,
+  type AdminModule,
+  type AdminPanelRole,
+} from "@/lib/admin/modules";
 import { getDb } from "@/lib/firebase/client";
 import { getUserDoc } from "@/lib/firestore/users";
 import type { User } from "@/lib/types";
@@ -6,8 +12,19 @@ import type { User } from "@/lib/types";
 const ADMINS_COLLECTION = "admins";
 
 export type AdminAuthorizationResult =
-  | { authorized: true; profile: User; source: "users.role" | "admins.collection" }
-  | { authorized: false; profile: User | null; reason: "missing_profile" | "role_mismatch" | "not_listed" };
+  | {
+      authorized: true;
+      profile: User;
+      source: "users.role" | "admins.collection";
+      adminRole: AdminPanelRole;
+      permissions: AdminModule[];
+      active: boolean;
+    }
+  | {
+      authorized: false;
+      profile: User | null;
+      reason: "missing_profile" | "role_mismatch" | "not_listed" | "inactive";
+    };
 
 function profileFromAdminDoc(uid: string, data: Record<string, unknown>, fallbackEmail: string): User {
   return {
@@ -26,20 +43,49 @@ export async function resolveAdminAuthorization(
   fallbackEmail = "",
 ): Promise<AdminAuthorizationResult> {
   const profile = await getUserDoc(uid);
-
-  if (profile?.role === "ADMIN") {
-    return { authorized: true, profile, source: "users.role" };
-  }
-
   const db = getDb();
+
   if (db) {
     const adminSnap = await getDoc(doc(db, ADMINS_COLLECTION, uid));
     if (adminSnap.exists()) {
+      const data = adminSnap.data() as Record<string, unknown>;
+      if (data.active === false) {
+        return {
+          authorized: false,
+          profile: profile ?? profileFromAdminDoc(uid, data, fallbackEmail),
+          reason: "inactive",
+        };
+      }
+
+      const rawRole = String(data.role ?? "");
+      const adminRole: AdminPanelRole = rawRole === "staff" ? "staff" : "super_admin";
+      const permissions =
+        adminRole === "super_admin" ? [...ALL_ADMIN_MODULES] : normalizePermissions(data.permissions);
+
       const adminProfile = profile
-        ? { ...profile, role: "ADMIN" as const }
-        : profileFromAdminDoc(uid, adminSnap.data(), fallbackEmail);
-      return { authorized: true, profile: adminProfile, source: "admins.collection" };
+        ? { ...profile, role: "ADMIN" as const, fullName: String(data.fullName ?? profile.fullName) }
+        : profileFromAdminDoc(uid, data, fallbackEmail);
+
+      return {
+        authorized: true,
+        profile: adminProfile,
+        source: "admins.collection",
+        adminRole,
+        permissions,
+        active: true,
+      };
     }
+  }
+
+  if (profile?.role === "ADMIN") {
+    return {
+      authorized: true,
+      profile,
+      source: "users.role",
+      adminRole: "super_admin",
+      permissions: [...ALL_ADMIN_MODULES],
+      active: true,
+    };
   }
 
   if (process.env.NODE_ENV === "development") {

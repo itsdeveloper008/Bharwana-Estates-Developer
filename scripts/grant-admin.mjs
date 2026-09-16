@@ -92,7 +92,9 @@ await setDoc(
   {
     email,
     fullName,
-    role: "ADMIN",
+    role: "super_admin",
+    permissions: [],
+    active: true,
     updatedAt: serverTimestamp(),
   },
   { merge: true },
@@ -100,7 +102,7 @@ await setDoc(
 
 console.log(`Admin access granted for ${email}`);
 console.log(`  users/${uid}  → role: ADMIN`);
-console.log(`  admins/${uid} → document created/updated`);
+console.log(`  admins/${uid} → role: super_admin`);
 console.log("Sign out of /admin if already open, then sign in again.");
 
 process.exit(0);

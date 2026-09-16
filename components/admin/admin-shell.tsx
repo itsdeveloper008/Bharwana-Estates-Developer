@@ -3,11 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Building2,
   ClipboardCheck,
   ExternalLink,
+  FileBarChart,
   Handshake,
   LayoutDashboard,
   LogOut,
@@ -16,6 +17,7 @@ import {
   Percent,
   ShieldAlert,
   Mail,
+  UserCog,
   Users,
   UsersRound,
   X,
@@ -26,21 +28,38 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { FirebaseConfigBanner } from "@/components/firebase/firebase-config-banner";
 import { useAdminAuth } from "@/lib/admin-auth";
+import type { AdminModule } from "@/lib/admin/modules";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/submissions", label: "Submissions", icon: ClipboardCheck, badgeKey: "pending" as const },
-  { href: "/admin/properties", label: "Properties", icon: Building2 },
-  { href: "/admin/developers", label: "Dealers", icon: Handshake },
-  { href: "/admin/commissions", label: "Commissions", icon: Percent },
-  { href: "/admin/inquiries", label: "Inquiries", icon: MessageSquare },
-  { href: "/admin/newsletter", label: "Newsletter", icon: Mail },
-  { href: "/admin/team", label: "Team", icon: UsersRound },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/deletion-requests", label: "Deletion", icon: ShieldAlert },
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  module: AdminModule | "staff";
+  badgeKey?: "pending";
+};
+
+const navItems: NavItem[] = [
+  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, module: "dashboard" },
+  {
+    href: "/admin/submissions",
+    label: "Submissions",
+    icon: ClipboardCheck,
+    module: "submissions",
+    badgeKey: "pending",
+  },
+  { href: "/admin/properties", label: "Properties", icon: Building2, module: "properties" },
+  { href: "/admin/developers", label: "Dealers", icon: Handshake, module: "dealers" },
+  { href: "/admin/commissions", label: "Commissions", icon: Percent, module: "commissions" },
+  { href: "/admin/inquiries", label: "Inquiries", icon: MessageSquare, module: "inquiries" },
+  { href: "/admin/newsletter", label: "Newsletter", icon: Mail, module: "newsletter" },
+  { href: "/admin/team", label: "Team", icon: UsersRound, module: "team" },
+  { href: "/admin/users", label: "Users", icon: Users, module: "users" },
+  { href: "/admin/deletion-requests", label: "Deletion", icon: ShieldAlert, module: "deletion" },
+  { href: "/admin/reports", label: "Reports", icon: FileBarChart, module: "reports" },
+  { href: "/admin/staff", label: "Staff", icon: UserCog, module: "staff" },
 ];
 
 function AdminBrand() {
@@ -64,11 +83,19 @@ function AdminBrand() {
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { properties } = useMockStore();
+  const { hasModule, isSuperAdmin, admin } = useAdminAuth();
   const pendingCount = properties.filter((property) => property.status === "PENDING_APPROVAL").length;
+
+  const visible = useMemo(() => {
+    return navItems.filter((item) => {
+      if (item.module === "staff") return isSuperAdmin;
+      return hasModule(item.module);
+    });
+  }, [hasModule, isSuperAdmin]);
 
   return (
     <nav className="flex flex-col gap-1">
-      {navItems.map((item) => {
+      {visible.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <Link
@@ -84,7 +111,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           >
             <item.icon className={cn("h-4 w-4", active ? "text-gold" : "text-forest/50")} />
             <span className="flex-1">{item.label}</span>
-            {"badgeKey" in item && item.badgeKey === "pending" && pendingCount > 0 ? (
+            {item.badgeKey === "pending" && pendingCount > 0 ? (
               <Badge variant="pending" className="ml-auto text-[10px]">
                 {pendingCount}
               </Badge>
@@ -92,6 +119,9 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           </Link>
         );
       })}
+      {admin?.adminRole === "staff" && visible.length === 0 ? (
+        <p className="px-3 py-2 text-xs text-muted-foreground">No modules assigned.</p>
+      ) : null}
     </nav>
   );
 }
@@ -130,6 +160,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       .slice(0, 2)
       .toUpperCase() ?? "AD";
 
+  const roleLabel = admin?.adminRole === "super_admin" ? "Super Admin" : "Staff";
+
   return (
     <div className="flex min-h-screen bg-ivory">
       <aside className="hidden w-60 shrink-0 border-r border-forest/10 bg-cream/40 lg:flex lg:flex-col">
@@ -139,7 +171,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="flex-1 px-2 py-4">
           <NavLinks />
         </div>
-        <div className="border-t border-forest/10 p-4 space-y-2">
+        <div className="space-y-2 border-t border-forest/10 p-4">
           <Button variant="outline" size="sm" className="w-full justify-start" onClick={handleViewWebsite}>
             <ExternalLink className="h-4 w-4" />
             View Website
@@ -187,7 +219,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
               <p className="text-sm font-medium text-forest">{admin?.fullName}</p>
-              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Admin</p>
+              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{roleLabel}</p>
             </div>
             <Avatar className="h-9 w-9 border border-gold/30">
               <AvatarImage src={admin?.avatarUrl} alt={admin?.fullName ?? "Admin"} />

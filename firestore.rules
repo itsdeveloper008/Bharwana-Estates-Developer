@@ -18,12 +18,55 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    /** Admin via users.role or admins/{uid} allow-list (Admin SDK managed). */
-    function isAdmin() {
+    function adminDocExists() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function adminDoc() {
+      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data;
+    }
+
+    function adminActive() {
+      return adminDocExists() && adminDoc().active != false;
+    }
+
+    /** Legacy marketplace ADMIN users (users.role) are treated as Super Admin. */
+    function isLegacySuperAdmin() {
+      return userExists() && userRole() == 'ADMIN';
+    }
+
+    function isSuperAdmin() {
       return isSignedIn() && (
-        (userExists() && userRole() == 'ADMIN')
-        || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        isLegacySuperAdmin()
+        || (
+          adminActive()
+          && adminDoc().role != 'staff'
+        )
       );
+    }
+
+    function isActiveStaff() {
+      return adminActive() && adminDoc().role == 'staff';
+    }
+
+    /** Any panel admin (super or active staff). */
+    function isAdmin() {
+      return isSuperAdmin() || isActiveStaff();
+    }
+
+    function hasPerm(perm) {
+      return isSuperAdmin()
+        || (
+          isActiveStaff()
+          && 'permissions' in adminDoc()
+          && adminDoc().permissions is list
+          && perm in adminDoc().permissions
+        );
+    }
+
+    function canManageProperties() {
+      return hasPerm('properties') || hasPerm('submissions') || hasPerm('reports');
     }
 
     function isPublicRole(role) {
@@ -36,9 +79,8 @@ service cloud.firestore {
 
     // —— User profiles (Firebase Auth UID) ——
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      allow read: if isOwner(userId) || hasPerm('users') || hasPerm('reports') || isSuperAdmin();
 
-      // Self-register: own UID only, never ADMIN/SALES_REP via client signup.
       allow create: if isSignedIn()
         && (
           (
@@ -46,24 +88,31 @@ service cloud.firestore {
             && isPublicRole(request.resource.data.role)
           )
           || (
-            isAdmin()
+            hasPerm('users')
             && isValidUserRole(request.resource.data.role)
+            && !(request.resource.data.role == 'ADMIN' && !isSuperAdmin())
           )
         );
 
-      // Owners cannot escalate role; admins can manage any profile.
-      allow update: if isAdmin()
+      allow update: if isSuperAdmin()
+        || (
+          hasPerm('users')
+          && !(request.resource.data.role == 'ADMIN' && resource.data.role != 'ADMIN' && !isSuperAdmin())
+        )
         || (
           isOwner(userId)
           && request.resource.data.role == resource.data.role
         );
 
-      allow delete: if isOwner(userId) || isAdmin();
+      allow delete: if isOwner(userId) || hasPerm('users') || isSuperAdmin();
     }
 
-    // Admin allow-list docs — readable by that uid for auth checks; writes via Admin SDK only.
+    // Admin allow-list — own read for session; Super Admin may list/read for Staff UI via Admin SDK (writes client-blocked).
     match /admins/{adminId} {
-      allow read: if isSignedIn() && request.auth.uid == adminId;
+      allow read: if isSignedIn() && (
+        request.auth.uid == adminId
+        || isSuperAdmin()
+      );
       allow write: if false;
     }
 
@@ -71,14 +120,14 @@ service cloud.firestore {
     match /properties/{propertyId} {
       allow read: if true;
 
-      allow create: if isAdmin()
+      allow create: if canManageProperties()
         || (
           isSignedIn()
           && request.resource.data.ownerUserId == request.auth.uid
           && request.resource.data.status in ['DRAFT', 'PENDING_APPROVAL']
         );
 
-      allow update: if isAdmin()
+      allow update: if canManageProperties()
         || (
           isSignedIn()
           && resource.data.ownerUserId == request.auth.uid
@@ -86,7 +135,7 @@ service cloud.firestore {
           && request.resource.data.status in ['DRAFT', 'PENDING_APPROVAL']
         );
 
-      allow delete: if isAdmin()
+      allow delete: if canManageProperties()
         || (
           isSignedIn()
           && resource.data.ownerUserId == request.auth.uid
@@ -98,25 +147,25 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.buyerId == request.auth.uid;
 
-      allow read: if isAdmin()
+      allow read: if hasPerm('inquiries') || hasPerm('reports') || isSuperAdmin()
         || (isSignedIn() && resource.data.buyerId == request.auth.uid);
 
-      allow update: if isAdmin();
+      allow update: if hasPerm('inquiries') || isSuperAdmin();
 
-      allow delete: if isAdmin()
+      allow delete: if hasPerm('inquiries') || isSuperAdmin()
         || (isSignedIn() && resource.data.buyerId == request.auth.uid);
     }
 
     // —— Team (public read, admin write) ——
     match /teamMembers/{id} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if hasPerm('team') || isSuperAdmin();
     }
 
     // —— Public lead forms (create only; no public read) ——
     match /contactMessages/{id} {
       allow create: if true;
-      allow read, update, delete: if isAdmin();
+      allow read, update, delete: if hasPerm('inquiries') || isSuperAdmin();
     }
 
     match /newsletterSignups/{id} {
@@ -128,37 +177,37 @@ service cloud.firestore {
           || request.resource.data.keys().hasOnly(['email', 'createdAt'])
           || request.resource.data.keys().hasOnly(['email', 'subscribedAt', 'createdAt'])
         );
-      allow read, update, delete: if isAdmin();
+      allow read, update, delete: if hasPerm('newsletter') || isSuperAdmin();
     }
 
     // —— Account deletion ——
     match /deletionRequests/{id} {
       allow create: if isSignedIn()
         && request.resource.data.uid == request.auth.uid;
-      allow read: if isAdmin()
+      allow read: if hasPerm('deletion') || isSuperAdmin()
         || (isSignedIn() && resource.data.uid == request.auth.uid);
-      allow update, delete: if isAdmin();
+      allow update, delete: if hasPerm('deletion') || isSuperAdmin();
     }
 
-    // —— Dealers (local store today; lock Firestore if used) ——
+    // —— Dealers ——
     match /developers/{id} {
       allow read: if true;
-      allow create: if isAdmin()
+      allow create: if hasPerm('dealers') || isSuperAdmin()
         || (
           isSignedIn()
           && request.resource.data.dealerUserId == request.auth.uid
         );
-      allow update: if isAdmin()
+      allow update: if hasPerm('dealers') || isSuperAdmin()
         || (
           isSignedIn()
           && resource.data.dealerUserId == request.auth.uid
           && request.resource.data.dealerUserId == resource.data.dealerUserId
         );
-      allow delete: if isAdmin();
+      allow delete: if hasPerm('dealers') || isSuperAdmin();
     }
 
     match /transactions/{id} {
-      allow read: if isAdmin()
+      allow read: if hasPerm('commissions') || hasPerm('reports') || isSuperAdmin()
         || (
           isSignedIn()
           && resource.data.developerId is string
@@ -166,9 +215,8 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/developers/$(resource.data.developerId)).data.dealerUserId
             == request.auth.uid
         );
-      allow create, delete: if isAdmin();
-      // Dealer self-deletion may flag commission rows before developer unlink.
-      allow update: if isAdmin()
+      allow create, delete: if hasPerm('commissions') || isSuperAdmin();
+      allow update: if hasPerm('commissions') || isSuperAdmin()
         || (
           isSignedIn()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dealerDeleted'])
