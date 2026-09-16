@@ -17,9 +17,38 @@ import { FIRESTORE_WRITE_TIMEOUT_MS, PHOTO_UPLOAD_TIMEOUT_MS } from "@/lib/fires
 import { normalizeFeatureTags, normalizeHighlightKeys } from "@/lib/property-features";
 import { isPersistedPropertyImageUrl } from "@/lib/property-images";
 import type { Property, PropertyHighlightKey, PropertyStatusHistoryEntry } from "@/lib/types";
+import {
+  compressListingImage,
+  LISTING_IMAGE_MAX_MB,
+  MAX_PROPERTY_PHOTOS,
+} from "@/lib/compress-listing-image";
 import { withTimeout } from "@/lib/utils";
 
 const COLLECTION = "properties";
+
+const MAX_UPLOAD_BYTES = 9 * 1024 * 1024;
+const ALREADY_COMPRESSED_BYTES = LISTING_IMAGE_MAX_MB * 1024 * 1024;
+
+/**
+ * Shrink listing photos before Storage upload.
+ * Skips a second pass when the form already compressed to JPEG under the soft size target.
+ */
+async function compressImageBlob(blob: Blob): Promise<Blob> {
+  if (blob.type === "image/jpeg" && blob.size > 0 && blob.size <= ALREADY_COMPRESSED_BYTES) {
+    return blob;
+  }
+  try {
+    const file = await compressListingImage(blob);
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new Error("Photo is still too large after compression. Try a smaller JPG or PNG.");
+    }
+    return file;
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Photo")) throw error;
+    if (blob.type === "image/jpeg" && blob.size <= MAX_UPLOAD_BYTES) return blob;
+    throw new Error("Could not process photo. On iPhone, choose “Most Compatible” or use JPG/PNG.");
+  }
+}
 
 /** Firestore FieldValue sentinels (serverTimestamp, deleteField, …) must pass through. */
 function isFieldValueSentinel(value: unknown): boolean {
@@ -39,9 +68,9 @@ function isRemoteImageUrl(url: string) {
  * Omits `id` (doc path is source of truth) and strips nested undefined.
  */
 function toFirestorePayload(property: Property): Record<string, unknown> {
-  const images = (property.images ?? []).filter(
-    (url): url is string => typeof url === "string" && isStoredImageUrl(url),
-  );
+  const images = (property.images ?? [])
+    .filter((url): url is string => typeof url === "string" && isStoredImageUrl(url))
+    .slice(0, MAX_PROPERTY_PHOTOS);
 
   const payload: Record<string, unknown> = {
     title: String(property.title ?? "").trim(),
@@ -118,65 +147,16 @@ function logPropertyPayload(propertyId: string, payload: Record<string, unknown>
   }
 }
 
-const MAX_UPLOAD_BYTES = 9 * 1024 * 1024;
-
-/** Shrink listing photos to JPEG before Storage upload (mobile HEIC / multi‑MB originals). */
-async function compressImageBlob(blob: Blob, maxEdge = 1600, quality = 0.72): Promise<Blob> {
-  if (typeof createImageBitmap === "undefined" || typeof document === "undefined") {
-    if (blob.size > MAX_UPLOAD_BYTES) {
-      throw new Error("Photo is too large. Use a JPG or PNG under 9MB.");
-    }
-    return blob;
-  }
-  try {
-    const bitmap = await createImageBitmap(blob);
-    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
-    if (scale >= 1 && blob.size < 400_000 && blob.type === "image/jpeg") {
-      bitmap.close();
-      return blob;
-    }
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      bitmap.close();
-      throw new Error("Could not process photo. Try a JPG or PNG.");
-    }
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
-
-    let nextQuality = quality;
-    let compressed: Blob | null = null;
-    for (let attempt = 0; attempt < 4; attempt += 1) {
-      compressed = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((next) => resolve(next), "image/jpeg", nextQuality);
-      });
-      if (compressed && compressed.size > 0 && compressed.size <= MAX_UPLOAD_BYTES) {
-        return compressed;
-      }
-      nextQuality = Math.max(0.4, nextQuality - 0.12);
-    }
-
-    if (compressed && compressed.size > 0 && compressed.size <= MAX_UPLOAD_BYTES) {
-      return compressed;
-    }
-    throw new Error("Photo is too large after compression. Try a smaller JPG or PNG.");
-  } catch (error) {
-    if (error instanceof Error && error.message.startsWith("Photo")) throw error;
-    if (blob.type === "image/jpeg" && blob.size <= MAX_UPLOAD_BYTES) return blob;
-    throw new Error("Could not process photo. On iPhone, choose “Most Compatible” or use JPG/PNG.");
-  }
-}
-
 /** Upload data:/blob: images (or raw File/Blob) to Storage so Firestore only stores URLs. */
 async function resolvePropertyImages(
   propertyId: string,
   images: string[],
   imageFiles?: (File | Blob | null | undefined)[],
 ): Promise<string[]> {
+  if (images.length > MAX_PROPERTY_PHOTOS) {
+    throw new Error(`A listing can have at most ${MAX_PROPERTY_PHOTOS} photos.`);
+  }
+
   const needsUpload = images.some((image, index) => {
     if (imageFiles?.[index]) return true;
     return !isRemoteImageUrl(image);

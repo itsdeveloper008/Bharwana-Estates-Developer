@@ -36,6 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
+import { compressListingImage, MAX_PROPERTY_PHOTOS } from "@/lib/compress-listing-image";
 import { formatPakistanMobileE164, toPakistanMobileLocal } from "@/lib/phone-format";
 import { buildStatusChangePatch } from "@/lib/property-status";
 import {
@@ -252,6 +253,7 @@ export function PropertyForm({
   const [submittedTitle, setSubmittedTitle] = useState("");
   const [submittedStatus, setSubmittedStatus] = useState<AdminPublishChoice>("PENDING_APPROVAL");
   const [dragOver, setDragOver] = useState(false);
+  const [compressingPhotos, setCompressingPhotos] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [assignOwnerId, setAssignOwnerId] = useState("");
   const [assignDeveloperId, setAssignDeveloperId] = useState("");
@@ -338,7 +340,9 @@ export function PropertyForm({
       highlightSpecs: normalizeHighlightKeys(editingProperty.highlightSpecs, editingProperty.category),
       featureTags: normalizeFeatureTags(editingProperty.featureTags),
     });
-    const safeImages = (editingProperty.images ?? []).filter((url) => isPersistedPropertyImageUrl(url));
+    const safeImages = (editingProperty.images ?? [])
+      .filter((url) => isPersistedPropertyImageUrl(url))
+      .slice(0, MAX_PROPERTY_PHOTOS);
     setPreviews(safeImages);
     setPhotoFiles(safeImages.map(() => null));
     setPhotoError(false);
@@ -488,28 +492,56 @@ export function PropertyForm({
     return false;
   }
 
-  function onFiles(files: FileList | null) {
+  async function onFiles(files: FileList | null) {
     if (!files?.length) return;
-    const nextUrls: string[] = [];
-    const nextFiles: File[] = [];
-    let rejected = 0;
-    Array.from(files).forEach((file) => {
-      if (!isAcceptableImageFile(file)) {
-        rejected += 1;
-        return;
-      }
-      const url = URL.createObjectURL(file);
-      objectUrlsRef.current.push(url);
-      nextUrls.push(url);
-      nextFiles.push(file);
-    });
-    if (nextUrls.length) {
-      setPreviews((current) => [...current, ...nextUrls]);
-      setPhotoFiles((current) => [...current, ...nextFiles]);
-      setPhotoError(false);
-      setSubmitError(null);
-    } else if (rejected > 0) {
+
+    const slotsLeft = MAX_PROPERTY_PHOTOS - previews.length;
+    if (slotsLeft <= 0) {
+      toast.error(`Maximum ${MAX_PROPERTY_PHOTOS} photos reached — remove one to add another.`);
+      return;
+    }
+
+    const acceptable = Array.from(files).filter(isAcceptableImageFile);
+    const rejectedType = files.length - acceptable.length;
+    if (!acceptable.length) {
       toast.error("Could not add those photos. Use JPG, PNG, or HEIC from your gallery.");
+      return;
+    }
+
+    const toAdd = acceptable.slice(0, slotsLeft);
+    const skippedOverCap = acceptable.length - toAdd.length;
+    if (skippedOverCap > 0) {
+      toast.message(
+        `Only ${slotsLeft} more photo${slotsLeft === 1 ? "" : "s"} can be added (${MAX_PROPERTY_PHOTOS} max) — the rest were not uploaded.`,
+      );
+    } else if (rejectedType > 0) {
+      toast.message("Some files were skipped (not images).");
+    }
+
+    setCompressingPhotos(true);
+    try {
+      const nextUrls: string[] = [];
+      const nextFiles: File[] = [];
+      for (const file of toAdd) {
+        try {
+          const compressed = await compressListingImage(file);
+          const url = URL.createObjectURL(compressed);
+          objectUrlsRef.current.push(url);
+          nextUrls.push(url);
+          nextFiles.push(compressed);
+        } catch (error) {
+          console.error("[property-form] compress failed", error);
+          toast.error(`Could not compress ${file.name}. Try a JPG or PNG.`);
+        }
+      }
+      if (nextUrls.length) {
+        setPreviews((current) => [...current, ...nextUrls].slice(0, MAX_PROPERTY_PHOTOS));
+        setPhotoFiles((current) => [...current, ...nextFiles].slice(0, MAX_PROPERTY_PHOTOS));
+        setPhotoError(false);
+        setSubmitError(null);
+      }
+    } finally {
+      setCompressingPhotos(false);
     }
   }
 
@@ -580,15 +612,26 @@ export function PropertyForm({
   }
 
   async function commitPublish(values: PropertyFormValues, ownerId: string | undefined) {
+    if (compressingPhotos) {
+      setSubmitError("Wait for photo compression to finish.");
+      goToStep(2);
+      return;
+    }
     if (previews.length < 1) {
       setPhotoError(true);
       setSubmitError("Add at least one photo to submit.");
       goToStep(2);
       return;
     }
+    if (previews.length > MAX_PROPERTY_PHOTOS) {
+      setPhotoError(true);
+      setSubmitError(`A listing can have at most ${MAX_PROPERTY_PHOTOS} photos.`);
+      goToStep(2);
+      return;
+    }
     setSubmitError(null);
-    const images = previews;
-    const imageFiles = photoFiles;
+    const images = previews.slice(0, MAX_PROPERTY_PHOTOS);
+    const imageFiles = photoFiles.slice(0, MAX_PROPERTY_PHOTOS);
 
     let listingTypeValue = values.listingType;
     let developerId: string | undefined;
@@ -1476,49 +1519,67 @@ export function PropertyForm({
             tone="cream"
             className="mb-10"
           >
-            <div
-              role="button"
-              tabIndex={0}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") fileInputRef.current?.click();
-              }}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDragOver(true);
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(event) => {
-                event.preventDefault();
-                setDragOver(false);
-                onFiles(event.dataTransfer.files);
-              }}
-              onClick={() => fileInputRef.current?.click()}
-              className={cn(
-                "flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-14 text-center transition-all duration-300",
-                dragOver
-                  ? "border-gold/70 bg-gold/10 shadow-[inset_0_0_0_1px_rgba(184,149,69,0.18)]"
-                  : "border-[#D9CFB8]/90 bg-[#FFFCFA]/70 hover:border-gold/50 hover:bg-gold/[0.04]",
-              )}
-            >
-              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#FFFCF7] via-gold/20 to-gold/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_8px_20px_-12px_rgba(184,149,69,0.55)]">
-                <ImagePlus className="h-7 w-7 text-gold-700" strokeWidth={1.5} />
-              </span>
-              <p className="mt-4 text-sm text-forest">Drop photographs or tap to select</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                First photo becomes the cover. JPG, PNG, or HEIC work on phones.
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,.heic,.heif,image/heic,image/heif"
-                multiple
-                className="hidden"
-                onChange={(event) => {
-                  onFiles(event.target.files);
-                  event.target.value = "";
+            {previews.length >= MAX_PROPERTY_PHOTOS ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-forest/20 bg-cream/50 px-6 py-10 text-center">
+                <p className="text-sm font-medium text-forest">
+                  Maximum {MAX_PROPERTY_PHOTOS} photos reached — remove one to add another
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">First photo is the cover.</p>
+              </div>
+            ) : (
+              <div
+                role="button"
+                tabIndex={0}
+                aria-disabled={compressingPhotos}
+                onKeyDown={(event) => {
+                  if (compressingPhotos) return;
+                  if (event.key === "Enter" || event.key === " ") fileInputRef.current?.click();
                 }}
-              />
-            </div>
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (!compressingPhotos) setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragOver(false);
+                  if (!compressingPhotos) void onFiles(event.dataTransfer.files);
+                }}
+                onClick={() => {
+                  if (!compressingPhotos) fileInputRef.current?.click();
+                }}
+                className={cn(
+                  "flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-14 text-center transition-all duration-300",
+                  compressingPhotos ? "cursor-wait opacity-70" : "cursor-pointer",
+                  dragOver
+                    ? "border-gold/70 bg-gold/10 shadow-[inset_0_0_0_1px_rgba(184,149,69,0.18)]"
+                    : "border-[#D9CFB8]/90 bg-[#FFFCFA]/70 hover:border-gold/50 hover:bg-gold/[0.04]",
+                )}
+              >
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#FFFCF7] via-gold/20 to-gold/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_8px_20px_-12px_rgba(184,149,69,0.55)]">
+                  <ImagePlus className="h-7 w-7 text-gold-700" strokeWidth={1.5} />
+                </span>
+                <p className="mt-4 text-sm text-forest">
+                  {compressingPhotos ? "Compressing photos…" : "Drop photographs or tap to select"}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Up to {MAX_PROPERTY_PHOTOS} photos · {MAX_PROPERTY_PHOTOS - previews.length}{" "}
+                  remaining. First photo is the cover. JPG, PNG, or HEIC.
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,.heic,.heif,image/heic,image/heif"
+                  multiple
+                  disabled={compressingPhotos}
+                  className="hidden"
+                  onChange={(event) => {
+                    void onFiles(event.target.files);
+                    event.target.value = "";
+                  }}
+                />
+              </div>
+            )}
             {photoError && previews.length < 1 && (
               <p className="text-sm text-amber-800/90">Add at least one photo to submit</p>
             )}
@@ -1568,6 +1629,11 @@ export function PropertyForm({
                 ))}
               </div>
             )}
+            {previews.length > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {previews.length} / {MAX_PROPERTY_PHOTOS} photos
+              </p>
+            ) : null}
           </FormSection>
 
           <div className="space-y-5 rounded-2xl bg-gradient-to-br from-[#FBF6EA] via-[#F9F3E4] to-[#F4EBDA] p-7 shadow-[0_20px_55px_-30px_rgba(15,46,29,0.28)] ring-1 ring-gold/20 sm:p-10">
@@ -1623,16 +1689,22 @@ export function PropertyForm({
                 isAdmin && "border-t border-gold/20 pt-5",
               )}
             >
-              <Button type="submit" disabled={isSubmitting} className="sm:min-w-[220px]">
-                {isSubmitting
-                  ? isAdmin && adminPublishStatus === "PUBLISHED"
-                    ? "Publishing…"
-                    : "Uploading photos…"
-                  : isAdmin
-                    ? adminPublishStatus === "PUBLISHED"
-                      ? "Publish Immediately"
-                      : "Save as Pending Review"
-                    : "Submit for review"}
+              <Button
+                type="submit"
+                disabled={isSubmitting || compressingPhotos}
+                className="sm:min-w-[220px]"
+              >
+                {compressingPhotos
+                  ? "Compressing photos…"
+                  : isSubmitting
+                    ? isAdmin && adminPublishStatus === "PUBLISHED"
+                      ? "Publishing…"
+                      : "Uploading photos…"
+                    : isAdmin
+                      ? adminPublishStatus === "PUBLISHED"
+                        ? "Publish Immediately"
+                        : "Save as Pending Review"
+                      : "Submit for review"}
               </Button>
             </div>
           </div>
