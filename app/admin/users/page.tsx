@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAdminAuth } from "@/lib/admin-auth";
+import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 import { isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
 import { deleteUserDoc, subscribeUsers } from "@/lib/firestore/users";
 import { displayUserEmail, isSyntheticPhoneEmail } from "@/lib/user-display";
@@ -21,6 +22,7 @@ import type { User } from "@/lib/types";
 
 export default function AdminUsersPage() {
   const { admin } = useAdminAuth();
+  useMarkAdminModuleViewed("users");
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

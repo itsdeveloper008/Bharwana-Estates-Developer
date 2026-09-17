@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Building2,
   ClipboardCheck,
@@ -29,6 +29,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { FirebaseConfigBanner } from "@/components/firebase/firebase-config-banner";
 import { useAdminAuth } from "@/lib/admin-auth";
 import type { AdminModule } from "@/lib/admin/modules";
+import {
+  ADMIN_MODULE_VIEWED_EVENT,
+  countUnseenDealers,
+  countUnseenInquiries,
+  countUnseenSubmissions,
+  countUnseenUsers,
+  ensureAdminModuleBaselines,
+  getAdminModuleLastViewedAt,
+  type AdminBadgeModule,
+} from "@/lib/admin/unseen-badges";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { cn } from "@/lib/utils";
@@ -38,7 +48,7 @@ type NavItem = {
   label: string;
   icon: typeof LayoutDashboard;
   module: AdminModule | "staff";
-  badgeKey?: "pending";
+  badgeModule?: AdminBadgeModule;
 };
 
 const navItems: NavItem[] = [
@@ -48,15 +58,27 @@ const navItems: NavItem[] = [
     label: "Submissions",
     icon: ClipboardCheck,
     module: "submissions",
-    badgeKey: "pending",
+    badgeModule: "submissions",
   },
   { href: "/admin/properties", label: "Properties", icon: Building2, module: "properties" },
-  { href: "/admin/developers", label: "Dealers", icon: Handshake, module: "dealers" },
+  {
+    href: "/admin/developers",
+    label: "Dealers",
+    icon: Handshake,
+    module: "dealers",
+    badgeModule: "dealers",
+  },
   { href: "/admin/commissions", label: "Commissions", icon: Percent, module: "commissions" },
-  { href: "/admin/inquiries", label: "Inquiries", icon: MessageSquare, module: "inquiries" },
+  {
+    href: "/admin/inquiries",
+    label: "Inquiries",
+    icon: MessageSquare,
+    module: "inquiries",
+    badgeModule: "inquiries",
+  },
   { href: "/admin/newsletter", label: "Newsletter", icon: Mail, module: "newsletter" },
   { href: "/admin/team", label: "Team", icon: UsersRound, module: "team" },
-  { href: "/admin/users", label: "Users", icon: Users, module: "users" },
+  { href: "/admin/users", label: "Users", icon: Users, module: "users", badgeModule: "users" },
   { href: "/admin/deletion-requests", label: "Deletion", icon: ShieldAlert, module: "deletion" },
   { href: "/admin/reports", label: "Reports", icon: FileBarChart, module: "reports" },
   { href: "/admin/staff", label: "Staff", icon: UserCog, module: "staff" },
@@ -82,9 +104,35 @@ function AdminBrand() {
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { properties } = useMockStore();
+  const { properties, inquiries, users, developers } = useMockStore();
   const { hasModule, isSuperAdmin, admin } = useAdminAuth();
-  const pendingCount = properties.filter((property) => property.status === "PENDING_APPROVAL").length;
+  const [viewTick, setViewTick] = useState(0);
+
+  useEffect(() => {
+    if (!admin?.uid) return;
+    ensureAdminModuleBaselines(admin.uid);
+    setViewTick((tick) => tick + 1);
+  }, [admin?.uid]);
+
+  useEffect(() => {
+    const onViewed = () => setViewTick((tick) => tick + 1);
+    window.addEventListener(ADMIN_MODULE_VIEWED_EVENT, onViewed);
+    return () => window.removeEventListener(ADMIN_MODULE_VIEWED_EVENT, onViewed);
+  }, []);
+
+  const badgeCounts = useMemo(() => {
+    void viewTick;
+    const uid = admin?.uid;
+    if (!uid) {
+      return { submissions: 0, inquiries: 0, users: 0, dealers: 0 };
+    }
+    return {
+      submissions: countUnseenSubmissions(properties, getAdminModuleLastViewedAt(uid, "submissions")),
+      inquiries: countUnseenInquiries(inquiries, getAdminModuleLastViewedAt(uid, "inquiries")),
+      users: countUnseenUsers(users, getAdminModuleLastViewedAt(uid, "users")),
+      dealers: countUnseenDealers(developers, getAdminModuleLastViewedAt(uid, "dealers")),
+    };
+  }, [admin?.uid, properties, inquiries, users, developers, viewTick]);
 
   const visible = useMemo(() => {
     return navItems.filter((item) => {
@@ -97,6 +145,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
     <nav className="flex flex-col gap-1">
       {visible.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const count = item.badgeModule ? badgeCounts[item.badgeModule] : 0;
         return (
           <Link
             key={item.href}
@@ -111,9 +160,9 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           >
             <item.icon className={cn("h-4 w-4", active ? "text-gold" : "text-forest/50")} />
             <span className="flex-1">{item.label}</span>
-            {item.badgeKey === "pending" && pendingCount > 0 ? (
+            {count > 0 ? (
               <Badge variant="pending" className="ml-auto text-[10px]">
-                {pendingCount}
+                {count > 99 ? "99+" : count}
               </Badge>
             ) : null}
           </Link>
@@ -152,93 +201,89 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     router.push("/");
   }
 
-  const initials =
-    admin?.fullName
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() ?? "AD";
-
-  const roleLabel = admin?.adminRole === "super_admin" ? "Super Admin" : "Staff";
-
   return (
-    <div className="flex min-h-screen bg-ivory">
-      <aside className="hidden w-60 shrink-0 border-r border-forest/10 bg-cream/40 lg:flex lg:flex-col">
-        <div className="border-b border-forest/10 px-5 py-5">
-          <AdminBrand />
-        </div>
-        <div className="flex-1 px-2 py-4">
-          <NavLinks />
-        </div>
-        <div className="space-y-2 border-t border-forest/10 p-4">
-          <Button variant="outline" size="sm" className="w-full justify-start" onClick={handleViewWebsite}>
-            <ExternalLink className="h-4 w-4" />
-            View Website
-          </Button>
-          <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Button>
-        </div>
-      </aside>
+    <div className="min-h-screen bg-[#F7F3EA]">
+      <FirebaseConfigBanner />
+      <div className="flex min-h-screen">
+        <aside className="hidden w-60 shrink-0 border-r border-forest/10 bg-[#FBFAF6] lg:block">
+          <div className="sticky top-0 flex h-screen flex-col">
+            <div className="border-b border-forest/10 px-5 py-5">
+              <AdminBrand />
+            </div>
+            <div className="flex-1 overflow-y-auto px-3 py-4">
+              <NavLinks />
+            </div>
+            <div className="space-y-3 border-t border-forest/10 p-4">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={admin?.avatarUrl} />
+                  <AvatarFallback>{admin?.fullName?.slice(0, 2).toUpperCase() ?? "AD"}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-forest">{admin?.fullName}</p>
+                  <p className="truncate text-xs text-muted-foreground">{admin?.email}</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleViewWebsite}>
+                <ExternalLink className="h-3.5 w-3.5" />
+                View website
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={handleSignOut}>
+                <LogOut className="h-3.5 w-3.5" />
+                Sign out
+              </Button>
+            </div>
+          </div>
+        </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between border-b border-forest/10 bg-ivory px-4 sm:px-6">
-          <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="flex items-center justify-between border-b border-forest/10 bg-[#FBFAF6]/90 px-4 py-3 backdrop-blur lg:hidden">
+            <AdminBrand />
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden">
-                  {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                  <span className="sr-only">Toggle menu</span>
+                <Button variant="outline" size="icon" aria-label="Open menu">
+                  {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-64 bg-ivory p-0">
-                <SheetHeader className="border-b border-forest/10 px-5 py-5 text-left">
-                  <SheetTitle asChild>
-                    <AdminBrand />
-                  </SheetTitle>
+              <SheetContent side="left" className="w-[280px] bg-[#FBFAF6] p-0">
+                <SheetHeader className="border-b border-forest/10 px-5 py-4 text-left">
+                  <SheetTitle className="sr-only">Admin navigation</SheetTitle>
+                  <AdminBrand />
                 </SheetHeader>
-                <div className="px-2 py-4">
+                <div className="px-3 py-4">
                   <NavLinks onNavigate={() => setOpen(false)} />
+                </div>
+                <div className="space-y-2 border-t border-forest/10 p-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    onClick={() => {
+                      setOpen(false);
+                      handleViewWebsite();
+                    }}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    View website
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    onClick={() => {
+                      setOpen(false);
+                      handleSignOut();
+                    }}
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    Sign out
+                  </Button>
                 </div>
               </SheetContent>
             </Sheet>
-            <Link
-              href="/"
-              onClick={(event) => {
-                event.preventDefault();
-                handleViewWebsite();
-              }}
-              className="text-xs uppercase tracking-[0.14em] text-muted-foreground hover:text-forest"
-            >
-              Marketplace
-            </Link>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium text-forest">{admin?.fullName}</p>
-              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{roleLabel}</p>
-            </div>
-            <Avatar className="h-9 w-9 border border-gold/30">
-              <AvatarImage src={admin?.avatarUrl} alt={admin?.fullName ?? "Admin"} />
-              <AvatarFallback className="bg-forest text-xs text-ivory">{initials}</AvatarFallback>
-            </Avatar>
-            <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={handleViewWebsite}>
-              <ExternalLink className="h-4 w-4" />
-              View Website
-            </Button>
-            <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={handleSignOut}>
-              Sign Out
-            </Button>
-          </div>
-        </header>
-
-        <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8">
-          <FirebaseConfigBanner context="admin" />
-          {children}
-        </main>
+          </header>
+          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        </div>
       </div>
     </div>
   );

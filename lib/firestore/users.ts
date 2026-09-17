@@ -30,6 +30,18 @@ export type UserDocInput = {
 };
 
 function mapUser(id: string, data: Record<string, unknown>): User {
+  let createdAt: string | undefined;
+  const rawCreated = data.createdAt;
+  if (typeof rawCreated === "string" && rawCreated.trim()) {
+    createdAt = rawCreated;
+  } else if (rawCreated && typeof rawCreated === "object" && "toDate" in rawCreated) {
+    try {
+      createdAt = (rawCreated as { toDate: () => Date }).toDate().toISOString();
+    } catch {
+      createdAt = undefined;
+    }
+  }
+
   return {
     id,
     fullName: String(data.fullName ?? ""),
@@ -42,6 +54,7 @@ function mapUser(id: string, data: Record<string, unknown>): User {
     savedPropertyIds: Array.isArray(data.savedPropertyIds)
       ? (data.savedPropertyIds as string[])
       : [],
+    createdAt,
   };
 }
 

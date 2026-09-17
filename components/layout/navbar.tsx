@@ -18,6 +18,7 @@ import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import {
   LISTINGS_VIEWED_EVENT,
+  ensureListingsViewedBaseline,
   getListingsLastViewedAt,
   propertyHasUnreadStatusChange,
 } from "@/lib/listings-notifications";
@@ -62,6 +63,12 @@ export function Navbar() {
     window.addEventListener(LISTINGS_VIEWED_EVENT, onViewed);
     return () => window.removeEventListener(LISTINGS_VIEWED_EVENT, onViewed);
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    ensureListingsViewedBaseline(user.id);
+    setViewedTick((tick) => tick + 1);
+  }, [user?.id]);
 
   const hasListingUpdates = useMemo(() => {
     if (!user) return false;

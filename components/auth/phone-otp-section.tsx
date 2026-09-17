@@ -34,6 +34,8 @@ import type { RecaptchaVerifier } from "firebase/auth";
 type Step = "phone" | "otp" | "setPassword";
 
 const RESEND_SECONDS = 60;
+/** Client-side OTP validity — must reject before / with Firebase server expiry. */
+const OTP_VALID_SECONDS = 180;
 
 /**
  * Phone OTP for **Sign Up only** — one-time ownership proof, then mandatory password.
@@ -54,6 +56,7 @@ export function PhoneOtpSection({
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const sendInFlightRef = useRef(false);
   const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const otpExpiresAtRef = useRef<number>(0);
   const completingRef = useRef(false);
 
   const [step, setStep] = useState<Step>("phone");
@@ -64,6 +67,7 @@ export function PhoneOtpSection({
   const [sentPhone, setSentPhone] = useState("");
   const [localPhone, setLocalPhone] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(0);
   const [hasConfirmation, setHasConfirmation] = useState(false);
   const [pendingUser, setPendingUser] = useState<User | null>(null);
 
@@ -100,6 +104,22 @@ export function PhoneOtpSection({
     return () => window.clearInterval(id);
   }, [secondsLeft]);
 
+  useEffect(() => {
+    if (otpSecondsLeft <= 0) return;
+    const id = window.setInterval(() => {
+      setOtpSecondsLeft((current) => {
+        const next = Math.max(0, current - 1);
+        if (next === 0 && confirmationRef.current) {
+          confirmationRef.current = null;
+          setHasConfirmation(false);
+          setError("Code expired. Request a new one.");
+        }
+        return next;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [otpSecondsLeft]);
+
   async function resetRecaptcha() {
     const previous = recaptchaRef.current;
     recaptchaRef.current = null;
@@ -127,7 +147,9 @@ export function PhoneOtpSection({
     setPending(true);
     // Resend / retry: discard previous confirmation so the old OTP can never verify.
     confirmationRef.current = null;
+    otpExpiresAtRef.current = 0;
     setHasConfirmation(false);
+    setOtpSecondsLeft(0);
     try {
       const e164 = formatPakistanMobileE164(localDigits);
       console.info("[phone-otp] preparing send", { localDigits, e164 });
@@ -141,11 +163,13 @@ export function PhoneOtpSection({
       }
       await resetRecaptcha();
       confirmationRef.current = result.confirmation;
+      otpExpiresAtRef.current = Date.now() + OTP_VALID_SECONDS * 1000;
       setHasConfirmation(true);
       setSentPhone(e164);
       setLocalPhone(localDigits);
       setStep("otp");
       setSecondsLeft(RESEND_SECONDS);
+      setOtpSecondsLeft(OTP_VALID_SECONDS);
       otpForm.reset({ otp: "" });
       toast.success("Verification code sent.");
       return true;
@@ -184,6 +208,14 @@ export function PhoneOtpSection({
       setHasConfirmation(false);
       return;
     }
+    if (Date.now() > otpExpiresAtRef.current) {
+      confirmationRef.current = null;
+      otpExpiresAtRef.current = 0;
+      setHasConfirmation(false);
+      setOtpSecondsLeft(0);
+      setError("Code expired. Request a new one.");
+      return;
+    }
     setError(null);
     setPending(true);
     try {
@@ -191,25 +223,41 @@ export function PhoneOtpSection({
       const result = await verifyPhoneOtp(confirmation, values.otp);
       if (!result.ok) {
         console.error("[phone-otp] verify failed", result.error);
+        // Expired codes invalidate this confirmation; wrong codes keep it for retry.
+        if (/expired/i.test(result.error)) {
+          confirmationRef.current = null;
+          otpExpiresAtRef.current = 0;
+          setHasConfirmation(false);
+          setOtpSecondsLeft(0);
+        }
         setError(result.error);
+        otpForm.reset({ otp: "" });
         return;
       }
       // One-time use — drop confirmation so a stale code cannot be replayed.
       confirmationRef.current = null;
+      otpExpiresAtRef.current = 0;
       setHasConfirmation(false);
+      setOtpSecondsLeft(0);
       if (result.isNewUser) {
         setDraft(result.draft);
         setRoleOpen(true);
         return;
       }
-      // Existing phone account without going through password setup here —
-      // they should use Sign In (phone + password). Still land them after OTP verify.
+      // Existing phone account — still require Sign In (phone + password) next time.
       toast.success("Account ready");
       finishWithUser(result.user);
     } catch (err) {
       const { code, message } = firebaseErrorParts(err);
       console.error("[phone-otp] verify exception", code, message, err);
+      if (code === "auth/code-expired") {
+        confirmationRef.current = null;
+        otpExpiresAtRef.current = 0;
+        setHasConfirmation(false);
+        setOtpSecondsLeft(0);
+      }
       setError(phoneAuthErrorMessage(code, message));
+      otpForm.reset({ otp: "" });
     } finally {
       setPending(false);
     }
@@ -219,8 +267,10 @@ export function PhoneOtpSection({
     setStep("phone");
     setError(null);
     confirmationRef.current = null;
+    otpExpiresAtRef.current = 0;
     setHasConfirmation(false);
     setSecondsLeft(0);
+    setOtpSecondsLeft(0);
     otpForm.reset({ otp: "" });
     await resetRecaptcha();
   }
@@ -318,7 +368,9 @@ export function PhoneOtpSection({
               <Button
                 type="submit"
                 className="w-full"
-                disabled={pending || otpValue.length !== 6 || !hasConfirmation}
+                disabled={
+                  pending || otpValue.length !== 6 || !hasConfirmation || otpSecondsLeft <= 0
+                }
               >
                 {pending ? (
                   <>
@@ -329,6 +381,13 @@ export function PhoneOtpSection({
                   "Verify & create account"
                 )}
               </Button>
+              {otpSecondsLeft > 0 ? (
+                <p className="text-center text-xs text-muted-foreground">
+                  Code expires in {otpSecondsLeft}s
+                </p>
+              ) : (
+                <p className="text-center text-xs text-destructive">Code expired — request a new one.</p>
+              )}
               {secondsLeft > 0 ? (
                 <p className="text-center text-xs text-muted-foreground">
                   Resend code in {secondsLeft}s

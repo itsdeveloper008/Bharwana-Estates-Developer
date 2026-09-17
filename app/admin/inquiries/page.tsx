@@ -13,9 +13,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate, inquiryChannelLabel, inquiryStatusLabel } from "@/lib/format";
+import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 import { useMockStore } from "@/lib/mock-store";
 
 export default function AdminInquiriesPage() {
+  useMarkAdminModuleViewed("inquiries");
   const {
     inquiries,
     properties,

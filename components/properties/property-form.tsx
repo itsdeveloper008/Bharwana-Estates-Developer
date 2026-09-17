@@ -254,6 +254,9 @@ export function PropertyForm({
   const [submittedStatus, setSubmittedStatus] = useState<AdminPublishChoice>("PENDING_APPROVAL");
   const [dragOver, setDragOver] = useState(false);
   const [compressingPhotos, setCompressingPhotos] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(
+    null,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [assignOwnerId, setAssignOwnerId] = useState("");
   const [assignDeveloperId, setAssignDeveloperId] = useState("");
@@ -632,6 +635,13 @@ export function PropertyForm({
     setSubmitError(null);
     const images = previews.slice(0, MAX_PROPERTY_PHOTOS);
     const imageFiles = photoFiles.slice(0, MAX_PROPERTY_PHOTOS);
+    setUploadProgress({ current: 0, total: images.length });
+    const photoOptions = {
+      imageFiles,
+      onPhotoProgress: (current: number, total: number) => {
+        setUploadProgress({ current, total });
+      },
+    };
 
     let listingTypeValue = values.listingType;
     let developerId: string | undefined;
@@ -683,7 +693,7 @@ export function PropertyForm({
             ...statusPatch,
             rejectionReason: undefined,
           },
-          { imageFiles },
+          photoOptions,
         );
         setSubmittedId(editingProperty.id);
       } else {
@@ -713,7 +723,7 @@ export function PropertyForm({
         };
         if (developerId) listing.developerId = developerId;
         if (resolvedOwnerId) listing.ownerUserId = resolvedOwnerId;
-        await addProperty(listing, { imageFiles });
+        await addProperty(listing, photoOptions);
         setSubmittedId(id);
       }
     } catch (error) {
@@ -725,6 +735,8 @@ export function PropertyForm({
       setSubmitError(message);
       toast.error(message);
       return;
+    } finally {
+      setUploadProgress(null);
     }
     setSubmittedTitle(values.title);
     setSubmittedStatus(status === "PUBLISHED" ? "PUBLISHED" : "PENDING_APPROVAL");
@@ -1696,15 +1708,17 @@ export function PropertyForm({
               >
                 {compressingPhotos
                   ? "Compressing photos…"
-                  : isSubmitting
-                    ? isAdmin && adminPublishStatus === "PUBLISHED"
-                      ? "Publishing…"
-                      : "Uploading photos…"
-                    : isAdmin
-                      ? adminPublishStatus === "PUBLISHED"
-                        ? "Publish Immediately"
-                        : "Save as Pending Review"
-                      : "Submit for review"}
+                  : uploadProgress
+                    ? `Uploading photo ${uploadProgress.current} of ${uploadProgress.total}…`
+                    : isSubmitting
+                      ? isAdmin && adminPublishStatus === "PUBLISHED"
+                        ? "Publishing…"
+                        : "Uploading photos…"
+                      : isAdmin
+                        ? adminPublishStatus === "PUBLISHED"
+                          ? "Publish Immediately"
+                          : "Save as Pending Review"
+                        : "Submit for review"}
               </Button>
             </div>
           </div>

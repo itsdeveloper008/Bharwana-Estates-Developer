@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { sendPasswordResetLink } from "@/lib/auth-reset";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
+import { isSyntheticPhoneEmail } from "@/lib/user-display";
 import { cn } from "@/lib/utils";
 
 const schema = z.object({
@@ -37,16 +38,24 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
       setError("Password reset needs Firebase on this deploy.");
       return;
     }
+    if (isSyntheticPhoneEmail(email)) {
+      setError(
+        "This looks like a phone-only account email. Password reset needs a real email address. Sign in with your phone number and password, or add a real email in Account settings.",
+      );
+      return;
+    }
     try {
       await sendPasswordResetLink(email);
       setSentTo(email);
-      toast.success("Reset email sent.");
+      toast.success("Reset email sent — check inbox and spam.");
     } catch (err) {
       const code =
         err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
       console.error("[forgot-password]", code, err);
+      // Firebase may hide user-not-found depending on project settings; when it does surface,
+      // show the same generic confirmation (anti-enumeration) — only after a successful API call
+      // would we claim an email was sent. For user-not-found, nothing was delivered.
       if (code === "auth/user-not-found") {
-        // Do not reveal whether the email exists.
         setSentTo(email);
         return;
       }
@@ -58,6 +67,10 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
         setError("Too many attempts. Try again later.");
         return;
       }
+      if (code === "auth/missing-continue-uri" || code === "auth/invalid-continue-uri") {
+        setError("Password reset is misconfigured (continue URL). Contact support.");
+        return;
+      }
       setError("Could not send a reset email. Try again in a moment.");
     }
   }
@@ -67,10 +80,15 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
       <div className="space-y-4 rounded-2xl border border-forest/10 bg-cream/40 px-5 py-6">
         <p className="font-serif text-2xl text-forest">Check your email</p>
         <p className="text-sm leading-relaxed text-forest/75">
-          If an account exists for <span className="font-medium text-forest">{sentTo}</span>, we sent a
-          link to reset your password. Open that link on this site to set a new password — email
+          If an account with a real email exists for{" "}
+          <span className="font-medium text-forest">{sentTo}</span>, Firebase sent a password-reset
+          link. Check inbox and spam. Open the link on this site to set a new password — some email
           scanners can invalidate one-time links if they open them first, so request another if
           needed.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Phone-only accounts (no real email) cannot receive reset mail — sign in with phone +
+          password instead.
         </p>
         <Button asChild className="w-full">
           <Link href="/login">Back to sign in</Link>

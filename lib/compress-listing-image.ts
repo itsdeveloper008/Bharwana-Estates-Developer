@@ -6,11 +6,14 @@ export const MAX_PROPERTY_PHOTOS = 10;
 /** Longest edge after resize — enough for web listings, cuts multi‑MB originals. */
 export const LISTING_IMAGE_MAX_EDGE = 2200;
 
-/** JPEG quality ~80–85%: large size savings without obvious visual loss. */
-export const LISTING_IMAGE_QUALITY = 0.85;
+/** Starting JPEG quality; library may lower further to hit maxSizeMB. */
+export const LISTING_IMAGE_QUALITY = 0.82;
 
-/** Soft target size after compression (library may stop early if already smaller). */
-export const LISTING_IMAGE_MAX_MB = 1.6;
+/**
+ * Target ~250KB per photo. browser-image-compression iteratively adjusts to hit this.
+ * Quality safeguard: if some detail-heavy photos look soft at 250KB, raise toward 0.35–0.4.
+ */
+export const LISTING_IMAGE_MAX_MB = 0.25;
 
 /**
  * Compress a listing photo client-side (Web Worker when available) before Storage upload.
@@ -60,10 +63,19 @@ async function canvasCompressFallback(file: File): Promise<File> {
     canvas.height = height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return file;
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((next) => resolve(next), "image/jpeg", LISTING_IMAGE_QUALITY);
-    });
+
+    let quality = LISTING_IMAGE_QUALITY;
+    let blob: Blob | null = null;
+    const targetBytes = LISTING_IMAGE_MAX_MB * 1024 * 1024;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((next) => resolve(next), "image/jpeg", quality);
+      });
+      if (!blob?.size) break;
+      if (blob.size <= targetBytes || quality <= 0.45) break;
+      quality = Math.max(0.45, quality - 0.08);
+    }
     if (!blob?.size) return file;
     const name = file.name.replace(/\.\w+$/i, "") || "photo";
     return new File([blob], `${name}.jpg`, { type: "image/jpeg", lastModified: Date.now() });

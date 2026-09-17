@@ -908,26 +908,31 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   const verifyPhoneOtp = useCallback(
     async (confirmation: ConfirmationResult, code: string) => {
       const trimmed = code.trim();
-      if (trimmed.length !== 6) {
+      if (!/^\d{6}$/.test(trimmed)) {
         return { ok: false as const, error: "Enter the 6-digit code." };
       }
 
       try {
         const result = await confirmation.confirm(trimmed);
-        const profile = await loadFirestoreUser(result.user);
+        const firebaseUser = result?.user;
+        if (!firebaseUser?.uid) {
+          // Defensive: never treat a missing user as success.
+          return { ok: false as const, error: "Incorrect code. Check the SMS and try again." };
+        }
+        const profile = await loadFirestoreUser(firebaseUser);
         if (profile) {
           commitSession(profile);
           return { ok: true as const, isNewUser: false as const, user: profile };
         }
 
-        const draft = draftFromFirebaseUser(result.user);
+        const draft = draftFromFirebaseUser(firebaseUser);
         // Do not set pendingGoogle here — PhoneOtpSection owns the role dialog.
         // Setting both causes a duplicate "Choose your role" modal with ContinueWithGoogle.
         return { ok: true as const, isNewUser: true as const, draft };
       } catch (error) {
         logFirebaseAuthError("phone-otp-verify", error);
-        const { code, message } = firebaseErrorParts(error);
-        return { ok: false as const, error: phoneAuthErrorMessage(code, message) };
+        const { code: errCode, message } = firebaseErrorParts(error);
+        return { ok: false as const, error: phoneAuthErrorMessage(errCode, message) };
       }
     },
     [commitSession],

@@ -23,6 +23,7 @@ import {
 } from "@/lib/phone-recaptcha";
 
 const RESEND_SECONDS = 60;
+const OTP_VALID_SECONDS = 180;
 const RECAPTCHA_ID = "change-phone-recaptcha";
 
 type Step = "idle" | "phone" | "otp";
@@ -33,12 +34,14 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const sendInFlightRef = useRef(false);
   const verificationIdRef = useRef<string | null>(null);
+  const otpExpiresAtRef = useRef<number>(0);
 
   const [step, setStep] = useState<Step>("idle");
   const [localPhone, setLocalPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [sentPhone, setSentPhone] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(0);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +60,22 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
     }, 1000);
     return () => window.clearInterval(id);
   }, [secondsLeft]);
+
+  useEffect(() => {
+    if (otpSecondsLeft <= 0) return;
+    const id = window.setInterval(() => {
+      setOtpSecondsLeft((current) => {
+        const next = Math.max(0, current - 1);
+        if (next === 0) {
+          verificationIdRef.current = null;
+          otpExpiresAtRef.current = 0;
+          setError("Code expired. Request a new one.");
+        }
+        return next;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [otpSecondsLeft]);
 
   useEffect(() => {
     void ensureRecaptchaScript().catch((err) => {
@@ -112,6 +131,10 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
 
     setError(null);
     setPending(true);
+    // Discard previous verification so an old SMS code can never succeed.
+    verificationIdRef.current = null;
+    otpExpiresAtRef.current = 0;
+    setOtpSecondsLeft(0);
     try {
       const verifier = await createFreshRecaptchaVerifier();
       const e164 = formatPakistanMobileE164(localDigits);
@@ -124,10 +147,12 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
       }
       await resetRecaptcha();
       verificationIdRef.current = result.verificationId;
+      otpExpiresAtRef.current = Date.now() + OTP_VALID_SECONDS * 1000;
       setSentPhone(result.phone);
       setLocalPhone(localDigits);
       setStep("otp");
       setSecondsLeft(RESEND_SECONDS);
+      setOtpSecondsLeft(OTP_VALID_SECONDS);
       setOtp("");
       toast.success("Verification code sent.");
       return true;
@@ -158,7 +183,14 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
       setError("Request a new code first.");
       return;
     }
-    if (otp.length !== 6) {
+    if (Date.now() > otpExpiresAtRef.current) {
+      verificationIdRef.current = null;
+      otpExpiresAtRef.current = 0;
+      setOtpSecondsLeft(0);
+      setError("Code expired. Request a new one.");
+      return;
+    }
+    if (!/^\d{6}$/.test(otp)) {
       setError("Enter the 6-digit code.");
       return;
     }
@@ -172,18 +204,27 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
         phone: sentPhone || formatPakistanMobileE164(localPhone),
       });
       if (!result.ok) {
+        if (/expired/i.test(result.error)) {
+          verificationIdRef.current = null;
+          otpExpiresAtRef.current = 0;
+          setOtpSecondsLeft(0);
+        }
         setError(result.error);
+        setOtp("");
         return;
       }
       toast.success("Phone number updated");
       setStep("idle");
       setOtp("");
       setSecondsLeft(0);
+      setOtpSecondsLeft(0);
       verificationIdRef.current = null;
+      otpExpiresAtRef.current = 0;
       await resetRecaptcha();
     } catch (err) {
       console.error("[change-phone] verify exception", err);
       setError("Could not verify the code. Try again or resend a new code.");
+      setOtp("");
     } finally {
       setPending(false);
     }
@@ -261,7 +302,7 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
               <Button
                 type="button"
                 className="w-full"
-                disabled={pending || otp.length !== 6}
+                disabled={pending || otp.length !== 6 || otpSecondsLeft <= 0}
                 onClick={() => void handleVerify()}
               >
                 {pending ? (

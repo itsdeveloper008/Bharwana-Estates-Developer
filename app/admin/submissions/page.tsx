@@ -30,6 +30,7 @@ import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useAdminAuth } from "@/lib/admin-auth";
+import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 
 type Tab = "PENDING_APPROVAL" | "PUBLISHED" | "REJECTED" | "ALL";
 
@@ -42,6 +43,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function AdminSubmissionsPage() {
   const { admin } = useAdminAuth();
+  useMarkAdminModuleViewed("submissions");
   const { properties, developers, users, updateProperty, deleteProperty } = useMockStore();
   const [tab, setTab] = useState<Tab>("PENDING_APPROVAL");
   const [selectedId, setSelectedId] = useState<string | null>(null);

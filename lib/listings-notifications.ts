@@ -33,12 +33,25 @@ export function markListingsViewed(userId: string): void {
   writeMap(map);
 }
 
+/**
+ * Baseline: first sign-in / first load should not light the badge for every
+ * already-published listing. Seed "now" once so only later status changes count.
+ */
+export function ensureListingsViewedBaseline(userId: string): void {
+  if (typeof window === "undefined" || !userId) return;
+  const map = readMap();
+  if (map[userId]) return;
+  map[userId] = new Date().toISOString();
+  writeMap(map);
+}
+
 export function propertyHasUnreadStatusChange(
   property: { statusUpdatedAt?: string; status: string },
   lastViewedAt: string | null,
 ): boolean {
   if (!property.statusUpdatedAt) return false;
   if (property.status !== "REJECTED" && property.status !== "PUBLISHED") return false;
-  if (!lastViewedAt) return true;
+  // No baseline yet — do not treat historical listings as unread.
+  if (!lastViewedAt) return false;
   return property.statusUpdatedAt > lastViewedAt;
 }

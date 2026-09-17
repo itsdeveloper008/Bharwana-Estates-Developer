@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { ensureSelfRegisteredDealer } from "@/lib/firestore/developers";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
+import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 import { formatCommissionRate } from "@/lib/format";
 import { sumCommission, useMockStore } from "@/lib/mock-store";
 import type { Developer, DeveloperOrigin } from "@/lib/types";
@@ -25,6 +26,7 @@ import { cn } from "@/lib/utils";
 type Filter = "ALL" | "ADMIN" | "SELF_REGISTERED";
 
 export default function AdminDevelopersPage() {
+  useMarkAdminModuleViewed("dealers");
   const {
     properties,
     developers,

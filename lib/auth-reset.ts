@@ -7,12 +7,15 @@ export function getPublicSiteOrigin(): string {
   return process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://bharwanaestates.com";
 }
 
-/** Continue URL after the password-reset action (custom page handles the oobCode). */
+/**
+ * Continue URL after the password-reset action.
+ * Must match Firebase Console → Authentication → Templates → Action URL host,
+ * and land on our custom handler that reads `oobCode`.
+ */
 export function passwordResetActionCodeSettings() {
-  // Use the live site origin; domain must be in Firebase Authorized domains.
   const origin = getPublicSiteOrigin();
   return {
-    url: `${origin}/login`,
+    url: `${origin}/reset-password`,
     handleCodeInApp: false as const,
   };
 }

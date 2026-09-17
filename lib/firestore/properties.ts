@@ -152,6 +152,7 @@ async function resolvePropertyImages(
   propertyId: string,
   images: string[],
   imageFiles?: (File | Blob | null | undefined)[],
+  onProgress?: (current: number, total: number) => void,
 ): Promise<string[]> {
   if (images.length > MAX_PROPERTY_PHOTOS) {
     throw new Error(`A listing can have at most ${MAX_PROPERTY_PHOTOS} photos.`);
@@ -177,9 +178,12 @@ async function resolvePropertyImages(
   await currentUser.getIdToken(true).catch(() => undefined);
   const uid = currentUser.uid;
 
+  const total = images.length;
   // Serial uploads — parallel bitmap/canvas on phones often OOMs mid-submit.
   const urls: string[] = [];
   for (let index = 0; index < images.length; index += 1) {
+    onProgress?.(index + 1, total);
+    console.info(`[resolvePropertyImages] photo ${index + 1}/${total} start`);
     const image = images[index];
     if (isRemoteImageUrl(image) && !imageFiles?.[index]) {
       urls.push(image);
@@ -218,6 +222,10 @@ async function resolvePropertyImages(
       throw new Error(`Photo ${index + 1} could not be processed. Try a JPG or PNG.`);
     }
 
+    console.info(`[resolvePropertyImages] photo ${index + 1}/${total} uploading`, {
+      bytes: blob.size,
+    });
+
     const contentType = "image/jpeg";
     const storageRef = ref(storage, `listings/${uid}/${propertyId}/${index}.jpg`);
 
@@ -241,6 +249,7 @@ async function resolvePropertyImages(
       throw new Error(`Photo ${index + 1} upload returned an invalid URL`);
     }
     urls.push(downloadUrl);
+    console.info(`[resolvePropertyImages] photo ${index + 1}/${total} done`);
   }
   return urls;
 }
@@ -365,6 +374,8 @@ export async function seedProperties(properties: Property[], force = false): Pro
 export type UpsertPropertyOptions = {
   /** Parallel to `property.images` — prefer uploading these Files over fetch(blob:). */
   imageFiles?: (File | Blob | null | undefined)[];
+  /** Called as each photo upload starts (1-based index). */
+  onPhotoProgress?: (current: number, total: number) => void;
 };
 
 export async function upsertProperty(
@@ -373,12 +384,31 @@ export async function upsertProperty(
 ): Promise<Property> {
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");
-  const uploadBudget = PHOTO_UPLOAD_TIMEOUT_MS * Math.max(1, property.images.length || 1);
+
+  // Per-photo timeouts already guard upload + URL fetch. Outer budget must cover
+  // compress slack too — old 90s*n was too tight for 10 photos (upload+URL ≈ 110s each).
+  const photoCount = Math.max(1, property.images.length || 1);
+  const perPhotoBudget = PHOTO_UPLOAD_TIMEOUT_MS + FIRESTORE_WRITE_TIMEOUT_MS + 15_000;
+  const uploadBudget = perPhotoBudget * photoCount;
+
+  console.info(`[upsertProperty:${property.id}] starting photo resolve`, {
+    imageCount: property.images.length,
+    fileCount: options?.imageFiles?.filter(Boolean).length ?? 0,
+    uploadBudgetMs: uploadBudget,
+  });
+
   const images = await withTimeout(
-    resolvePropertyImages(property.id, property.images, options?.imageFiles),
+    resolvePropertyImages(
+      property.id,
+      property.images,
+      options?.imageFiles,
+      options?.onPhotoProgress,
+    ),
     uploadBudget,
     "Photo upload",
   );
+  console.info(`[upsertProperty:${property.id}] photos resolved`, { count: images.length });
+
   const unresolved = images.find(
     (url) => url.startsWith("blob:") || url.startsWith("data:") || !isStoredImageUrl(url),
   );
@@ -387,6 +417,11 @@ export async function upsertProperty(
   }
   if (property.images.length > 0 && images.length === 0) {
     throw new Error("No photos were uploaded successfully. Try again with smaller images.");
+  }
+  if (images.length !== property.images.length) {
+    throw new Error(
+      `Photo upload incomplete (${images.length} of ${property.images.length}). Try again.`,
+    );
   }
 
   const next = { ...property, images };

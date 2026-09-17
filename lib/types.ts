@@ -50,6 +50,8 @@ export interface User {
   registrationNumber?: string;
   /** Persisted in localStorage per user via favorites context */
   savedPropertyIds?: string[];
+  /** ISO timestamp when the profile was created (admin unseen badges) */
+  createdAt?: string;
 }
 
 export interface Developer {
