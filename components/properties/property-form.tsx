@@ -72,7 +72,6 @@ import {
 import { isPersistedPropertyImageUrl } from "@/lib/property-images";
 import { propertyFormSchema, type PropertyFormValues } from "@/lib/schemas";
 import {
-  CITIES,
   type Property,
   type PropertyCategory,
   type PropertyHighlightKey,

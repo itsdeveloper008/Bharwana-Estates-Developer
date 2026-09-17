@@ -33,7 +33,6 @@ export function SetPasswordOptional({
   description = "Create a password to finish signing up. Next time, sign in with your phone number and this password.",
   showSkip = false,
   submitLabel = "Sign in",
-  successToast: _successToast,
 }: {
   /** @deprecated Ignored - phone accounts never collect email here. */
   defaultEmail?: string;
@@ -45,6 +44,7 @@ export function SetPasswordOptional({
   description?: string;
   showSkip?: boolean;
   submitLabel?: string;
+  /** @deprecated Ignored - auth success toasts are disabled. */
   successToast?: string;
 }) {
   const { linkEmailPassword } = useMockAuth();
