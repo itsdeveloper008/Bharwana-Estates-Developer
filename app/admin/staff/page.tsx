@@ -45,9 +45,21 @@ async function staffFetch(
       ...(init?.headers ?? {}),
     },
   });
-  const data = await res.json().catch(() => ({}));
+  const text = await res.text();
+  let data: Record<string, unknown> = {};
+  try {
+    data = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+  } catch {
+    /* non-JSON body */
+  }
   if (!res.ok) {
-    throw new Error(typeof data.error === "string" ? data.error : "Request failed.");
+    const fromJson =
+      (typeof data.error === "string" && data.error) ||
+      (typeof data.detail === "string" && data.detail) ||
+      (typeof data.message === "string" && data.message) ||
+      "";
+    const fromBody = text && text.length < 400 && !text.trimStart().startsWith("<") ? text.trim() : "";
+    throw new Error(fromJson || fromBody || `Request failed (${res.status}).`);
   }
   return data;
 }

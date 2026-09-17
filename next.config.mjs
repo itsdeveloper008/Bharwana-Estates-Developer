@@ -3,6 +3,10 @@ const firebaseProjectId =
   process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "bharwana-estate-developer";
 
 const nextConfig = {
+  // Keep firebase-admin out of the webpack bundle on Vercel (Next 14).
+  experimental: {
+    serverComponentsExternalPackages: ["firebase-admin"],
+  },
   images: {
     remotePatterns: [
       {

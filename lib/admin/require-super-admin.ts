@@ -94,7 +94,30 @@ export async function requireSuperAdmin(
     return { ok: true, caller };
   } catch (error) {
     console.error("[requireSuperAdmin]", error);
-    return { ok: false, status: 401, error: "Invalid or expired auth token." };
+    const message = error instanceof Error ? error.message : String(error);
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code?: string }).code)
+        : "";
+    // Surface Admin SDK / PEM issues clearly (not a bad user token).
+    if (
+      message.includes("FIREBASE_ADMIN_PRIVATE_KEY") ||
+      message.includes("Failed to parse private key") ||
+      message.includes("error:1E") ||
+      message.includes("DECODER") ||
+      code.startsWith("app/")
+    ) {
+      return {
+        ok: false,
+        status: 503,
+        error: `Firebase Admin credentials error${code ? ` (${code})` : ""}: ${message}`,
+      };
+    }
+    return {
+      ok: false,
+      status: 401,
+      error: code ? `Invalid or expired auth token (${code}).` : "Invalid or expired auth token.",
+    };
   }
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ALL_ADMIN_MODULES, normalizePermissions, type AdminModule } from "@/lib/admin/modules";
 import { requireSuperAdmin, staffDocFromData } from "@/lib/admin/require-super-admin";
+import { staffApiErrorResponse } from "@/lib/admin/staff-api-error";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
@@ -17,8 +18,7 @@ export async function GET(request: Request) {
     staff.sort((a, b) => a.fullName.localeCompare(b.fullName));
     return NextResponse.json({ staff });
   } catch (error) {
-    console.error("[GET /api/admin/staff]", error);
-    return NextResponse.json({ error: "Could not list staff." }, { status: 500 });
+    return staffApiErrorResponse("GET /api/admin/staff", error, 500, "Could not list staff.");
   }
 }
 
@@ -106,17 +106,11 @@ export async function POST(request: Request) {
       staff: staffDocFromData(userRecord.uid, doc),
     });
   } catch (error: unknown) {
-    console.error("[POST /api/admin/staff]", error);
-    const code =
-      error && typeof error === "object" && "code" in error
-        ? String((error as { code?: string }).code)
-        : "";
-    if (code === "auth/email-already-exists") {
-      return NextResponse.json({ error: "That email already has an account." }, { status: 409 });
-    }
-    if (code === "auth/invalid-password") {
-      return NextResponse.json({ error: "Password does not meet Firebase requirements." }, { status: 400 });
-    }
-    return NextResponse.json({ error: "Could not create staff member." }, { status: 500 });
+    return staffApiErrorResponse(
+      "POST /api/admin/staff",
+      error,
+      500,
+      "Could not create staff member.",
+    );
   }
 }
