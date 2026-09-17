@@ -34,11 +34,17 @@ function adminConfigured(): boolean {
   );
 }
 
-/** Server-only: presence / shape checks — never log the key material itself. */
+/**
+ * Server-only: presence / PEM armor fingerprint — never logs key body bytes.
+ * Confirms the value starts/ends with BEGIN/END PRIVATE KEY after parsing.
+ */
 function logAdminCredentialPresence(phase: string) {
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID?.trim() ?? "";
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL?.trim() ?? "";
   const privateKey = readPrivateKey();
+  const lines = privateKey.split("\n").filter(Boolean);
+  const firstLine = lines[0] ?? "";
+  const lastLine = lines[lines.length - 1] ?? "";
   console.info(`[firebase-admin] ${phase}`, {
     projectIdPresent: Boolean(projectId),
     projectIdLength: projectId.length,
@@ -46,9 +52,11 @@ function logAdminCredentialPresence(phase: string) {
     clientEmailLooksValid: clientEmail.includes("@") && clientEmail.includes("."),
     privateKeyPresent: Boolean(privateKey),
     privateKeyLength: privateKey.length,
-    privateKeyHasBegin: privateKey.includes("BEGIN PRIVATE KEY") || privateKey.includes("BEGIN RSA PRIVATE KEY"),
-    privateKeyHasEnd: privateKey.includes("END PRIVATE KEY") || privateKey.includes("END RSA PRIVATE KEY"),
     privateKeyNewlineCount: (privateKey.match(/\n/g) ?? []).length,
+    privateKeyFirstLine: firstLine.slice(0, 40),
+    privateKeyLastLine: lastLine.slice(-40),
+    privateKeyStartsWithBegin: firstLine.startsWith("-----BEGIN PRIVATE KEY-----") || firstLine.startsWith("-----BEGIN RSA PRIVATE KEY-----"),
+    privateKeyEndsWithEnd: lastLine.startsWith("-----END PRIVATE KEY-----") || lastLine.startsWith("-----END RSA PRIVATE KEY-----"),
   });
 }
 

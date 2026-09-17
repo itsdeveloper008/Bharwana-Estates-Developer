@@ -9,28 +9,28 @@ export const runtime = "nodejs";
 type Ctx = { params: { uid: string } };
 
 export async function PATCH(request: Request, context: Ctx) {
-  const authz = await requireSuperAdmin(request);
-  if (!authz.ok) {
-    return NextResponse.json({ error: authz.error }, { status: authz.status });
-  }
-
-  const { uid } = context.params;
-  if (!uid || uid === authz.caller.uid) {
-    return NextResponse.json({ error: "Invalid staff member." }, { status: 400 });
-  }
-
-  let body: {
-    fullName?: string;
-    permissions?: string[];
-    active?: boolean;
-  };
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
-  }
+    const authz = await requireSuperAdmin(request);
+    if (!authz.ok) {
+      return NextResponse.json({ error: authz.error }, { status: authz.status });
+    }
 
-  try {
+    const { uid } = context.params;
+    if (!uid || uid === authz.caller.uid) {
+      return NextResponse.json({ error: "Invalid staff member." }, { status: 400 });
+    }
+
+    let body: {
+      fullName?: string;
+      permissions?: string[];
+      active?: boolean;
+    };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
+
     const db = getAdminDb();
     const ref = db.collection("admins").doc(uid);
     const snap = await ref.get();
@@ -82,17 +82,17 @@ export async function PATCH(request: Request, context: Ctx) {
 }
 
 export async function DELETE(request: Request, context: Ctx) {
-  const authz = await requireSuperAdmin(request);
-  if (!authz.ok) {
-    return NextResponse.json({ error: authz.error }, { status: authz.status });
-  }
-
-  const { uid } = context.params;
-  if (!uid || uid === authz.caller.uid) {
-    return NextResponse.json({ error: "Invalid staff member." }, { status: 400 });
-  }
-
   try {
+    const authz = await requireSuperAdmin(request);
+    if (!authz.ok) {
+      return NextResponse.json({ error: authz.error }, { status: authz.status });
+    }
+
+    const { uid } = context.params;
+    if (!uid || uid === authz.caller.uid) {
+      return NextResponse.json({ error: "Invalid staff member." }, { status: 400 });
+    }
+
     const db = getAdminDb();
     const ref = db.collection("admins").doc(uid);
     const snap = await ref.get();
