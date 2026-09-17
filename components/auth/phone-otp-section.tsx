@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { type ConfirmationResult } from "firebase/auth";
 import { Loader2 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
-import { toast } from "sonner";
 import { GoogleRoleCompletionDialog } from "@/components/auth/google-role-completion-dialog";
 import { OtpDigitInputs } from "@/components/auth/otp-digit-inputs";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
@@ -223,7 +222,6 @@ export function PhoneOtpSection({
       setSecondsLeft(RESEND_SECONDS);
       setOtpSecondsLeft(OTP_VALID_SECONDS);
       otpForm.reset({ otp: "" });
-      toast.success("Verification code sent.");
       return true;
     } catch (err) {
       const { code, message } = firebaseErrorParts(err);
@@ -310,7 +308,6 @@ export function PhoneOtpSection({
       setSentPhone(sentPhone || formatPakistanMobileE164(localPhone));
       applySendFailure(PHONE_ALREADY_REGISTERED_MESSAGE, PHONE_ALREADY_REGISTERED_CODE);
       setStep("phone");
-      toast.message("This number already has an account.");
     } catch (err) {
       const { code, message } = firebaseErrorParts(err);
       console.error("[phone-otp] verify exception", code, message, err);

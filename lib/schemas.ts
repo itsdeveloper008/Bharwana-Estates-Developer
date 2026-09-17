@@ -50,14 +50,16 @@ export const propertyFormSchema = z.object({
     .min(1, EMPTY_REQUIRED)
     .min(40, "Give buyers a fuller picture")
     .max(1200, "Keep the description under 1,200 characters"),
-  listingType: z.enum(["DIRECT_OWNER", "BUSINESS"]),
+  listingType: z.enum(["DIRECT_OWNER", "BUSINESS"], {
+    message: "Select origin",
+  }),
   purpose: z.enum(["SALE", "RENT"]),
   category: z.enum(["HOME", "PLOTS", "COMMERCIAL"]),
   subtype: z.string().trim().min(2, "Select a property type"),
-  price: z.number().positive("Enter a price"),
-  areaSqft: z.number().positive("Enter the covered area"),
-  bedrooms: z.number().int().min(0),
-  bathrooms: z.number().min(0),
+  price: z.number({ message: "Enter a price" }).positive("Enter a price"),
+  areaSqft: z.number({ message: "Enter the covered area" }).positive("Enter the covered area"),
+  bedrooms: z.number({ message: "Enter bedrooms" }).int().min(0),
+  bathrooms: z.number({ message: "Enter bathrooms" }).min(0),
   address: z
     .string()
     .trim()

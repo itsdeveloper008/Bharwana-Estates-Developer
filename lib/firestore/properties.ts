@@ -94,7 +94,8 @@ function toFirestorePayload(property: Property): Record<string, unknown> {
     }
   }
 
-  if (property.purpose) payload.purpose = property.purpose;
+  if (property.purpose === "RENT") payload.purpose = "RENT";
+  else payload.purpose = "SALE";
   if (property.category) payload.category = property.category;
   if (property.subtype?.trim()) payload.subtype = property.subtype.trim();
   if (property.ownerUserId) payload.ownerUserId = property.ownerUserId;
@@ -103,9 +104,8 @@ function toFirestorePayload(property: Property): Record<string, unknown> {
   const highlights = normalizeHighlightKeys(property.highlightSpecs, property.category);
   payload.highlightSpecs = highlights;
   const tags = normalizeFeatureTags(property.featureTags);
-  // Only include tags when present. deleteField() is applied in upsertProperty
-  // on updates (merge:true) - never on create setDoc without merge.
-  if (tags.length) payload.featureTags = tags;
+  // Write [] instead of deleteField() so create setDoc (no merge) never rejects.
+  payload.featureTags = tags;
   if (property.statusUpdatedAt) payload.statusUpdatedAt = property.statusUpdatedAt;
   if (property.rejectionReason?.trim()) payload.rejectionReason = property.rejectionReason.trim();
   if (property.statusHistory?.length) {
@@ -289,7 +289,7 @@ function mapProperty(id: string, data: Record<string, unknown>): Property {
     title: String(data.title ?? ""),
     description: String(data.description ?? ""),
     listingType: (data.listingType as Property["listingType"]) ?? "DIRECT_OWNER",
-    purpose: data.purpose ? (data.purpose as Property["purpose"]) : undefined,
+    purpose: data.purpose === "RENT" ? "RENT" : "SALE",
     category,
     subtype: data.subtype ? String(data.subtype) : undefined,
     status: (data.status as Property["status"]) ?? "PUBLISHED",
@@ -339,6 +339,14 @@ export function subscribeProperties(
     },
     (error) => onError?.(error),
   );
+}
+
+export async function getPropertyDoc(id: string): Promise<Property | null> {
+  const db = getDb();
+  if (!db) return null;
+  const snap = await getDoc(doc(db, COLLECTION, id));
+  if (!snap.exists()) return null;
+  return mapProperty(snap.id, snap.data() as Record<string, unknown>);
 }
 
 /** Replace inventory in Firestore. When force=true, deletes existing docs first. */
@@ -433,13 +441,15 @@ export async function upsertProperty(
   if (!existing.exists()) {
     payload.createdAt = serverTimestamp();
     delete payload.rejectionReason;
+    // Safety: FieldValue delete sentinels are invalid on create without merge.
+    for (const [key, value] of Object.entries(payload)) {
+      if (isFieldValueSentinel(value) && String((value as { _methodName?: string })._methodName ?? "").includes("Delete")) {
+        delete payload[key];
+      }
+    }
   } else {
     if (!next.rejectionReason) {
       payload.rejectionReason = deleteField();
-    }
-    // Clear stale tags on update when the lister removed them all.
-    if (!normalizeFeatureTags(next.featureTags).length) {
-      payload.featureTags = deleteField();
     }
   }
 

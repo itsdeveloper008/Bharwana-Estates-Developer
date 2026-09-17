@@ -11,7 +11,6 @@ import {
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { toast } from "sonner";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 import { ConfirmPasswordField, PasswordCreateField } from "@/components/auth/password-create-field";
 import { Button } from "@/components/ui/button";
@@ -117,7 +116,6 @@ export function ResetPasswordForm() {
       console.info("[reset-password] confirming reset (consumes oobCode)");
       await confirmPasswordReset(auth, link.oobCode, values.password);
       setLink({ status: "success" });
-      toast.success("Password updated.");
     } catch (err) {
       const code =
         err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";

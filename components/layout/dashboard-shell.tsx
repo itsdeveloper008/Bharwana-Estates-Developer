@@ -52,6 +52,8 @@ export function DashboardShell({
   const pathname = usePathname();
   const copy = roleCopy[role];
   const demoUser = users.find((item) => item.role === role);
+  const isAddProperty = pathname.includes("/add-property");
+  const listingsHref = role === "DEALER" ? "/dealer" : "/owner";
 
   if (isIndividualRole(role) || role === "DEALER") {
     const Gate = role === "DEALER" ? DealerGate : OwnerGate;
@@ -67,9 +69,9 @@ export function DashboardShell({
               </div>
               {pathname !== "/" && (
                 <Button variant="ghost" asChild>
-                  <Link href="/">
+                  <Link href={isAddProperty ? listingsHref : "/properties?intent=buy"}>
                     <ArrowLeft className="h-4 w-4" />
-                    Marketplace
+                    {isAddProperty ? "My listings" : "Marketplace"}
                   </Link>
                 </Button>
               )}
@@ -113,7 +115,7 @@ export function DashboardShell({
           </div>
           {pathname !== "/" && (
             <Button variant="ghost" asChild>
-              <Link href="/">
+              <Link href="/properties?intent=buy">
                 <ArrowLeft className="h-4 w-4" />
                 Marketplace
               </Link>

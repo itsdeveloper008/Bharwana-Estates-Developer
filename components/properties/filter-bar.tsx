@@ -225,7 +225,7 @@ function FiltersForm({ compact }: { compact?: boolean }) {
               type="button"
               variant="outline"
               className="h-11"
-              onClick={() => router.replace(pathname)}
+              onClick={() => router.replace(`${pathname}?intent=buy`)}
             >
               Clear all
             </Button>

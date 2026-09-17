@@ -54,7 +54,7 @@ export function MapExplorer() {
   function resetAll() {
     setBounds(undefined);
     setSelectedId(null);
-    router.push("/map");
+    router.push("/map?intent=buy");
   }
 
   const listPanel = (

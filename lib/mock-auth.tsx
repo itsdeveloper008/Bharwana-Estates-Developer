@@ -33,6 +33,7 @@ import {
   type User as FirebaseUser,
 } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
+import { resolveAdminAuthorization } from "@/lib/firestore/admin-access";
 import { createDeletionRequest, purgeUserOwnedData } from "@/lib/firestore/deletion";
 import {
   createUserDocWithRetry,
@@ -466,6 +467,22 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
               setPendingGoogle(null);
               persist(null);
               return;
+            }
+
+            // Admin panel Firebase accounts must never become marketplace sessions on public pages.
+            try {
+              const adminAuth = await resolveAdminAuthorization(
+                firebaseUser.uid,
+                firebaseUser.email ?? "",
+              );
+              if (cancelled || syncId !== authSyncGenerationRef.current) return;
+              if (adminAuth.authorized) {
+                setPendingGoogle(null);
+                persist(null);
+                return;
+              }
+            } catch (error) {
+              console.error("Admin authorization check failed during marketplace sync", error);
             }
 
             // Session already committed (e.g. Google popup just finished) - don't block or

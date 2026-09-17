@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMockAuth } from "@/lib/mock-auth";
+import { useAdminAuth } from "@/lib/admin-auth";
 import { useMockStore } from "@/lib/mock-store";
 import {
   LISTINGS_VIEWED_EVENT,
@@ -28,8 +29,8 @@ import { preloadGoogleMaps } from "@/lib/map";
 import { isIndividualRole } from "@/lib/user-role";
 
 const publicLinks = [
-  { href: "/properties", label: "Properties" },
-  { href: "/map", label: "Map" },
+  { href: "/properties?intent=buy", label: "Properties" },
+  { href: "/map?intent=buy", label: "Map" },
   { href: "/about", label: "About" },
   { href: "/team", label: "Team" },
 ] as const;
@@ -42,6 +43,7 @@ const ease = [0.22, 1, 0.36, 1] as const;
 export function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useMockAuth();
+  const { isAuthenticated: isAdminSession } = useAdminAuth();
   const { properties, getDeveloperForUser } = useMockStore();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -49,7 +51,8 @@ export function Navbar() {
   const menuId = useId();
 
   /** Marketplace session only - Admin panel sessions must not appear as signed-in on public pages. */
-  const signedIn = Boolean(user) && user!.role !== "ADMIN";
+  const signedIn =
+    Boolean(user) && user!.role !== "ADMIN" && !isAdminSession;
   const showSignIn = !signedIn;
 
   const listPropertyHref = signedIn
@@ -221,13 +224,14 @@ export function Navbar() {
             className="hidden min-w-0 items-center justify-center gap-0.5 xl:flex"
           >
             {publicLinks.map((link) => {
-              const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+              const linkPath = link.href.split("?")[0];
+              const active = pathname === linkPath || pathname.startsWith(`${linkPath}/`);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   onMouseEnter={() => {
-                    if (link.href !== "/map") return;
+                    if (!link.href.startsWith("/map")) return;
                     void preloadGoogleMaps();
                     void import("@/components/map/map-view");
                   }}
@@ -469,7 +473,8 @@ export function Navbar() {
             <nav aria-label="Mobile" className="mx-auto flex w-full max-w-[1360px] flex-1 flex-col justify-center px-5 sm:px-8">
               <ul className="space-y-1">
                 {publicLinks.map((link, index) => {
-                  const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+                  const linkPath = link.href.split("?")[0];
+                  const active = pathname === linkPath || pathname.startsWith(`${linkPath}/`);
                   return (
                     <motion.li
                       key={link.href}
@@ -482,7 +487,7 @@ export function Navbar() {
                         href={link.href}
                         onClick={() => setOpen(false)}
                         onTouchStart={() => {
-                          if (link.href !== "/map") return;
+                          if (!link.href.startsWith("/map")) return;
                           void preloadGoogleMaps();
                           void import("@/components/map/map-view");
                         }}

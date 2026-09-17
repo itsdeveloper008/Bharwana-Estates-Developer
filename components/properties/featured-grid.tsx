@@ -80,7 +80,7 @@ export function FeaturedSection() {
             <h2 className="mt-2 font-serif text-4xl text-forest">On the floor this season</h2>
           </div>
           <Link
-            href="/properties"
+            href="/properties?intent=buy"
             className="inline-flex h-10 items-center justify-center border border-forest/20 bg-white/80 px-4 text-xs uppercase tracking-[0.14em] text-forest transition-colors hover:border-gold hover:bg-white"
           >
             All properties

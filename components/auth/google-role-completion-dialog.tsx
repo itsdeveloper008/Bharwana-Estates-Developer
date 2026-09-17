@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { RoleSelector } from "@/components/auth/role-selector";
 import { Button } from "@/components/ui/button";
@@ -128,7 +127,6 @@ export function GoogleRoleCompletionDialog({
           return;
         }
       }
-      toast.success(role === "DEALER" ? "Dealer account created. Pending review." : "Account created");
       // Parent closes the dialog and navigates - do not call onOpenChange(false) first
       // (that used to cancel the OAuth session and bounce users back to Sign in).
       onComplete(result.user);

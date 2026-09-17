@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { toast } from "sonner";
 import { PasswordCreateField, ConfirmPasswordField } from "@/components/auth/password-create-field";
 import { Button } from "@/components/ui/button";
 import { Form, FormField } from "@/components/ui/form";
@@ -34,7 +33,7 @@ export function SetPasswordOptional({
   description = "Create a password to finish signing up. Next time, sign in with your phone number and this password.",
   showSkip = false,
   submitLabel = "Sign in",
-  successToast = "Password saved. You are signed in.",
+  successToast: _successToast,
 }: {
   /** @deprecated Ignored - phone accounts never collect email here. */
   defaultEmail?: string;
@@ -66,7 +65,6 @@ export function SetPasswordOptional({
       setError(result.error);
       return;
     }
-    toast.success(successToast);
     onDone?.(result.user);
   }
 

@@ -26,12 +26,10 @@ export function filtersFromSearchParams(
   const intent = get("intent");
   const category = get("category");
   const subtype = get("subtype");
-  const purpose: ListingPurpose | undefined =
-    intent === "rental" || intent === "rent"
-      ? "RENT"
-      : intent === "buy" || intent === "sale"
-        ? "SALE"
-        : undefined;
+  // Always filter by purpose. Missing intent matches the Buy UI default (SALE),
+  // so Sell and Rent listings never mix when browsing /properties or /map.
+  const purpose: ListingPurpose =
+    intent === "rental" || intent === "rent" ? "RENT" : "SALE";
   return {
     query: get("q") || undefined,
     city: get("city") || undefined,
@@ -75,7 +73,7 @@ export function filterProperties(
       return false;
     }
     if (filters.purpose) {
-      const purpose = property.purpose ?? "SALE";
+      const purpose = property.purpose === "RENT" ? "RENT" : "SALE";
       if (purpose !== filters.purpose) return false;
     }
     if (filters.category && (property.category ?? "HOME") !== filters.category) return false;

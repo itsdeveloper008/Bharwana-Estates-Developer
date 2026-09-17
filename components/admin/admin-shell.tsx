@@ -39,7 +39,6 @@ import {
   getAdminModuleLastViewedAt,
   type AdminBadgeModule,
 } from "@/lib/admin/unseen-badges";
-import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { cn } from "@/lib/utils";
 
@@ -177,7 +176,6 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const { admin, logout } = useAdminAuth();
-  const { loginAs } = useMockAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -187,17 +185,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   function handleViewWebsite() {
-    if (admin) {
-      const marketplaceUser = {
-        id: `admin-${admin.email}`,
-        fullName: admin.fullName,
-        email: admin.email,
-        phone: "",
-        role: "ADMIN" as const,
-        avatarUrl: admin.avatarUrl,
-      };
-      loginAs(marketplaceUser);
-    }
+    // Open the public site as a guest - do not leak the admin Firebase/session into marketplace chrome.
     router.push("/");
   }
 

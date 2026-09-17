@@ -421,7 +421,6 @@ export function LoginForm() {
         form.setValue("email", values.email, { shouldDirty: true });
         return;
       }
-      toast.success("Signed in.");
       goAfterAuth(result.user);
     } catch (err) {
       console.error("[login] unexpected failure", err);
@@ -572,11 +571,6 @@ export function RegisterForm() {
         }
       }
 
-      const successMessage =
-        values.role === "DEALER"
-          ? "Dealer account created. Pending review."
-          : "Account created successfully.";
-      toast.success(successMessage, { duration: 5000 });
       console.info("[RegisterForm] success", { uid: result.user.id });
       goAfterAuth(result.user);
     } catch (err) {

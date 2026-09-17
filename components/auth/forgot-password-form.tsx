@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { toast } from "sonner";
 import { AuthCrossLink } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -47,7 +46,6 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
     try {
       await sendPasswordResetLink(email);
       setSentTo(email);
-      toast.success("Reset email sent - check inbox and spam.");
     } catch (err) {
       const code =
         err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";

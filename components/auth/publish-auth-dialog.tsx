@@ -86,7 +86,6 @@ export function PublishAuthDialog({
       setError(result.error);
       return;
     }
-    toast.success("Account created");
     onAuthenticated(result.user);
   }
 

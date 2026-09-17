@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import {
   Form,
   FormControl,
@@ -47,7 +46,6 @@ export function AdminLoginForm() {
       return;
     }
 
-    toast.success("Welcome back.");
     router.replace("/admin/dashboard");
   }
 

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { RecaptchaVerifier } from "firebase/auth";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { OtpDigitInputs } from "@/components/auth/otp-digit-inputs";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { Button } from "@/components/ui/button";
@@ -154,7 +153,6 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
       setSecondsLeft(RESEND_SECONDS);
       setOtpSecondsLeft(OTP_VALID_SECONDS);
       setOtp("");
-      toast.success("Verification code sent.");
       return true;
     } catch (err) {
       logFirebaseAuthError("change-phone-send-ui", err);
@@ -213,7 +211,6 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
         setOtp("");
         return;
       }
-      toast.success("Phone number updated");
       setStep("idle");
       setOtp("");
       setSecondsLeft(0);

@@ -28,7 +28,22 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { CityCombobox } from "@/components/properties/city-combobox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -154,12 +169,14 @@ function NumberInput({
   onBlur,
   name,
   icon: Icon,
+  placeholder,
 }: {
-  value: number;
-  onChange: (value: number) => void;
+  value: number | undefined;
+  onChange: (value: number | undefined) => void;
   onBlur: () => void;
   name: string;
   icon?: LucideIcon;
+  placeholder?: string;
 }) {
   return (
     <div className="relative">
@@ -171,11 +188,15 @@ function NumberInput({
       ) : null}
       <Input
         type="number"
-        className={cn(fieldFocus, Icon && "pl-9")}
+        className={cn("h-10", fieldFocus, Icon && "pl-9")}
         name={name}
+        placeholder={placeholder}
         value={Number.isFinite(value) ? value : ""}
         onBlur={onBlur}
-        onChange={(event) => onChange(event.target.valueAsNumber)}
+        onChange={(event) => {
+          const next = event.target.valueAsNumber;
+          onChange(Number.isFinite(next) ? next : undefined);
+        }}
       />
     </div>
   );
@@ -266,6 +287,9 @@ export function PropertyForm({
   const [developerQuery, setDeveloperQuery] = useState("");
   const [showNewOwner, setShowNewOwner] = useState(false);
   const [newOwnerName, setNewOwnerName] = useState("");
+  const [previewPhotoIndex, setPreviewPhotoIndex] = useState<number | null>(null);
+  const [cityMismatchConfirmOpen, setCityMismatchConfirmOpen] = useState(false);
+  const pendingSubmitRef = useRef<PropertyFormValues | null>(null);
   const [newOwnerContact, setNewOwnerContact] = useState("");
   const [assignError, setAssignError] = useState<string | null>(null);
   const [adminPublishStatus, setAdminPublishStatus] = useState<AdminPublishChoice>("PUBLISHED");
@@ -330,14 +354,14 @@ export function PropertyForm({
     defaultValues: {
       title: "",
       description: "",
-      listingType: isAdmin ? "DIRECT_OWNER" : user?.role === "DEALER" ? "BUSINESS" : "DIRECT_OWNER",
+      listingType: user?.role === "DEALER" ? "BUSINESS" : (undefined as unknown as PropertyFormValues["listingType"]),
       purpose: "SALE",
       category: "HOME",
       subtype: "HOUSE",
-      price: 25000000,
-      areaSqft: 1800,
-      bedrooms: 3,
-      bathrooms: 3,
+      price: undefined as unknown as number,
+      areaSqft: undefined as unknown as number,
+      bedrooms: undefined as unknown as number,
+      bathrooms: undefined as unknown as number,
       address: "",
       city: "",
       latitude: CITY_COORDS.Lahore.latitude,
@@ -348,7 +372,7 @@ export function PropertyForm({
     },
   });
 
-  const listingType = form.watch("listingType") ?? "DIRECT_OWNER";
+  const listingType = form.watch("listingType");
   const watchedTitle = form.watch("title") ?? "";
   const watchedDescription = form.watch("description") ?? "";
   const watchedCity = form.watch("city") ?? "";
@@ -362,12 +386,7 @@ export function PropertyForm({
     if (!title && !description) return null;
     const haystack = `${title} ${description}`.toLowerCase();
     if (haystack.includes(city.toLowerCase())) return null;
-    // Soft check: only warn when copy already names a different known city.
-    const mentionsOtherCity = CITIES.some(
-      (item) => item !== city && haystack.includes(item.toLowerCase()),
-    );
-    if (!mentionsOtherCity) return null;
-    return "Your selected city doesn't match the city mentioned in your title/description - please double check";
+    return "Your selected city doesn't match your title/description - please double check";
   }, [watchedCity, watchedTitle, watchedDescription]);
 
   useEffect(() => {
@@ -844,14 +863,27 @@ export function PropertyForm({
       goToStep(2);
       return;
     }
+
+    const city = (normalized.city ?? "").trim();
+    const haystack = `${normalized.title ?? ""} ${normalized.description ?? ""}`.toLowerCase();
+    if (city && haystack && !haystack.includes(city.toLowerCase())) {
+      pendingSubmitRef.current = normalized;
+      setCityMismatchConfirmOpen(true);
+      return;
+    }
+
+    await continuePublish(normalized);
+  }
+
+  async function continuePublish(values: PropertyFormValues) {
     if (isAdmin) {
-      const assignIssue = validateAdminAssignment(normalized);
+      const assignIssue = validateAdminAssignment(values);
       if (assignIssue) {
         setAssignError(assignIssue);
         goToStep(1);
         return;
       }
-      await commitPublish(normalized, assignOwnerId || undefined);
+      await commitPublish(values, assignOwnerId || undefined);
       return;
     }
     if (!user) {
@@ -859,7 +891,7 @@ export function PropertyForm({
       router.replace(`/login?returnTo=${encodeURIComponent("/owner/add-property")}`);
       return;
     }
-    await commitPublish(normalized, user.id);
+    await commitPublish(values, user.id);
   }
 
   if (done) {
@@ -896,7 +928,7 @@ export function PropertyForm({
               <Button onClick={() => router.push(published ? "/admin/properties" : "/admin/submissions")}>
                 {published ? "All properties" : "Verification queue"}
               </Button>
-              <Button variant="outline" onClick={() => router.push("/properties")}>
+              <Button variant="outline" onClick={() => router.push("/properties?intent=buy")}>
                 Marketplace
               </Button>
             </>
@@ -909,7 +941,7 @@ export function PropertyForm({
               >
                 My listings
               </Button>
-              <Button variant="outline" onClick={() => router.push("/properties")}>
+              <Button variant="outline" onClick={() => router.push("/properties?intent=buy")}>
                 Marketplace
               </Button>
             </>
@@ -1028,8 +1060,8 @@ export function PropertyForm({
                                 form.setValue("bedrooms", 0);
                                 form.setValue("bathrooms", 0);
                               } else if (form.getValues("bedrooms") === 0) {
-                                form.setValue("bedrooms", 3);
-                                form.setValue("bathrooms", 3);
+                                form.setValue("bedrooms", undefined as unknown as number);
+                                form.setValue("bathrooms", undefined as unknown as number);
                               }
                             }}
                             className={cn(
@@ -1151,6 +1183,7 @@ export function PropertyForm({
             id="pricing"
             title="Pricing"
             icon={CircleDollarSign}
+            lead
             className="mb-7"
           >
             <div className="grid gap-4 sm:grid-cols-2">
@@ -1161,13 +1194,13 @@ export function PropertyForm({
                   <FormItem>
                     <FormLabel className="mb-0.5">Origin</FormLabel>
                     <Select
-                      value={field.value}
+                      value={field.value || undefined}
                       onValueChange={field.onChange}
                       disabled={!isAdmin && user?.role === "DEALER"}
                     >
                       <FormControl>
-                        <SelectTrigger className={fieldFocus}>
-                          <SelectValue />
+                        <SelectTrigger className={cn("h-10", fieldFocus)}>
+                          <SelectValue placeholder="Select origin" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -1198,6 +1231,7 @@ export function PropertyForm({
                         onBlur={field.onBlur}
                         name={field.name}
                         icon={Tag}
+                        placeholder="Enter amount"
                       />
                     </FormControl>
                     <FormMessage />
@@ -1215,7 +1249,11 @@ export function PropertyForm({
               tone="cream"
               className="mb-8"
             >
-              {listingType === "DIRECT_OWNER" ? (
+              {!listingType ? (
+                <p className="text-sm text-muted-foreground">
+                  Select an origin above to assign a house owner or dealer.
+                </p>
+              ) : listingType === "DIRECT_OWNER" ? (
                 <div className="space-y-3">
                   <Label className="mb-0">Assign house owner</Label>
                   <Input
@@ -1316,10 +1354,12 @@ export function PropertyForm({
             id="specs-location"
             title="Specs & Location"
             icon={MapPin}
+            lead
+            tone="cream"
             className="mb-11"
           >
             {form.watch("category") !== "PLOTS" && (
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-5 sm:grid-cols-3">
                 <FormField
                   control={form.control}
                   name="bedrooms"
@@ -1333,6 +1373,7 @@ export function PropertyForm({
                           onBlur={field.onBlur}
                           name={field.name}
                           icon={BedDouble}
+                          placeholder="e.g. 3"
                         />
                       </FormControl>
                       <FormMessage />
@@ -1352,6 +1393,7 @@ export function PropertyForm({
                           onBlur={field.onBlur}
                           name={field.name}
                           icon={Bath}
+                          placeholder="e.g. 3"
                         />
                       </FormControl>
                       <FormMessage />
@@ -1371,6 +1413,7 @@ export function PropertyForm({
                           onBlur={field.onBlur}
                           name={field.name}
                           icon={Maximize2}
+                          placeholder="e.g. 1800"
                         />
                       </FormControl>
                       <FormMessage />
@@ -1393,6 +1436,7 @@ export function PropertyForm({
                         onBlur={field.onBlur}
                         name={field.name}
                         icon={Maximize2}
+                        placeholder="e.g. 5 Marla in sqft"
                       />
                     </FormControl>
                     <FormMessage />
@@ -1401,7 +1445,7 @@ export function PropertyForm({
               />
             )}
 
-            <div className="rounded-xl border border-forest/10 bg-white/70 px-4 py-4">
+            <div className="rounded-2xl border border-forest/10 bg-white/80 px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
               <p className="text-sm font-medium text-forest">Features to highlight</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Choose which specs stand out on the map and listing cards. Values come from the fields above.
@@ -1413,10 +1457,13 @@ export function PropertyForm({
                   const category = form.watch("category");
                   const allowed = defaultHighlightKeys(category);
                   const selected = new Set(normalizeHighlightKeys(field.value, category));
+                  const beds = form.watch("bedrooms");
+                  const baths = form.watch("bathrooms");
+                  const area = form.watch("areaSqft");
                   const labels: Record<PropertyHighlightKey, string> = {
-                    bedrooms: `Bedrooms (${form.watch("bedrooms")})`,
-                    bathrooms: `Bathrooms (${form.watch("bathrooms")})`,
-                    area: `Area (${form.watch("areaSqft")} sqft)`,
+                    bedrooms: Number.isFinite(beds) ? `Bedrooms (${beds})` : "Bedrooms",
+                    bathrooms: Number.isFinite(baths) ? `Bathrooms (${baths})` : "Bathrooms",
+                    area: Number.isFinite(area) ? `Area (${area} sqft)` : "Area",
                     price: `Price`,
                   };
                   return (
@@ -1530,7 +1577,7 @@ export function PropertyForm({
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-5 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="city"
@@ -1541,7 +1588,7 @@ export function PropertyForm({
                       <CityCombobox
                         value={field.value}
                         hasError={Boolean(fieldState.error)}
-                        className={fieldFocus}
+                        className={cn("h-10", fieldFocus)}
                         onChange={(value) => {
                           field.onChange(value);
                           const coords = CITY_COORDS[value];
@@ -1563,7 +1610,7 @@ export function PropertyForm({
                   <FormItem>
                     <FormLabel className="mb-0.5">Address</FormLabel>
                     <FormControl>
-                      <Input className={fieldFocus} {...field} />
+                      <Input className={cn("h-10", fieldFocus)} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1571,7 +1618,7 @@ export function PropertyForm({
               />
             </div>
             {cityMismatchWarning ? (
-              <p className="rounded-xl border border-amber-500/30 bg-amber-50/80 px-3 py-2 text-sm text-amber-900/90">
+              <p className="rounded-xl border border-amber-500/30 bg-amber-50/80 px-3 py-2 text-sm text-amber-900/90" role="status">
                 {cityMismatchWarning}
               </p>
             ) : null}
@@ -1593,9 +1640,6 @@ export function PropertyForm({
                       autoComplete="tel-national"
                     />
                   </FormControl>
-                  <p className="text-[11px] text-muted-foreground">
-                    Required so Admin can reach you about this listing.
-                  </p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -1618,6 +1662,7 @@ export function PropertyForm({
             id="photographs"
             title="Photographs"
             icon={ImageIcon}
+            lead
             tone="cream"
             className="mb-10"
           >
@@ -1692,14 +1737,21 @@ export function PropertyForm({
                     key={`${src}-${index}`}
                     className="group/thumb relative aspect-[4/3] overflow-hidden rounded-xl bg-cream shadow-[0_10px_24px_-14px_rgba(15,46,29,0.35)]"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      className="absolute inset-0 z-0"
+                      onClick={() => setPreviewPhotoIndex(index)}
+                      aria-label={`Preview photo ${index + 1}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="h-full w-full object-cover" />
+                    </button>
                     {index === 0 && (
-                      <span className="absolute left-1.5 top-1.5 rounded-full bg-gold px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-forest shadow-sm">
+                      <span className="pointer-events-none absolute left-1.5 top-1.5 z-[1] rounded-full bg-gold px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-forest shadow-sm">
                         Cover
                       </span>
                     )}
-                    <div className="absolute bottom-1.5 left-1.5 flex gap-1 opacity-100 sm:opacity-0 sm:transition-opacity sm:duration-200 sm:group-hover/thumb:opacity-100">
+                    <div className="absolute bottom-1.5 left-1.5 z-[1] flex gap-1 opacity-100 sm:opacity-0 sm:transition-opacity sm:duration-200 sm:group-hover/thumb:opacity-100">
                       <button
                         type="button"
                         className="rounded-lg bg-forest/80 p-1 text-ivory disabled:opacity-40"
@@ -1721,7 +1773,7 @@ export function PropertyForm({
                     </div>
                     <button
                       type="button"
-                      className="absolute right-1.5 top-1.5 rounded-full bg-forest/80 p-1 text-ivory opacity-100 sm:opacity-0 sm:transition-opacity sm:duration-200 sm:group-hover/thumb:opacity-100"
+                      className="absolute right-1.5 top-1.5 z-[1] rounded-full bg-forest/80 p-1 text-ivory opacity-100 sm:opacity-0 sm:transition-opacity sm:duration-200 sm:group-hover/thumb:opacity-100"
                       onClick={() => removePreview(index)}
                       aria-label="Remove photo"
                     >
@@ -1825,6 +1877,56 @@ export function PropertyForm({
           </div>
         </form>
       </Form>
+
+      <Dialog
+        open={previewPhotoIndex !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewPhotoIndex(null);
+        }}
+      >
+        <DialogContent className="max-w-4xl border-forest/10 bg-ivory p-2 sm:p-3">
+          <DialogTitle className="sr-only">Photo preview</DialogTitle>
+          {previewPhotoIndex !== null && previews[previewPhotoIndex] ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previews[previewPhotoIndex]}
+              alt={`Listing photo ${previewPhotoIndex + 1}`}
+              className="max-h-[80vh] w-full rounded-xl object-contain"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={cityMismatchConfirmOpen}
+        onOpenChange={(open) => {
+          setCityMismatchConfirmOpen(open);
+          if (!open) pendingSubmitRef.current = null;
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>City doesn&apos;t match your copy</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your selected city doesn&apos;t match your title/description - please double check. You can
+              go back to edit, or continue if this is intentional.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go back</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const pending = pendingSubmitRef.current;
+                setCityMismatchConfirmOpen(false);
+                pendingSubmitRef.current = null;
+                if (pending) void continuePublish(pending);
+              }}
+            >
+              Continue anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
