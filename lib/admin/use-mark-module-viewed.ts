@@ -8,10 +8,10 @@ import {
 } from "@/lib/admin/unseen-badges";
 
 /** Clears the sidebar unseen badge when an admin actually opens a module page. */
-export function useMarkAdminModuleViewed(module: AdminBadgeModule) {
+export function useMarkAdminModuleViewed(badgeModule: AdminBadgeModule) {
   const { admin } = useAdminAuth();
   useEffect(() => {
     if (!admin?.uid) return;
-    markAdminModuleViewed(admin.uid, module);
-  }, [admin?.uid, module]);
+    markAdminModuleViewed(admin.uid, badgeModule);
+  }, [admin?.uid, badgeModule]);
 }

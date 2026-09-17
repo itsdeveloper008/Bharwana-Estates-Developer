@@ -41,9 +41,9 @@ function writeMap(map: ViewedMap) {
 
 export function getAdminModuleLastViewedAt(
   adminUid: string,
-  module: AdminBadgeModule,
+  badgeModule: AdminBadgeModule,
 ): string | null {
-  return readMap()[adminUid]?.[module] ?? null;
+  return readMap()[adminUid]?.[badgeModule] ?? null;
 }
 
 /** Seed "now" once so existing backlog does not all light up as unread. */
@@ -53,9 +53,9 @@ export function ensureAdminModuleBaselines(adminUid: string): void {
   const current = { ...(map[adminUid] ?? {}) };
   let changed = false;
   const now = new Date().toISOString();
-  for (const module of ADMIN_BADGE_MODULES) {
-    if (!current[module]) {
-      current[module] = now;
+  for (const badgeModule of ADMIN_BADGE_MODULES) {
+    if (!current[badgeModule]) {
+      current[badgeModule] = now;
       changed = true;
     }
   }
@@ -64,12 +64,12 @@ export function ensureAdminModuleBaselines(adminUid: string): void {
   writeMap(map);
 }
 
-export function markAdminModuleViewed(adminUid: string, module: AdminBadgeModule): void {
+export function markAdminModuleViewed(adminUid: string, badgeModule: AdminBadgeModule): void {
   if (typeof window === "undefined" || !adminUid) return;
   const map = readMap();
   map[adminUid] = {
     ...(map[adminUid] ?? {}),
-    [module]: new Date().toISOString(),
+    [badgeModule]: new Date().toISOString(),
   };
   writeMap(map);
 }
