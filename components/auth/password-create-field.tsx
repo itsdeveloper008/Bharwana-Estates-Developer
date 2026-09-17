@@ -15,7 +15,7 @@ type FieldBag = {
   ref: Ref<HTMLInputElement>;
 };
 
-/** Password field for account creation — live requirement checklist. */
+/** Password field for account creation - live requirement checklist. */
 export function PasswordCreateField({
   field,
   fieldState,

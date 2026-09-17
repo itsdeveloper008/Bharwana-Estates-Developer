@@ -77,7 +77,7 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
           remoteHasDataRef.current = true;
           setMembers(next);
         } else if (!remoteHasDataRef.current) {
-          // Provisional UI only — seed is not yet in Firestore.
+          // Provisional UI only - seed is not yet in Firestore.
           setMembers(localSeedTeam);
         } else {
           setMembers([]);

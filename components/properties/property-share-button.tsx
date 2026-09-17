@@ -25,7 +25,7 @@ export function PropertyShareButton({ property, className }: { property: Propert
   }
 
   function shareText() {
-    return `${property.title} — ${shareUrl()}`;
+    return `${property.title} - ${shareUrl()}`;
   }
 
   useEffect(() => {

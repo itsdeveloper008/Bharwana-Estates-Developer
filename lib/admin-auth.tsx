@@ -18,7 +18,7 @@ export interface AdminSession {
   uid: string;
   email: string;
   fullName: string;
-  /** Legacy marketplace flag — always ADMIN for panel sessions. */
+  /** Legacy marketplace flag - always ADMIN for panel sessions. */
   role: "ADMIN";
   adminRole: AdminPanelRole;
   permissions: AdminModule[];

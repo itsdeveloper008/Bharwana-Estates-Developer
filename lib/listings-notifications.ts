@@ -51,7 +51,7 @@ export function propertyHasUnreadStatusChange(
 ): boolean {
   if (!property.statusUpdatedAt) return false;
   if (property.status !== "REJECTED" && property.status !== "PUBLISHED") return false;
-  // No baseline yet — do not treat historical listings as unread.
+  // No baseline yet - do not treat historical listings as unread.
   if (!lastViewedAt) return false;
   return property.statusUpdatedAt > lastViewedAt;
 }

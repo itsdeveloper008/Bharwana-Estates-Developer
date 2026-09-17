@@ -36,7 +36,7 @@ export function SetPasswordOptional({
   submitLabel = "Sign in",
   successToast = "Password saved. You are signed in.",
 }: {
-  /** @deprecated Ignored — phone accounts never collect email here. */
+  /** @deprecated Ignored - phone accounts never collect email here. */
   defaultEmail?: string;
   /** Pending profile when app session is not committed yet (post-phone signup). */
   profile?: User | null;

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type ConfirmationResult } from "firebase/auth";
@@ -15,7 +16,15 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { useMockAuth } from "@/lib/mock-auth";
-import { firebaseErrorParts, phoneAuthErrorMessage } from "@/lib/phone-auth-errors";
+import {
+  firebaseErrorParts,
+  isNetworkAuthError,
+  isPhoneAlreadyRegisteredError,
+  logPersistentNetworkAuthFailure,
+  phoneAuthErrorMessage,
+  PHONE_ALREADY_REGISTERED_CODE,
+  PHONE_ALREADY_REGISTERED_MESSAGE,
+} from "@/lib/phone-auth-errors";
 import { formatPakistanMobileE164 } from "@/lib/phone-format";
 import {
   clearRecaptchaContainer,
@@ -29,16 +38,18 @@ import {
   type PhoneOtpVerifyValues,
 } from "@/lib/schemas";
 import type { User } from "@/lib/types";
+import { delay } from "@/lib/utils";
 import type { RecaptchaVerifier } from "firebase/auth";
 
 type Step = "phone" | "otp" | "setPassword";
 
 const RESEND_SECONDS = 60;
-/** Client-side OTP validity — must reject before / with Firebase server expiry. */
+/** Client-side OTP validity - must reject before / with Firebase server expiry. */
 const OTP_VALID_SECONDS = 180;
+const NETWORK_RETRY_DELAY_MS = 2000;
 
 /**
- * Phone OTP for **Sign Up only** — one-time ownership proof, then mandatory password.
+ * Phone OTP for **Sign Up only** - one-time ownership proof, then mandatory password.
  * Returning users sign in with phone number + password on the merged Sign In form.
  */
 export function PhoneOtpSection({
@@ -49,10 +60,10 @@ export function PhoneOtpSection({
   /** @deprecated Sign In no longer uses phone OTP. Kept for older call sites. */
   variant?: "login" | "register";
   recaptchaId?: string;
-  /** @deprecated Unused — Sign In is email-or-phone + password only. */
+  /** @deprecated Unused - Sign In is email-or-phone + password only. */
   onPreferPassword?: () => void;
 }) {
-  const { sendPhoneOtp, verifyPhoneOtp } = useMockAuth();
+  const { sendPhoneOtp, verifyPhoneOtp, logout } = useMockAuth();
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const sendInFlightRef = useRef(false);
   const confirmationRef = useRef<ConfirmationResult | null>(null);
@@ -61,6 +72,7 @@ export function PhoneOtpSection({
 
   const [step, setStep] = useState<Step>("phone");
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [roleOpen, setRoleOpen] = useState(false);
   const [draft, setDraft] = useState<GoogleSignupDraft | null>(null);
@@ -81,6 +93,14 @@ export function PhoneOtpSection({
     defaultValues: { otp: "" },
   });
   const otpValue = useWatch({ control: otpForm.control, name: "otp" }) ?? "";
+
+  const showSignInInstead =
+    errorCode === PHONE_ALREADY_REGISTERED_CODE ||
+    (error != null && error === PHONE_ALREADY_REGISTERED_MESSAGE);
+  const signInHref =
+    sentPhone || localPhone
+      ? `/login?phone=${encodeURIComponent(sentPhone || formatPakistanMobileE164(localPhone))}`
+      : "/login";
 
   useEffect(() => {
     return () => {
@@ -113,6 +133,7 @@ export function PhoneOtpSection({
           confirmationRef.current = null;
           setHasConfirmation(false);
           setError("Code expired. Request a new one.");
+          setErrorCode(null);
         }
         return next;
       });
@@ -136,28 +157,59 @@ export function PhoneOtpSection({
     return verifier;
   }
 
+  function applySendFailure(message: string, code?: string | null) {
+    setError(message);
+    setErrorCode(
+      code ?? (message === PHONE_ALREADY_REGISTERED_MESSAGE ? PHONE_ALREADY_REGISTERED_CODE : null),
+    );
+  }
+
   async function sendCode(localDigits: string) {
     if (!isFirebaseConfigured()) {
-      setError("Phone sign-up needs Firebase on this deploy.");
+      applySendFailure("Phone sign-up needs Firebase on this deploy.");
       return false;
     }
     if (sendInFlightRef.current) return false;
     sendInFlightRef.current = true;
     setError(null);
+    setErrorCode(null);
     setPending(true);
     // Resend / retry: discard previous confirmation so the old OTP can never verify.
     confirmationRef.current = null;
     otpExpiresAtRef.current = 0;
     setHasConfirmation(false);
     setOtpSecondsLeft(0);
+    const e164 = formatPakistanMobileE164(localDigits);
     try {
-      const e164 = formatPakistanMobileE164(localDigits);
       console.info("[phone-otp] preparing send", { localDigits, e164 });
-      const verifier = await createFreshRecaptchaVerifier();
-      const result = await sendPhoneOtp(e164, verifier);
+      let verifier = await createFreshRecaptchaVerifier();
+      let result = await sendPhoneOtp(e164, verifier);
+
+      // Transient identitytoolkit / ERR_CONNECTION_CLOSED - one automatic retry with a fresh reCAPTCHA.
+      if (!result.ok && isNetworkAuthError(result.code ?? "", result.error)) {
+        console.warn("[phone-otp] network failure - retrying once after delay", {
+          code: result.code,
+          error: result.error,
+        });
+        await delay(NETWORK_RETRY_DELAY_MS);
+        await resetRecaptcha();
+        verifier = await createFreshRecaptchaVerifier();
+        result = await sendPhoneOtp(e164, verifier);
+        if (!result.ok && isNetworkAuthError(result.code ?? "", result.error)) {
+          logPersistentNetworkAuthFailure(
+            "phone-otp-send",
+            {
+              code: result.code ?? "auth/network-request-failed",
+              message: result.error,
+            },
+            { e164, retried: true },
+          );
+        }
+      }
+
       if (!result.ok) {
-        console.error("[phone-otp] send failed", result.error);
-        setError(result.error);
+        console.error("[phone-otp] send failed", result.error, result.code);
+        applySendFailure(result.error, result.code);
         await resetRecaptcha();
         return false;
       }
@@ -176,7 +228,15 @@ export function PhoneOtpSection({
     } catch (err) {
       const { code, message } = firebaseErrorParts(err);
       console.error("[phone-otp] send exception", { code, message, err });
-      setError(phoneAuthErrorMessage(code, message));
+      if (isNetworkAuthError(code, message)) {
+        logPersistentNetworkAuthFailure("phone-otp-send-exception", err, { e164, retried: false });
+      }
+      applySendFailure(
+        isPhoneAlreadyRegisteredError(code, message)
+          ? PHONE_ALREADY_REGISTERED_MESSAGE
+          : phoneAuthErrorMessage(code, message),
+        isPhoneAlreadyRegisteredError(code, message) ? PHONE_ALREADY_REGISTERED_CODE : code || null,
+      );
       await resetRecaptcha();
       return false;
     } finally {
@@ -204,7 +264,7 @@ export function PhoneOtpSection({
   async function handleVerifyOtp(values: PhoneOtpVerifyValues) {
     const confirmation = confirmationRef.current;
     if (!confirmation) {
-      setError("Request a new code, then try again.");
+      applySendFailure("Request a new code, then try again.");
       setHasConfirmation(false);
       return;
     }
@@ -213,10 +273,11 @@ export function PhoneOtpSection({
       otpExpiresAtRef.current = 0;
       setHasConfirmation(false);
       setOtpSecondsLeft(0);
-      setError("Code expired. Request a new one.");
+      applySendFailure("Code expired. Request a new one.");
       return;
     }
     setError(null);
+    setErrorCode(null);
     setPending(true);
     try {
       console.info("[phone-otp] verifying");
@@ -230,11 +291,11 @@ export function PhoneOtpSection({
           setHasConfirmation(false);
           setOtpSecondsLeft(0);
         }
-        setError(result.error);
+        applySendFailure(result.error);
         otpForm.reset({ otp: "" });
         return;
       }
-      // One-time use — drop confirmation so a stale code cannot be replayed.
+      // One-time use - drop confirmation so a stale code cannot be replayed.
       confirmationRef.current = null;
       otpExpiresAtRef.current = 0;
       setHasConfirmation(false);
@@ -244,9 +305,12 @@ export function PhoneOtpSection({
         setRoleOpen(true);
         return;
       }
-      // Existing phone account — still require Sign In (phone + password) next time.
-      toast.success("Account ready");
-      finishWithUser(result.user);
+      // Existing Auth+Firestore account - signup page must not silently sign them in.
+      logout();
+      setSentPhone(sentPhone || formatPakistanMobileE164(localPhone));
+      applySendFailure(PHONE_ALREADY_REGISTERED_MESSAGE, PHONE_ALREADY_REGISTERED_CODE);
+      setStep("phone");
+      toast.message("This number already has an account.");
     } catch (err) {
       const { code, message } = firebaseErrorParts(err);
       console.error("[phone-otp] verify exception", code, message, err);
@@ -256,7 +320,7 @@ export function PhoneOtpSection({
         setHasConfirmation(false);
         setOtpSecondsLeft(0);
       }
-      setError(phoneAuthErrorMessage(code, message));
+      applySendFailure(phoneAuthErrorMessage(code, message), code || null);
       otpForm.reset({ otp: "" });
     } finally {
       setPending(false);
@@ -266,6 +330,7 @@ export function PhoneOtpSection({
   async function handleChangeNumber() {
     setStep("phone");
     setError(null);
+    setErrorCode(null);
     confirmationRef.current = null;
     otpExpiresAtRef.current = 0;
     setHasConfirmation(false);
@@ -273,6 +338,25 @@ export function PhoneOtpSection({
     setOtpSecondsLeft(0);
     otpForm.reset({ otp: "" });
     await resetRecaptcha();
+  }
+
+  function ErrorAlert() {
+    if (!error) return null;
+    return (
+      <div className="space-y-2" role="alert">
+        <p className="text-sm text-destructive">{error}</p>
+        {showSignInInstead ? (
+          <p className="text-sm text-forest/70">
+            <Link
+              href={signInHref}
+              className="font-medium text-[#1F6B4F] underline-offset-2 hover:text-forest hover:underline"
+            >
+              Sign in instead
+            </Link>
+          </p>
+        ) : null}
+      </div>
+    );
   }
 
   if (!isFirebaseConfigured()) {
@@ -291,7 +375,7 @@ export function PhoneOtpSection({
         submitLabel="Sign in"
         title="Set your password"
         description="Create a password to finish signing up. Next time, sign in with your phone number and this password."
-        successToast="Welcome — you are signed in."
+        successToast="Welcome - you are signed in."
         onDone={(user) => {
           finishWithUser(user);
         }}
@@ -329,11 +413,7 @@ export function PhoneOtpSection({
                   </FormItem>
                 )}
               />
-              {error ? (
-                <p className="text-sm text-destructive" role="alert">
-                  {error}
-                </p>
-              ) : null}
+              <ErrorAlert />
             </form>
           </Form>
         ) : (
@@ -360,11 +440,7 @@ export function PhoneOtpSection({
                   </FormItem>
                 )}
               />
-              {error ? (
-                <p className="text-sm text-destructive" role="alert">
-                  {error}
-                </p>
-              ) : null}
+              <ErrorAlert />
               <Button
                 type="submit"
                 className="w-full"
@@ -381,18 +457,6 @@ export function PhoneOtpSection({
                   "Verify & create account"
                 )}
               </Button>
-              {otpSecondsLeft > 0 ? (
-                <p className="text-center text-xs text-muted-foreground">
-                  Code expires in {otpSecondsLeft}s
-                </p>
-              ) : (
-                <p className="text-center text-xs text-destructive">Code expired — request a new one.</p>
-              )}
-              {secondsLeft > 0 ? (
-                <p className="text-center text-xs text-muted-foreground">
-                  Resend code in {secondsLeft}s
-                </p>
-              ) : null}
             </form>
           </Form>
         )}

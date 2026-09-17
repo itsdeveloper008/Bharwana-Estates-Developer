@@ -6,17 +6,17 @@ export const PASSWORD_REQUIREMENTS = [
   },
   {
     id: "upper",
-    label: "One uppercase letter (A–Z)",
+    label: "One uppercase letter (A-Z)",
     test: (value: string) => /[A-Z]/.test(value),
   },
   {
     id: "lower",
-    label: "One lowercase letter (a–z)",
+    label: "One lowercase letter (a-z)",
     test: (value: string) => /[a-z]/.test(value),
   },
   {
     id: "number",
-    label: "One number (0–9)",
+    label: "One number (0-9)",
     test: (value: string) => /\d/.test(value),
   },
   {

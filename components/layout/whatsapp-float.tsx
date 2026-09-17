@@ -23,7 +23,7 @@ function WhatsAppGlyph({ className }: { className?: string }) {
 
 export function WhatsAppFloat() {
   const pathname = usePathname();
-  // Keep map controls clear — no WhatsApp FAB on /map.
+  // Keep map controls clear - no WhatsApp FAB on /map.
   if (pathname === "/map") return null;
 
   return (

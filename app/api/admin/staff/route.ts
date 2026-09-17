@@ -87,7 +87,7 @@ export async function POST(request: Request) {
 
     await getAdminDb().collection("admins").doc(userRecord.uid).set(doc);
 
-    // Lightweight profile for display — not marketplace ADMIN.
+    // Lightweight profile for display - not marketplace ADMIN.
     await getAdminDb()
       .collection("users")
       .doc(userRecord.uid)

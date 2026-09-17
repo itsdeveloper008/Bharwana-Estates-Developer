@@ -44,7 +44,15 @@ import {
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import { users as seedUsers } from "@/lib/mock-data/users";
 import { isValidPhoneE164, normalizePhoneE164 } from "@/lib/phone-format";
-import { firebaseErrorParts, logFirebaseAuthError, phoneAuthErrorMessage } from "@/lib/phone-auth-errors";
+import {
+  firebaseErrorParts,
+  isNetworkAuthError,
+  isPhoneAlreadyRegisteredError,
+  logFirebaseAuthError,
+  phoneAuthErrorMessage,
+  PHONE_ALREADY_REGISTERED_CODE,
+  PHONE_ALREADY_REGISTERED_MESSAGE,
+} from "@/lib/phone-auth-errors";
 import type { User, UserRole } from "@/lib/types";
 import { authEmailFromLoginIdentifier, isSyntheticPhoneEmail } from "@/lib/user-display";
 import { delay } from "@/lib/utils";
@@ -102,7 +110,10 @@ interface MockAuthContextValue {
   sendPhoneOtp: (
     phone: string,
     verifier: RecaptchaVerifier,
-  ) => Promise<{ ok: true; confirmation: ConfirmationResult } | { ok: false; error: string }>;
+  ) => Promise<
+    | { ok: true; confirmation: ConfirmationResult }
+    | { ok: false; error: string; code?: string }
+  >;
   verifyPhoneOtp: (
     confirmation: ConfirmationResult,
     code: string,
@@ -411,7 +422,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (!isFirebaseConfigured()) {
-        // Mock/local mode only — restore cached session.
+        // Mock/local mode only - restore cached session.
         try {
           const raw = localStorage.getItem(SESSION_KEY);
           if (raw) {
@@ -432,7 +443,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Never leave the UI stuck on "Checking your session…" — Auth network calls can hang
+      // Never leave the UI stuck on "Checking your session…" - Auth network calls can hang
       // (e.g. getProjectConfig ERR_CONNECTION_CLOSED) without rejecting.
       readyTimer = window.setTimeout(() => {
         if (!cancelled) setIsReady(true);
@@ -444,7 +455,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         setIsReady(true);
       };
 
-      // Attach listener first — do not await getRedirectResult (it can hang indefinitely).
+      // Attach listener first - do not await getRedirectResult (it can hang indefinitely).
       unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         if (cancelled) return;
         const syncId = ++authSyncGenerationRef.current;
@@ -457,7 +468,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
               return;
             }
 
-            // Session already committed (e.g. Google popup just finished) — don't block or
+            // Session already committed (e.g. Google popup just finished) - don't block or
             // race another profile fetch that Chrome may cancel.
             if (userRef.current?.id === firebaseUser.uid) {
               markReady();
@@ -492,7 +503,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
                   persist(profile);
                   return;
                 }
-                // Never wipe a password session here — login() may have just committed it.
+                // Never wipe a password session here - login() may have just committed it.
                 if (userRef.current?.id === firebaseUser.uid) return;
                 console.error("Password user has Firebase auth but no Firestore profile");
                 return;
@@ -515,7 +526,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
               return;
             }
 
-            // Google user with no profile yet — role completion, not a logged-in session.
+            // Google user with no profile yet - role completion, not a logged-in session.
             const draft = draftFromFirebaseUser(firebaseUser);
             const pending = readPendingGoogle();
             const samePending =
@@ -709,7 +720,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: true as const, isNewUser: true as const, draft };
     }
 
-    // Popup only — stay on this page; no same-tab / new-tab redirect.
+    // Popup only - stay on this page; no same-tab / new-tab redirect.
     try {
       const result = await signInWithPopup(auth, new GoogleAuthProvider());
       return await finishGoogleUser(result.user);
@@ -772,7 +783,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           `${window.location.pathname}${window.location.search}`,
         );
       }
-      // If identitytoolkit never responds, stay on this page — don't spin forever.
+      // If identitytoolkit never responds, stay on this page - don't spin forever.
       await withAuthTimeout(
         signInWithRedirect(firebaseAuth, provider),
         OAUTH_TIMEOUT_MS,
@@ -791,7 +802,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Mobile: redirect (more reliable than popups in in-app browsers).
-    // Desktop: popup first — same pattern as Google; avoids endless "Connecting…" on hung redirects.
+    // Desktop: popup first - same pattern as Google; avoids endless "Connecting…" on hung redirects.
     if (shouldPreferOAuthRedirect()) {
       try {
         return await startFacebookRedirect();
@@ -822,7 +833,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
           ? String((popupError as { code?: string }).code)
           : "";
       console.error("Facebook popup failed; trying redirect", { code: popupCode, popupError });
-      // Popup blocked or network — try same-tab redirect once.
+      // Popup blocked or network - try same-tab redirect once.
       if (popupCode === "auth/popup-blocked" || popupCode === "auth/popup-closed-by-user") {
         try {
           return await startFacebookRedirect();
@@ -855,10 +866,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     const firebaseUser = auth?.currentUser;
     if (!firebaseUser) return;
-    // Profile was just committed — never tear down a finished signup.
+    // Profile was just committed - never tear down a finished signup.
     if (userRef.current?.id === firebaseUser.uid) return;
 
-    // Incomplete social signup (no Firestore profile yet) — sign out so login form works.
+    // Incomplete social signup (no Firestore profile yet) - sign out so login form works.
     let profile = await loadFirestoreUser(firebaseUser).catch(() => null);
     if (!profile) {
       await delay(500);
@@ -892,14 +903,49 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      // Signup-only OTP: block numbers already on an Auth account before spending SMS/reCAPTCHA.
+      try {
+        const lookup = await fetch("/api/auth/phone-registered", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: normalized }),
+        });
+        if (lookup.ok) {
+          const data = (await lookup.json()) as {
+            registered?: boolean | null;
+            checkSkipped?: boolean;
+          };
+          if (data.registered === true) {
+            return {
+              ok: false as const,
+              error: PHONE_ALREADY_REGISTERED_MESSAGE,
+              code: PHONE_ALREADY_REGISTERED_CODE,
+            };
+          }
+        }
+      } catch (lookupError) {
+        console.warn("[phone-otp] phone-registered pre-check failed; continuing", lookupError);
+      }
+
       try {
         console.info("[phone-otp] signInWithPhoneNumber", { e164: normalized, length: normalized.length });
         const confirmation = await signInWithPhoneNumber(auth, normalized, verifier);
         return { ok: true as const, confirmation };
       } catch (error) {
-        logFirebaseAuthError("phone-otp-send", error, { e164: normalized });
         const { code, message } = firebaseErrorParts(error);
-        return { ok: false as const, error: phoneAuthErrorMessage(code, message) };
+        logFirebaseAuthError("phone-otp-send", error, { e164: normalized });
+        if (isPhoneAlreadyRegisteredError(code, message)) {
+          return {
+            ok: false as const,
+            error: PHONE_ALREADY_REGISTERED_MESSAGE,
+            code: PHONE_ALREADY_REGISTERED_CODE,
+          };
+        }
+        return {
+          ok: false as const,
+          error: phoneAuthErrorMessage(code, message),
+          code: code || (isNetworkAuthError(code, message) ? "auth/network-request-failed" : undefined),
+        };
       }
     },
     [],
@@ -926,7 +972,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         }
 
         const draft = draftFromFirebaseUser(firebaseUser);
-        // Do not set pendingGoogle here — PhoneOtpSection owns the role dialog.
+        // Do not set pendingGoogle here - PhoneOtpSection owns the role dialog.
         // Setting both causes a duplicate "Choose your role" modal with ContinueWithGoogle.
         return { ok: true as const, isNewUser: true as const, draft };
       } catch (error) {
@@ -1178,7 +1224,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
                 : "";
             console.error("[register] Failed", { code, error });
 
-            // Duplicate email — never silently sign the user in (looked like a second account).
+            // Duplicate email - never silently sign the user in (looked like a second account).
             if (code === "auth/email-already-in-use") {
               return {
                 ok: false as const,
@@ -1213,7 +1259,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
               ok: false as const,
               error: firestoreErrorMessage(
                 error,
-                "Account was created but your profile could not be saved. Try signing in once — we will finish setup.",
+                "Account was created but your profile could not be saved. Try signing in once - we will finish setup.",
               ),
             };
           }
@@ -1511,7 +1557,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         return {
           ok: false as const,
           error:
-            "Please sign out, sign back in with your phone number, then try deleting again — or submit a deletion request below.",
+            "Please sign out, sign back in with your phone number, then try deleting again - or submit a deletion request below.",
         };
       } catch (error) {
         const code =

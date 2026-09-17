@@ -2,7 +2,7 @@ export type UserRole = "INDIVIDUAL" | "BUYER" | "HOUSE_OWNER" | "DEALER" | "SALE
 
 export type ListingType = "DIRECT_OWNER" | "BUSINESS";
 
-/** Sell vs rent — kept separate in listing intent */
+/** Sell vs rent - kept separate in listing intent */
 export type ListingPurpose = "SALE" | "RENT";
 
 /** Top-level property class */
@@ -58,7 +58,7 @@ export interface Developer {
   id: string;
   companyName: string;
   contactPerson: string;
-  /** Fraction, e.g. 0.025 = 2.5% — used for future closes only */
+  /** Fraction, e.g. 0.025 = 2.5% - used for future closes only */
   commissionRate: number;
   /** Links a self-registered Dealer user to this developer profile */
   dealerUserId?: string;
@@ -66,7 +66,7 @@ export interface Developer {
   origin: DeveloperOrigin;
   /** Dealer CNIC (XXXXX-XXXXXXX-X) */
   registrationNumber?: string;
-  /** Set when the linked dealer user account is deleted — profile kept for history */
+  /** Set when the linked dealer user account is deleted - profile kept for history */
   accountDeleted?: boolean;
   /** ISO timestamp when the dealer profile was created (retention / admin detail) */
   createdAt?: string;
@@ -87,7 +87,7 @@ export interface Property {
   title: string;
   description: string;
   listingType: ListingType;
-  /** Sell or rent — defaults to SALE for older seed listings */
+  /** Sell or rent - defaults to SALE for older seed listings */
   purpose?: ListingPurpose;
   /** Home / Plots / Commercial */
   category?: PropertyCategory;
@@ -105,14 +105,14 @@ export interface Property {
   images: string[];
   /** Which core specs to emphasize on map cards / detail (defaults to all for category). */
   highlightSpecs?: PropertyHighlightKey[];
-  /** Short custom highlights, e.g. Corner plot — max ~6. */
+  /** Short custom highlights, e.g. Corner plot - max ~6. */
   featureTags?: string[];
   ownerUserId?: string;
   developerId?: string;
   /** Seller contact for Admin follow-up on this listing */
   contactPhone?: string;
   createdAt: string;
-  /** Set when status is REJECTED — latest reason for quick display */
+  /** Set when status is REJECTED - latest reason for quick display */
   rejectionReason?: string;
   /** When status last changed (reject / approve / resubmit) */
   statusUpdatedAt?: string;
@@ -137,12 +137,12 @@ export interface Transaction {
   propertyId: string;
   developerId: string;
   finalPrice: number;
-  /** Rate snapshotted at close — not recalculated if dealer rate changes later */
+  /** Rate snapshotted at close - not recalculated if dealer rate changes later */
   commissionRate: number;
   commissionAmount: number;
   commissionStatus: CommissionStatus;
   closedAt: string;
-  /** Set when the linked dealer account is deleted — financial record retained */
+  /** Set when the linked dealer account is deleted - financial record retained */
   dealerDeleted?: boolean;
 }
 

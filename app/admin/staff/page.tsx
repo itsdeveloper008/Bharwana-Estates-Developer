@@ -257,7 +257,7 @@ export default function AdminStaffPage() {
                   <td className="px-4 py-3 font-medium text-forest">{row.fullName}</td>
                   <td className="px-4 py-3 text-forest/80">{row.email}</td>
                   <td className="px-4 py-3 text-forest/70">
-                    {row.permissions.map((p) => ADMIN_MODULE_LABELS[p]).join(", ") || "—"}
+                    {row.permissions.map((p) => ADMIN_MODULE_LABELS[p]).join(", ") || "-"}
                   </td>
                   <td className="px-4 py-3">
                     <span className={row.active ? "text-forest" : "text-destructive"}>

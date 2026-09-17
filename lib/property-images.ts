@@ -1,4 +1,4 @@
-/** Listing cover / gallery URLs — only our Storage (and Unsplash seed) hosts. */
+/** Listing cover / gallery URLs - only our Storage (and Unsplash seed) hosts. */
 
 const STORAGE_HOSTS = new Set([
   "firebasestorage.googleapis.com",
@@ -8,7 +8,7 @@ const STORAGE_HOSTS = new Set([
 export function isAllowedPropertyImageUrl(url: string): boolean {
   const trimmed = url?.trim() ?? "";
   if (!trimmed) return false;
-  // Local previews before upload — never persist these to Firestore.
+  // Local previews before upload - never persist these to Firestore.
   if (trimmed.startsWith("data:") || trimmed.startsWith("blob:")) return true;
   try {
     const parsed = new URL(trimmed);

@@ -90,7 +90,7 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
     } catch {
       fromRedirect = false;
     }
-    // Only auto-finish after an OAuth redirect return — never for a stale incomplete session.
+    // Only auto-finish after an OAuth redirect return - never for a stale incomplete session.
     if (!fromRedirect) return;
 
     // Wait until auth boot settled on either a profile or a pending Google draft.
@@ -394,12 +394,12 @@ export function LoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
-  // Mount-only autofill wipe. Do NOT depend on `form` — its identity can change and
-  // would clear the password after a failed sign-in (setError re-render).
+  // Mount-only autofill wipe - but keep an explicit ?phone= prefill from signup.
   useEffect(() => {
-    form.reset({ email: "", password: "" });
+    const phonePrefill = (searchParams.get("phone") ?? searchParams.get("identifier") ?? "").trim();
+    form.reset({ email: phonePrefill, password: "" });
     const timer = window.setTimeout(() => {
-      form.reset({ email: "", password: "" });
+      form.reset({ email: phonePrefill, password: "" });
     }, 50);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only

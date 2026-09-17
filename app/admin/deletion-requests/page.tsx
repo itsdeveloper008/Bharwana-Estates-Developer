@@ -76,7 +76,7 @@ export default function AdminDeletionRequestsPage() {
       await purgeUserOwnedData(request.uid);
       await updateDeletionRequestStatus(request.id, "PROCESSED");
       toast.success(
-        `Firestore data for ${request.email} removed. Auth account removal still needs Admin SDK / Cloud Function — finish in Firebase Console or the next backend pass within the 30-day window.`,
+        `Firestore data for ${request.email} removed. Auth account removal still needs Admin SDK / Cloud Function - finish in Firebase Console or the next backend pass within the 30-day window.`,
       );
     } catch (err) {
       console.error(err);
@@ -149,7 +149,7 @@ export default function AdminDeletionRequestsPage() {
       <p className="mb-8 max-w-2xl text-sm text-forest/70">
         Review user deletion requests and run retention cleanup for stale rejected listings (
         {RETENTION_DAYS.REJECTED_PROPERTY}d) and closed-lost inquiries ({RETENTION_DAYS.CLOSED_LOST_INQUIRY}d).
-        Scheduled Cloud Functions are a future backend pass — use Run Cleanup manually for now.
+        Scheduled Cloud Functions are a future backend pass - use Run Cleanup manually for now.
       </p>
 
       {error && (
@@ -187,7 +187,7 @@ export default function AdminDeletionRequestsPage() {
                     <TableCell>{request.fullName}</TableCell>
                     <TableCell>
                       {displayUserEmail(request.email) ??
-                        (isSyntheticPhoneEmail(request.email) ? "Phone only" : "—")}
+                        (isSyntheticPhoneEmail(request.email) ? "Phone only" : "-")}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{formatUserRole(String(request.role))}</Badge>
@@ -195,7 +195,7 @@ export default function AdminDeletionRequestsPage() {
                     <TableCell className="text-xs text-muted-foreground">
                       {new Date(request.createdAt).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="max-w-[12rem] truncate text-xs">{request.note || "—"}</TableCell>
+                    <TableCell className="max-w-[12rem] truncate text-xs">{request.note || "-"}</TableCell>
                     <TableCell>
                       <Button
                         size="sm"

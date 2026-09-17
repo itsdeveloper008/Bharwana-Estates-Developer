@@ -53,7 +53,7 @@ const DEVELOPERS_KEY = "bharwana_developers_v1";
 const TRANSACTIONS_KEY = "bharwana_transactions_v1";
 const USERS_KEY = "bharwana_users_v1";
 
-/** Purge stale mock localStorage — Firestore is the source of truth when configured. */
+/** Purge stale mock localStorage - Firestore is the source of truth when configured. */
 function purgeMockLocalStorage() {
   if (typeof window === "undefined") return;
   try {

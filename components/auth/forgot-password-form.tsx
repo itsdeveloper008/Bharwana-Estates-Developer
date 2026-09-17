@@ -47,13 +47,13 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
     try {
       await sendPasswordResetLink(email);
       setSentTo(email);
-      toast.success("Reset email sent — check inbox and spam.");
+      toast.success("Reset email sent - check inbox and spam.");
     } catch (err) {
       const code =
         err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
       console.error("[forgot-password]", code, err);
       // Firebase may hide user-not-found depending on project settings; when it does surface,
-      // show the same generic confirmation (anti-enumeration) — only after a successful API call
+      // show the same generic confirmation (anti-enumeration) - only after a successful API call
       // would we claim an email was sent. For user-not-found, nothing was delivered.
       if (code === "auth/user-not-found") {
         setSentTo(email);
@@ -82,12 +82,12 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
         <p className="text-sm leading-relaxed text-forest/75">
           If an account with a real email exists for{" "}
           <span className="font-medium text-forest">{sentTo}</span>, Firebase sent a password-reset
-          link. Check inbox and spam. Open the link on this site to set a new password — some email
+          link. Check inbox and spam. Open the link on this site to set a new password. Some email
           scanners can invalidate one-time links if they open them first, so request another if
           needed.
         </p>
         <p className="text-xs text-muted-foreground">
-          Phone-only accounts (no real email) cannot receive reset mail — sign in with phone +
+          Phone-only accounts (no real email) cannot receive reset mail. Sign in with phone +
           password instead.
         </p>
         <Button asChild className="w-full">

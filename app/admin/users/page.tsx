@@ -94,7 +94,7 @@ export default function AdminUsersPage() {
                     <TableCell>
                       {shownEmail ?? (
                         <span className="text-muted-foreground">
-                          {isSyntheticPhoneEmail(user.email) ? "Phone only" : "—"}
+                          {isSyntheticPhoneEmail(user.email) ? "Phone only" : "-"}
                         </span>
                       )}
                     </TableCell>

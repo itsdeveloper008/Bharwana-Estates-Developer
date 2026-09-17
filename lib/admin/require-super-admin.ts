@@ -123,7 +123,7 @@ export async function requireSuperAdmin(
     adminClientEmail: readAdminClientEmail(),
   });
 
-  // Step A — verify the end-user Firebase ID token (local JWT check; does not call Firestore).
+  // Step A - verify the end-user Firebase ID token (local JWT check; does not call Firestore).
   let decoded: { uid: string; email?: string };
   try {
     decoded = await getAdminAuth().verifyIdToken(token);
@@ -151,7 +151,7 @@ export async function requireSuperAdmin(
     };
   }
 
-  // Step B — load admin/staff role from Firestore via the service account.
+  // Step B - load admin/staff role from Firestore via the service account.
   let caller: VerifiedAdminCaller | null;
   try {
     caller = await loadAdminCaller(decoded.uid, decoded.email ?? "");

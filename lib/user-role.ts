@@ -7,7 +7,7 @@ export function isIndividualRole(role: string | null | undefined): boolean {
 
 /** Human label for badges and account UI. */
 export function formatUserRole(role: string | null | undefined): string {
-  if (!role) return "—";
+  if (!role) return "-";
   if (isIndividualRole(role)) return "Individual";
   if (role === "DEALER") return "Dealer";
   if (role === "SALES_REP") return "Sales rep";

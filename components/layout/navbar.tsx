@@ -48,9 +48,9 @@ export function Navbar() {
   const [viewedTick, setViewedTick] = useState(0);
   const menuId = useId();
 
-  /** Always show Sign In for guests — never wait on auth hydration (QA / first paint). */
-  const signedIn = Boolean(user);
-  const showSignIn = !user;
+  /** Marketplace session only - Admin panel sessions must not appear as signed-in on public pages. */
+  const signedIn = Boolean(user) && user!.role !== "ADMIN";
+  const showSignIn = !signedIn;
 
   const listPropertyHref = signedIn
     ? user!.role === "DEALER"
@@ -71,7 +71,7 @@ export function Navbar() {
   }, [user?.id]);
 
   const hasListingUpdates = useMemo(() => {
-    if (!user) return false;
+    if (!user || user.role === "ADMIN") return false;
     const developer = getDeveloperForUser(user.id);
     const mine = properties.filter(
       (property) =>
@@ -168,7 +168,7 @@ export function Navbar() {
       <header
         className={cn(
           "sticky top-0 z-50 w-full",
-          // Fixed height on every page — never animate height (that causes navbar shiver)
+          // Fixed height on every page - never animate height (that causes navbar shiver)
           "h-[72px] md:h-[80px]",
           overHero
             ? "border-b border-white/10 bg-gradient-to-b from-[#082B1D]/70 to-transparent transition-[background-color,border-color,box-shadow] duration-300 ease-out"
@@ -215,7 +215,7 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Primary nav — middle column (not absolute, so it can't overlap actions) */}
+          {/* Primary nav - middle column (not absolute, so it can't overlap actions) */}
           <nav
             aria-label="Primary"
             className="hidden min-w-0 items-center justify-center gap-0.5 xl:flex"
@@ -256,7 +256,7 @@ export function Navbar() {
             })}
           </nav>
 
-          {/* Actions — pinned to the right */}
+          {/* Actions - pinned to the right */}
           <div className="z-10 col-start-2 hidden shrink-0 items-center justify-self-end gap-2 xl:col-start-auto xl:flex xl:gap-3">
             <Link
               href={listPropertyHref}
@@ -384,7 +384,7 @@ export function Navbar() {
             ) : null}
           </div>
 
-          {/* Mobile / tablet controls — used until xl where full desktop bar fits */}
+          {/* Mobile / tablet controls - used until xl where full desktop bar fits */}
           <div className="z-10 col-start-2 flex items-center justify-self-end gap-2 sm:gap-3 xl:hidden">
             <a
               href={phoneHref}

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { digitsOnly, isValidPakistanMobileLocal } from "@/lib/phone-format";
 import { passwordMeetsPolicy } from "@/lib/password-policy";
+import { CITIES } from "@/lib/types";
 
 /** Pakistani CNIC: 13 digits, displayed as XXXXX-XXXXXXX-X (15 chars). */
 export const PK_CNIC_DIGIT_LENGTH = 13;
@@ -35,22 +36,38 @@ export const inquiryFormSchema = z.object({
 
 export type InquiryFormValues = z.infer<typeof inquiryFormSchema>;
 
+const EMPTY_REQUIRED = "This field cannot be empty or contain only spaces";
+
 export const propertyFormSchema = z.object({
-  title: z.string().min(8, "Title should be at least 8 characters"),
+  title: z
+    .string()
+    .trim()
+    .min(1, EMPTY_REQUIRED)
+    .min(8, "Title should be at least 8 characters"),
   description: z
     .string()
+    .trim()
+    .min(1, EMPTY_REQUIRED)
     .min(40, "Give buyers a fuller picture")
     .max(1200, "Keep the description under 1,200 characters"),
   listingType: z.enum(["DIRECT_OWNER", "BUSINESS"]),
   purpose: z.enum(["SALE", "RENT"]),
   category: z.enum(["HOME", "PLOTS", "COMMERCIAL"]),
-  subtype: z.string().min(2, "Select a property type"),
+  subtype: z.string().trim().min(2, "Select a property type"),
   price: z.number().positive("Enter a price"),
   areaSqft: z.number().positive("Enter the covered area"),
   bedrooms: z.number().int().min(0),
   bathrooms: z.number().min(0),
-  address: z.string().min(6, "Enter a street address"),
-  city: z.string().min(2, "Select a city"),
+  address: z
+    .string()
+    .trim()
+    .min(1, EMPTY_REQUIRED)
+    .min(6, "Enter a street address"),
+  city: z
+    .string()
+    .trim()
+    .min(1, "Select a city")
+    .refine((value) => (CITIES as readonly string[]).includes(value), "Select a city"),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   contactPhone: pakistanMobileLocalSchema,
@@ -129,7 +146,7 @@ function looksLikeLoginPhone(value: string) {
   return false;
 }
 
-/** Unified Sign In — email or Pakistani mobile + password. */
+/** Unified Sign In - email or Pakistani mobile + password. */
 export const userLoginSchema = z.object({
   email: z
     .string()

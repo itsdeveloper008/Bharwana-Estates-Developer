@@ -132,7 +132,7 @@ export default function AccountSettingsPage() {
       <p className="type-eyebrow">Account</p>
       <h1 className="mt-3 font-serif text-4xl text-forest">Account Settings</h1>
       <p className="type-subheading mt-4">
-        Manage your Bharwana profile. Deletion is permanent — see our{" "}
+        Manage your Bharwana profile. Deletion is permanent - see our{" "}
         <Link href="/deletion-policy" className="text-gold-700 underline-offset-2 hover:underline">
           Data Deletion
         </Link>{" "}

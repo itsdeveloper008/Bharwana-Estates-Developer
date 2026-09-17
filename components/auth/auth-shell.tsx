@@ -14,7 +14,7 @@ function safeReturnTo(raw: string | null): string | null {
   return raw;
 }
 
-/** Left brand panel — house photo only (~35%). */
+/** Left brand panel - house photo only (~35%). */
 export function AuthBrandPanel() {
   return (
     <div className="relative hidden h-dvh overflow-hidden lg:block">
@@ -78,7 +78,7 @@ export function AuthGuestGate({ children }: { children: ReactNode }) {
     router.replace(pathAfterAuth(returnTo, user.role));
   }, [isReady, user, router, searchParams]);
 
-  // Show the form immediately — never block QA/users on Firebase network stalls.
+  // Show the form immediately - never block QA/users on Firebase network stalls.
   if (isReady && user) {
     return <p className="text-sm text-muted-foreground">Redirecting…</p>;
   }

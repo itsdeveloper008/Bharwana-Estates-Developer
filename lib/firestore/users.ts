@@ -132,7 +132,7 @@ export async function createUserDoc(uid: string, input: UserDocInput): Promise<U
   };
 }
 
-/** Retry profile writes — auth token can lag right after sign-up. */
+/** Retry profile writes - auth token can lag right after sign-up. */
 export async function createUserDocWithRetry(
   uid: string,
   input: UserDocInput,

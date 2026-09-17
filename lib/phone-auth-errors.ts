@@ -1,5 +1,12 @@
 /** User-facing Firebase Phone Auth error messages + diagnostics. */
 
+export const PHONE_ALREADY_REGISTERED_CODE = "auth/phone-number-already-exists";
+export const PHONE_ALREADY_REGISTERED_MESSAGE =
+  "This phone number is already registered. Please sign in instead.";
+
+export const NETWORK_AUTH_ERROR_MESSAGE =
+  "Could not reach Firebase / reCAPTCHA. Check your internet, disable ad blockers for this site, or try another browser/network. You can also sign in with email.";
+
 export function firebaseErrorParts(error: unknown): {
   code: string;
   message: string;
@@ -18,6 +25,35 @@ export function firebaseErrorParts(error: unknown): {
   const customData = err.customData;
   const serverResponse = err.customData?.serverResponse ?? err.serverResponse;
   return { code, message, customData, serverResponse };
+}
+
+export function isNetworkAuthError(code: string, rawMessage = ""): boolean {
+  const normalized = code.toLowerCase();
+  const message = rawMessage.toLowerCase();
+  if (normalized === "auth/network-request-failed") return true;
+  if (message.includes("err_connection_closed")) return true;
+  if (message.includes("network-request-failed")) return true;
+  if (message.includes("failed to fetch") && message.includes("identitytoolkit")) return true;
+  return false;
+}
+
+export function isPhoneAlreadyRegisteredError(code: string, rawMessage = ""): boolean {
+  const normalized = code.toLowerCase();
+  if (
+    normalized === "auth/phone-number-already-exists" ||
+    normalized === "auth/credential-already-in-use" ||
+    normalized === "auth/account-exists-with-different-credential"
+  ) {
+    return true;
+  }
+  const message = rawMessage.toLowerCase();
+  return (
+    message.includes("phone_number_exists") ||
+    message.includes("phone number already") ||
+    message.includes("already registered") ||
+    message.includes("already in use by another account") ||
+    message.includes("phone number is already")
+  );
 }
 
 /** Log the full Auth error so phone / reCAPTCHA failures are diagnosable without screenshots. */
@@ -46,8 +82,48 @@ export function logFirebaseAuthError(context: string, error: unknown, extra?: Re
   }
 }
 
+/**
+ * After a network retry still fails - track frequency / browser / network class.
+ * Does not change the user-facing message.
+ */
+export function logPersistentNetworkAuthFailure(
+  context: string,
+  error: unknown,
+  extra?: Record<string, unknown>,
+) {
+  const parts = firebaseErrorParts(error);
+  const payload = {
+    event: "phone_auth_network_request_failed_after_retry",
+    timestamp: new Date().toISOString(),
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "server",
+    context,
+    code: parts.code || "auth/network-request-failed",
+    message: parts.message,
+    customData: parts.customData,
+    serverResponse: parts.serverResponse,
+    ...extra,
+  };
+  console.error(`[${context}] Persistent phone-auth network failure`, payload);
+  if (typeof window !== "undefined") {
+    (window as Window & { __BHARWANA_LAST_PHONE_NETWORK_FAILURE__?: unknown }).__BHARWANA_LAST_PHONE_NETWORK_FAILURE__ =
+      payload;
+  }
+}
+
 function messageHints(rawMessage: string): string {
   const message = rawMessage.toLowerCase();
+
+  // Already-registered must win over broad "phone number" / recaptcha substring matches.
+  if (
+    message.includes("phone_number_exists") ||
+    message.includes("phone number already") ||
+    message.includes("already registered") ||
+    message.includes("already in use by another account") ||
+    message.includes("phone number is already")
+  ) {
+    return PHONE_ALREADY_REGISTERED_MESSAGE;
+  }
+
   if (message.includes("billing") || message.includes("billing_not_enabled")) {
     return "Phone sign-in requires the Firebase Blaze plan. Ask the project owner to enable billing in Firebase Console.";
   }
@@ -66,7 +142,7 @@ function messageHints(rawMessage: string): string {
     message.includes("app credential") ||
     message.includes("already been rendered")
   ) {
-    return "Could not reach the security check (reCAPTCHA). Disable ad blockers for this site, allow google.com / recaptcha.net, refresh, then try again — or sign in with email.";
+    return "Could not reach the security check (reCAPTCHA). Disable ad blockers for this site, allow google.com / recaptcha.net, refresh, then try again - or sign in with email.";
   }
   if (message.includes("api key") || message.includes("api_key") || message.includes("identity toolkit")) {
     return "Phone sign-in is blocked by API key settings. Ask the project owner to allow Identity Toolkit API on the Firebase web key.";
@@ -83,13 +159,17 @@ function messageHints(rawMessage: string): string {
   ) {
     return "SMS temporarily blocked (Firebase rate limit / anti-abuse). Wait about an hour, try a different number or network, or use a Firebase test phone number. You can also sign in with email.";
   }
-  if (message.includes("invalid phone") || message.includes("phone number")) {
+  if (message.includes("invalid phone") || message.includes("invalid-phone")) {
     return "That phone number looks invalid. Use a Pakistani mobile starting with 3 (10 digits).";
   }
   return "";
 }
 
 export function phoneAuthErrorMessage(code: string, rawMessage = "") {
+  if (isPhoneAlreadyRegisteredError(code, rawMessage)) {
+    return PHONE_ALREADY_REGISTERED_MESSAGE;
+  }
+
   const fromMessage = messageHints(rawMessage);
   if (fromMessage) return fromMessage;
 
@@ -110,7 +190,7 @@ export function phoneAuthErrorMessage(code: string, rawMessage = "") {
       return "Too many attempts. Wait a moment and try again.";
     case "auth/captcha-check-failed":
     case "auth/invalid-app-credential":
-      return "Could not reach the security check (reCAPTCHA). Disable ad blockers for this site, refresh, then try again — or sign in with email.";
+      return "Could not reach the security check (reCAPTCHA). Disable ad blockers for this site, refresh, then try again - or sign in with email.";
     case "auth/invalid-verification-code":
       return "Incorrect code. Check the SMS and try again.";
     case "auth/code-expired":
@@ -122,7 +202,7 @@ export function phoneAuthErrorMessage(code: string, rawMessage = "") {
       // Identity Toolkit maps QuotaExceeded / anti-abuse to opaque "Error code: 39" + HTTP 503.
       return "SMS temporarily blocked (Firebase rate limit / anti-abuse). Wait about an hour, try a different number or network, or use a Firebase test phone number. You can also sign in with email.";
     case "auth/network-request-failed":
-      return "Could not reach Firebase / reCAPTCHA. Check your internet, disable ad blockers for this site, or try another browser/network. You can also sign in with email.";
+      return NETWORK_AUTH_ERROR_MESSAGE;
     case "auth/app-not-authorized":
       return "This domain is not authorized for phone auth. Add it under Firebase Authentication → Settings → Authorized domains.";
     case "auth/argument-error":
@@ -130,13 +210,13 @@ export function phoneAuthErrorMessage(code: string, rawMessage = "") {
     case "auth/credential-already-in-use":
     case "auth/account-exists-with-different-credential":
     case "auth/phone-number-already-exists":
-      return "This number is already in use by another account.";
+      return PHONE_ALREADY_REGISTERED_MESSAGE;
     case "auth/provider-already-linked":
       return "A phone number is already linked to this account. Try updating again.";
     case "auth/requires-recent-login":
       return "For security, sign out and sign back in, then try again.";
     case "auth/internal-error":
-      // Never surface the raw code — not user-actionable.
+      // Never surface the raw code - not user-actionable.
       return "Something went wrong sending your code. Please try again in a moment, or sign in with email instead.";
     default:
       if (code.includes("error-code:-39") || code.includes("error-code:39")) {

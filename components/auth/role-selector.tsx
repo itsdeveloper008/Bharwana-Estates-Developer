@@ -20,7 +20,7 @@ export const ROLE_OPTIONS = [
 
 export type SelectableRole = (typeof ROLE_OPTIONS)[number]["id"];
 
-/** Segmented role control — same pill shell as AuthMethodToggle (Email/Phone). */
+/** Segmented role control - same pill shell as AuthMethodToggle (Email/Phone). */
 export function RoleSelector({
   value,
   onChange,

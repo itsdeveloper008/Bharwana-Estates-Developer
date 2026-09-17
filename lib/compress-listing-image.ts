@@ -3,7 +3,7 @@ import imageCompression from "browser-image-compression";
 /** Hard cap for listing photographs (create + edit). */
 export const MAX_PROPERTY_PHOTOS = 10;
 
-/** Longest edge after resize — enough for web listings, cuts multi‑MB originals. */
+/** Longest edge after resize - enough for web listings, cuts multi-MB originals. */
 export const LISTING_IMAGE_MAX_EDGE = 2200;
 
 /** Starting JPEG quality; library may lower further to hit maxSizeMB. */
@@ -11,7 +11,7 @@ export const LISTING_IMAGE_QUALITY = 0.82;
 
 /**
  * Target ~250KB per photo. browser-image-compression iteratively adjusts to hit this.
- * Quality safeguard: if some detail-heavy photos look soft at 250KB, raise toward 0.35–0.4.
+ * Quality safeguard: if some detail-heavy photos look soft at 250KB, raise toward 0.35-0.4.
  */
 export const LISTING_IMAGE_MAX_MB = 0.25;
 

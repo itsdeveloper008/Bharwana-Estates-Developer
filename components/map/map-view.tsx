@@ -114,7 +114,7 @@ export function MapView({
   const { isLoaded, loadError } = useJsApiLoader({
     id: "bharwana-google-maps",
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    // Skip Roboto / Google fonts fetch — meaningful win on slow networks.
+    // Skip Roboto / Google fonts fetch - meaningful win on slow networks.
     preventGoogleFontsLoading: true,
   });
 
@@ -141,7 +141,7 @@ export function MapView({
   );
 
   const armSuppressMapClick = useCallback(() => {
-    // Overlay clicks also fire GoogleMap onClick — ignore that follow-up click.
+    // Overlay clicks also fire GoogleMap onClick - ignore that follow-up click.
     suppressMapClick.current = true;
     window.setTimeout(() => {
       suppressMapClick.current = false;

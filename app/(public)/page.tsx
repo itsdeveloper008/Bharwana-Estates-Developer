@@ -113,7 +113,7 @@ function WhyBharwanaSection() {
   return (
     <section className="relative overflow-hidden bg-[#F7F3EA] text-[#082B1D]">
       <div className="mx-auto max-w-[1280px] px-5 pb-24 pt-28 sm:px-8 sm:pb-28 sm:pt-32 lg:px-12">
-        {/* Intro + photography — asymmetric */}
+        {/* Intro + photography - asymmetric */}
         <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.35fr)] lg:gap-14 xl:gap-20">
           <div className="relative z-10 max-w-[32rem] lg:pt-10">
             <motion.p
@@ -197,7 +197,7 @@ function WhyBharwanaSection() {
           </motion.div>
         </div>
 
-        {/* Principles — whitespace only, no lines/boxes */}
+        {/* Principles - whitespace only, no lines/boxes */}
         <div className="mt-20 grid gap-12 sm:mt-24 sm:grid-cols-3 sm:gap-10 lg:gap-16">
           {principles.map((item, index) => {
             const isActive = active === index;
@@ -244,7 +244,7 @@ function WhyBharwanaSection() {
           })}
         </div>
 
-        {/* Quote — whitespace separation only */}
+        {/* Quote - whitespace separation only */}
         <motion.blockquote
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}

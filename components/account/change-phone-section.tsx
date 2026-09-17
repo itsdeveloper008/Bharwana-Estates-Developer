@@ -230,7 +230,7 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
     }
   }
 
-  const displayPhone = currentPhone?.trim() || "—";
+  const displayPhone = currentPhone?.trim() || "-";
   const actionLabel = currentPhone?.trim() ? "Change" : "Add";
 
   return (

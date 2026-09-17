@@ -29,7 +29,7 @@ export function MapFallback({ message }: { message?: string }) {
   );
 }
 
-/** Large left-side preview — map stays visible beside it */
+/** Large left-side preview - map stays visible beside it */
 export function MapPreviewCard({
   property,
   onClose,

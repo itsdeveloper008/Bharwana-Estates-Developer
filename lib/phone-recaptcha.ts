@@ -18,7 +18,7 @@ declare global {
 let ensureScriptPromise: Promise<void> | null = null;
 /** Serialize all create/clear work so concurrent retries never double-render one container. */
 let createLock: Promise<unknown> = Promise.resolve();
-/** Last live verifier per container id — survives lost React refs. */
+/** Last live verifier per container id - survives lost React refs. */
 const verifiersByContainer = new Map<string, RecaptchaVerifier>();
 
 /**
@@ -94,7 +94,7 @@ function safeClearVerifier(verifier: RecaptchaVerifier | null | undefined) {
 
 /**
  * grecaptcha tracks render state on the *element node*, not its children.
- * Emptying innerHTML is not enough — replace the node so a new render is allowed.
+ * Emptying innerHTML is not enough - replace the node so a new render is allowed.
  */
 function replaceRecaptchaHost(containerId: string): HTMLElement | null {
   const host = document.getElementById(containerId);
@@ -138,7 +138,7 @@ export async function clearRecaptchaContainer(
  *
  * Note: Firebase Auth may log
  * "Failed to initialize reCAPTCHA Enterprise config. Triggering the reCAPTCHA v2 verification."
- * That is normal when Enterprise is not enforced for Phone — the SDK intentionally falls back to v2.
+ * That is normal when Enterprise is not enforced for Phone - the SDK intentionally falls back to v2.
  */
 export async function createPhoneRecaptchaVerifier(
   auth: Auth,

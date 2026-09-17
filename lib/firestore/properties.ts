@@ -64,7 +64,7 @@ function isRemoteImageUrl(url: string) {
 }
 
 /**
- * Explicit allow-list — never spread the Property object into Firestore.
+ * Explicit allow-list - never spread the Property object into Firestore.
  * Omits `id` (doc path is source of truth) and strips nested undefined.
  */
 function toFirestorePayload(property: Property): Record<string, unknown> {
@@ -90,7 +90,7 @@ function toFirestorePayload(property: Property): Record<string, unknown> {
 
   for (const key of ["price", "areaSqft", "bedrooms", "bathrooms", "latitude", "longitude"] as const) {
     if (!Number.isFinite(payload[key] as number)) {
-      throw new Error(`Invalid numeric field "${key}" — check the listing form values.`);
+      throw new Error(`Invalid numeric field "${key}" - check the listing form values.`);
     }
   }
 
@@ -103,8 +103,9 @@ function toFirestorePayload(property: Property): Record<string, unknown> {
   const highlights = normalizeHighlightKeys(property.highlightSpecs, property.category);
   payload.highlightSpecs = highlights;
   const tags = normalizeFeatureTags(property.featureTags);
+  // Only include tags when present. deleteField() is applied in upsertProperty
+  // on updates (merge:true) - never on create setDoc without merge.
   if (tags.length) payload.featureTags = tags;
-  else payload.featureTags = deleteField();
   if (property.statusUpdatedAt) payload.statusUpdatedAt = property.statusUpdatedAt;
   if (property.rejectionReason?.trim()) payload.rejectionReason = property.rejectionReason.trim();
   if (property.statusHistory?.length) {
@@ -179,7 +180,7 @@ async function resolvePropertyImages(
   const uid = currentUser.uid;
 
   const total = images.length;
-  // Serial uploads — parallel bitmap/canvas on phones often OOMs mid-submit.
+  // Serial uploads - parallel bitmap/canvas on phones often OOMs mid-submit.
   const urls: string[] = [];
   for (let index = 0; index < images.length; index += 1) {
     onProgress?.(index + 1, total);
@@ -372,7 +373,7 @@ export async function seedProperties(properties: Property[], force = false): Pro
 }
 
 export type UpsertPropertyOptions = {
-  /** Parallel to `property.images` — prefer uploading these Files over fetch(blob:). */
+  /** Parallel to `property.images` - prefer uploading these Files over fetch(blob:). */
   imageFiles?: (File | Blob | null | undefined)[];
   /** Called as each photo upload starts (1-based index). */
   onPhotoProgress?: (current: number, total: number) => void;
@@ -386,7 +387,7 @@ export async function upsertProperty(
   if (!db) throw new Error("Firebase is not configured");
 
   // Per-photo timeouts already guard upload + URL fetch. Outer budget must cover
-  // compress slack too — old 90s*n was too tight for 10 photos (upload+URL ≈ 110s each).
+  // compress slack too - old 90s*n was too tight for 10 photos (upload+URL ≈ 110s each).
   const photoCount = Math.max(1, property.images.length || 1);
   const perPhotoBudget = PHOTO_UPLOAD_TIMEOUT_MS + FIRESTORE_WRITE_TIMEOUT_MS + 15_000;
   const uploadBudget = perPhotoBudget * photoCount;
@@ -432,8 +433,14 @@ export async function upsertProperty(
   if (!existing.exists()) {
     payload.createdAt = serverTimestamp();
     delete payload.rejectionReason;
-  } else if (!next.rejectionReason) {
-    payload.rejectionReason = deleteField();
+  } else {
+    if (!next.rejectionReason) {
+      payload.rejectionReason = deleteField();
+    }
+    // Clear stale tags on update when the lister removed them all.
+    if (!normalizeFeatureTags(next.featureTags).length) {
+      payload.featureTags = deleteField();
+    }
   }
 
   // Final safety: never send undefined (nested or top-level)

@@ -23,7 +23,7 @@ const config: Config = {
           100: "#F3E6C4",
           600: "#B48E3A",
           700: "#8F6F2C",
-          /** Eyebrow / small label text — WCAG AA on ivory & cream (≥4.5:1) */
+          /** Eyebrow / small label text - WCAG AA on ivory & cream (≥4.5:1) */
           800: "#7A5C20",
         },
         ivory: "#FBFAF7",

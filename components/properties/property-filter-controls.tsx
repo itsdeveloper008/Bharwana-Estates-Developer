@@ -62,7 +62,7 @@ export function rangeTriggerLabel(
   const hasMin = Number(min) > 0;
   const hasMax = max.trim() !== "" && Number.isFinite(Number(max));
   if (!hasMin && !hasMax) return `${kind} (${unitLabel})`;
-  if (hasMin && hasMax) return `${min}–${max} ${unitLabel}`;
+  if (hasMin && hasMax) return `${min}-${max} ${unitLabel}`;
   if (hasMin) return `${min}+ ${unitLabel}`;
   return `Up to ${max} ${unitLabel}`;
 }

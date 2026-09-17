@@ -58,7 +58,7 @@ export function FeaturedSection() {
         <div
           className="absolute inset-0"
           style={{
-            // Keep the featured wash warm/light through the bottom so it meets forest cleanly —
+            // Keep the featured wash warm/light through the bottom so it meets forest cleanly -
             // no mid-gray or deep-green fade that bands against the next section.
             background:
               "linear-gradient(135deg, rgba(201,162,75,0.2) 0%, rgba(250,247,240,0.85) 42%, rgba(250,247,240,0.95) 100%)",

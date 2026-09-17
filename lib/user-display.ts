@@ -1,4 +1,4 @@
-/** Synthetic emails used for phone-only Firebase Auth accounts — never show in UI. */
+/** Synthetic emails used for phone-only Firebase Auth accounts - never show in UI. */
 const SYNTHETIC_PHONE_EMAIL_SUFFIX = "@phone.bharwana.local";
 
 export function isSyntheticPhoneEmail(email: string | null | undefined): boolean {

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useMockAuth } from "@/lib/mock-auth";
 
-/** Protects /dealer/* — session required; role must be DEALER. */
+/** Protects /dealer/* - session required; role must be DEALER. */
 export function DealerGate({ children }: { children: React.ReactNode }) {
   const { user, isReady } = useMockAuth();
   const router = useRouter();

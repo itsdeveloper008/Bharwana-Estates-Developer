@@ -10,7 +10,7 @@ import {
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
-/** Vercel env vars were saved with a literal "\\n" suffix — strip that and whitespace. */
+/** Vercel env vars were saved with a literal "\\n" suffix - strip that and whitespace. */
 function sanitizeFirebaseEnv(value: string | undefined): string {
   return (value ?? "").trim().replace(/\\n$/g, "").replace(/\n$/g, "").trim();
 }

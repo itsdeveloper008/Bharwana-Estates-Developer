@@ -68,11 +68,11 @@ export default function AdminReportsPage() {
         .filter((p) => inRange(p.createdAt, fromMs, toMs))
         .map((p) => [
           p.id,
-          p.title || "—",
+          p.title || "-",
           p.status,
-          p.city || "—",
-          p.ownerUserId || "—",
-          p.createdAt?.slice(0, 10) || "—",
+          p.city || "-",
+          p.ownerUserId || "-",
+          p.createdAt?.slice(0, 10) || "-",
         ]);
       return {
         title: "Listings report",
@@ -88,11 +88,11 @@ export default function AdminReportsPage() {
         .filter((d) => inRange(d.createdAt, fromMs, toMs))
         .map((d) => [
           d.id,
-          d.companyName || "—",
+          d.companyName || "-",
           d.status,
-          d.contactPerson || "—",
-          d.dealerUserId || "—",
-          d.createdAt?.slice(0, 10) || "—",
+          d.contactPerson || "-",
+          d.dealerUserId || "-",
+          d.createdAt?.slice(0, 10) || "-",
         ]);
       return {
         title: "Dealers report",
@@ -110,9 +110,9 @@ export default function AdminReportsPage() {
           i.id,
           i.status,
           i.channel,
-          i.propertyId || "—",
-          i.buyerId || "—",
-          i.createdAt?.slice(0, 10) || "—",
+          i.propertyId || "-",
+          i.buyerId || "-",
+          i.createdAt?.slice(0, 10) || "-",
         ]);
       return {
         title: "Leads / Inquiries report",
@@ -123,7 +123,7 @@ export default function AdminReportsPage() {
       };
     }
 
-    // users — no createdAt on User type reliably; use whatever we have or include all in range as "all"
+    // users - no createdAt on User type reliably; use whatever we have or include all in range as "all"
     const rows = users
       .filter((u) => {
         const created = (u as { createdAt?: string }).createdAt;
@@ -132,11 +132,11 @@ export default function AdminReportsPage() {
       })
       .map((u) => [
         u.id,
-        u.fullName || "—",
-        u.email || "—",
+        u.fullName || "-",
+        u.email || "-",
         formatUserRole(u.role),
-        u.phone || "—",
-        (u as { createdAt?: string }).createdAt?.slice(0, 10) || "—",
+        u.phone || "-",
+        (u as { createdAt?: string }).createdAt?.slice(0, 10) || "-",
       ]);
     return {
       title: "Users (signups) report",

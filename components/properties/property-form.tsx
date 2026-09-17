@@ -27,6 +27,7 @@ import {
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
+import { CityCombobox } from "@/components/properties/city-combobox";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,7 @@ import {
 import {
   defaultHighlightKeys,
   FEATURE_TAG_MAX_LENGTH,
+  isValidFeatureTag,
   MAX_FEATURE_TAGS,
   normalizeFeatureTags,
   normalizeHighlightKeys,
@@ -233,7 +235,7 @@ export function PropertyForm({
   editId = null,
 }: {
   mode?: FormMode;
-  /** Existing listing id — Edit & Resubmit from My Listings */
+  /** Existing listing id - Edit & Resubmit from My Listings */
   editId?: string | null;
 }) {
   const isAdmin = mode === "admin";
@@ -243,7 +245,7 @@ export function PropertyForm({
     useMockStore();
   const editingProperty = editId ? properties.find((item) => item.id === editId) : undefined;
   const [previews, setPreviews] = useState<string[]>([]);
-  /** Parallel to previews — File for new uploads, null for existing remote URLs. */
+  /** Parallel to previews - File for new uploads, null for existing remote URLs. */
   const [photoFiles, setPhotoFiles] = useState<(File | null)[]>([]);
   const objectUrlsRef = useRef<string[]>([]);
   const [photoError, setPhotoError] = useState(false);
@@ -269,6 +271,33 @@ export function PropertyForm({
   const [adminPublishStatus, setAdminPublishStatus] = useState<AdminPublishChoice>("PUBLISHED");
   const [currentStep, setCurrentStep] = useState(0);
   const [featureTagDraft, setFeatureTagDraft] = useState("");
+  const [featureTagError, setFeatureTagError] = useState<string | null>(null);
+  const photoFingerprintsRef = useRef<string[]>([]);
+
+  function fileFingerprint(file: File | Blob, nameHint = ""): string {
+    const name = file instanceof File ? file.name : nameHint;
+    const modified = file instanceof File ? file.lastModified : 0;
+    return `${name}|${file.size}|${modified}|${file.type}`;
+  }
+
+  function tryAddFeatureTag(current: string[], draft: string): string[] | null {
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      setFeatureTagError("This field cannot be empty or contain only spaces");
+      return null;
+    }
+    if (!isValidFeatureTag(trimmed)) {
+      setFeatureTagError("Use letters (numbers-only or spaces-only tags are not allowed)");
+      return null;
+    }
+    const next = normalizeFeatureTags([...current, trimmed]);
+    if (next.length === current.length) {
+      setFeatureTagError("That feature is already added");
+      return null;
+    }
+    setFeatureTagError(null);
+    return next;
+  }
 
   const houseOwners = useMemo(
     () => users.filter((item) => isIndividualRole(item.role)),
@@ -310,7 +339,7 @@ export function PropertyForm({
       bedrooms: 3,
       bathrooms: 3,
       address: "",
-      city: "Lahore",
+      city: "",
       latitude: CITY_COORDS.Lahore.latitude,
       longitude: CITY_COORDS.Lahore.longitude,
       contactPhone: "",
@@ -320,7 +349,26 @@ export function PropertyForm({
   });
 
   const listingType = form.watch("listingType") ?? "DIRECT_OWNER";
+  const watchedTitle = form.watch("title") ?? "";
+  const watchedDescription = form.watch("description") ?? "";
+  const watchedCity = form.watch("city") ?? "";
   const { isSubmitting, errors } = form.formState;
+
+  const cityMismatchWarning = useMemo(() => {
+    const city = watchedCity.trim();
+    if (!city) return null;
+    const title = watchedTitle.trim();
+    const description = watchedDescription.trim();
+    if (!title && !description) return null;
+    const haystack = `${title} ${description}`.toLowerCase();
+    if (haystack.includes(city.toLowerCase())) return null;
+    // Soft check: only warn when copy already names a different known city.
+    const mentionsOtherCity = CITIES.some(
+      (item) => item !== city && haystack.includes(item.toLowerCase()),
+    );
+    if (!mentionsOtherCity) return null;
+    return "Your selected city doesn't match the city mentioned in your title/description - please double check";
+  }, [watchedCity, watchedTitle, watchedDescription]);
 
   useEffect(() => {
     if (!editingProperty) return;
@@ -348,6 +396,7 @@ export function PropertyForm({
       .slice(0, MAX_PROPERTY_PHOTOS);
     setPreviews(safeImages);
     setPhotoFiles(safeImages.map(() => null));
+    photoFingerprintsRef.current = safeImages.map((url) => `remote:${url}`);
     setPhotoError(false);
   }, [editingProperty?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -500,7 +549,7 @@ export function PropertyForm({
 
     const slotsLeft = MAX_PROPERTY_PHOTOS - previews.length;
     if (slotsLeft <= 0) {
-      toast.error(`Maximum ${MAX_PROPERTY_PHOTOS} photos reached — remove one to add another.`);
+      toast.error(`Maximum ${MAX_PROPERTY_PHOTOS} photos reached - remove one to add another.`);
       return;
     }
 
@@ -511,13 +560,35 @@ export function PropertyForm({
       return;
     }
 
-    const toAdd = acceptable.slice(0, slotsLeft);
-    const skippedOverCap = acceptable.length - toAdd.length;
+    const unique: File[] = [];
+    let duplicateCount = 0;
+    for (const file of acceptable) {
+      const fp = fileFingerprint(file);
+      if (photoFingerprintsRef.current.includes(fp) || unique.some((item) => fileFingerprint(item) === fp)) {
+        duplicateCount += 1;
+        continue;
+      }
+      unique.push(file);
+    }
+    if (duplicateCount > 0 && !unique.length) {
+      toast.error("This photo has already been added.");
+      return;
+    }
+    if (duplicateCount > 0) {
+      toast.message(
+        duplicateCount === 1
+          ? "This photo has already been added."
+          : `${duplicateCount} duplicate photos were skipped.`,
+      );
+    }
+
+    const toAdd = unique.slice(0, slotsLeft);
+    const skippedOverCap = unique.length - toAdd.length;
     if (skippedOverCap > 0) {
       toast.message(
-        `Only ${slotsLeft} more photo${slotsLeft === 1 ? "" : "s"} can be added (${MAX_PROPERTY_PHOTOS} max) — the rest were not uploaded.`,
+        `Only ${slotsLeft} more photo${slotsLeft === 1 ? "" : "s"} can be added (${MAX_PROPERTY_PHOTOS} max) - the rest were not uploaded.`,
       );
-    } else if (rejectedType > 0) {
+    } else if (rejectedType > 0 && duplicateCount === 0) {
       toast.message("Some files were skipped (not images).");
     }
 
@@ -525,19 +596,26 @@ export function PropertyForm({
     try {
       const nextUrls: string[] = [];
       const nextFiles: File[] = [];
+      const nextFingerprints: string[] = [];
       for (const file of toAdd) {
         try {
+          const fingerprint = fileFingerprint(file);
           const compressed = await compressListingImage(file);
           const url = URL.createObjectURL(compressed);
           objectUrlsRef.current.push(url);
           nextUrls.push(url);
           nextFiles.push(compressed);
+          nextFingerprints.push(fingerprint);
         } catch (error) {
           console.error("[property-form] compress failed", error);
           toast.error(`Could not compress ${file.name}. Try a JPG or PNG.`);
         }
       }
       if (nextUrls.length) {
+        photoFingerprintsRef.current = [...photoFingerprintsRef.current, ...nextFingerprints].slice(
+          0,
+          MAX_PROPERTY_PHOTOS,
+        );
         setPreviews((current) => [...current, ...nextUrls].slice(0, MAX_PROPERTY_PHOTOS));
         setPhotoFiles((current) => [...current, ...nextFiles].slice(0, MAX_PROPERTY_PHOTOS));
         setPhotoError(false);
@@ -558,6 +636,7 @@ export function PropertyForm({
       return current.filter((_, i) => i !== index);
     });
     setPhotoFiles((current) => current.filter((_, i) => i !== index));
+    photoFingerprintsRef.current = photoFingerprintsRef.current.filter((_, i) => i !== index);
   }
 
   function movePreview(index: number, direction: -1 | 1) {
@@ -575,6 +654,11 @@ export function PropertyForm({
       [copy[index], copy[target]] = [copy[target], copy[index]];
       return copy;
     });
+    const target = index + direction;
+    if (target < 0 || target >= photoFingerprintsRef.current.length) return;
+    const copy = [...photoFingerprintsRef.current];
+    [copy[index], copy[target]] = [copy[target], copy[index]];
+    photoFingerprintsRef.current = copy;
   }
 
   async function createOwnerQuick(): Promise<User | null> {
@@ -793,7 +877,7 @@ export function PropertyForm({
             ? "This listing is live on the marketplace and map."
             : isAdmin
               ? "Saved to the verification queue for another admin to review."
-              : "Your property has been submitted for review. Our team will verify the details and publish it within 24–48 hours."}
+              : "Your property has been submitted for review. Our team will verify the details and publish it within 24-48 hours."}
         </p>
         <div className="mx-auto mt-8 max-w-md border border-forest/10 bg-ivory px-5 py-4 text-left">
           <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Summary</p>
@@ -1377,7 +1461,7 @@ export function PropertyForm({
                     <FormItem className="mt-4">
                       <FormLabel className="mb-0.5">Extra features (optional)</FormLabel>
                       <p className="mb-2 text-xs text-muted-foreground">
-                        Up to {MAX_FEATURE_TAGS} short tags — e.g. Corner plot, Basement.
+                        Up to {MAX_FEATURE_TAGS} short tags - e.g. Corner plot, Basement.
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {tags.map((tag) => (
@@ -1406,11 +1490,15 @@ export function PropertyForm({
                             placeholder="Add a feature"
                             value={featureTagDraft}
                             maxLength={FEATURE_TAG_MAX_LENGTH}
-                            onChange={(event) => setFeatureTagDraft(event.target.value)}
+                            onChange={(event) => {
+                              setFeatureTagDraft(event.target.value);
+                              if (featureTagError) setFeatureTagError(null);
+                            }}
                             onKeyDown={(event) => {
                               if (event.key !== "Enter") return;
                               event.preventDefault();
-                              const next = normalizeFeatureTags([...tags, featureTagDraft]);
+                              const next = tryAddFeatureTag(tags, featureTagDraft);
+                              if (!next) return;
                               field.onChange(next);
                               setFeatureTagDraft("");
                             }}
@@ -1420,7 +1508,8 @@ export function PropertyForm({
                             variant="outline"
                             className="rounded-xl"
                             onClick={() => {
-                              const next = normalizeFeatureTags([...tags, featureTagDraft]);
+                              const next = tryAddFeatureTag(tags, featureTagDraft);
+                              if (!next) return;
                               field.onChange(next);
                               setFeatureTagDraft("");
                             }}
@@ -1428,6 +1517,11 @@ export function PropertyForm({
                             Add
                           </Button>
                         </div>
+                      ) : null}
+                      {featureTagError ? (
+                        <p className="text-sm text-destructive" role="alert">
+                          {featureTagError}
+                        </p>
                       ) : null}
                       <FormMessage />
                     </FormItem>
@@ -1440,33 +1534,24 @@ export function PropertyForm({
               <FormField
                 control={form.control}
                 name="city"
-                render={({ field }) => (
+                render={({ field, fieldState }) => (
                   <FormItem>
                     <FormLabel className="mb-0.5">City</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        const coords = CITY_COORDS[value];
-                        if (coords) {
-                          form.setValue("latitude", coords.latitude);
-                          form.setValue("longitude", coords.longitude);
-                        }
-                      }}
-                    >
-                      <FormControl>
-                        <SelectTrigger className={fieldFocus}>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {CITIES.map((city) => (
-                          <SelectItem key={city} value={city}>
-                            {city}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <CityCombobox
+                        value={field.value}
+                        hasError={Boolean(fieldState.error)}
+                        className={fieldFocus}
+                        onChange={(value) => {
+                          field.onChange(value);
+                          const coords = CITY_COORDS[value];
+                          if (coords) {
+                            form.setValue("latitude", coords.latitude);
+                            form.setValue("longitude", coords.longitude);
+                          }
+                        }}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1485,6 +1570,11 @@ export function PropertyForm({
                 )}
               />
             </div>
+            {cityMismatchWarning ? (
+              <p className="rounded-xl border border-amber-500/30 bg-amber-50/80 px-3 py-2 text-sm text-amber-900/90">
+                {cityMismatchWarning}
+              </p>
+            ) : null}
             <FormField
               control={form.control}
               name="contactPhone"
@@ -1534,7 +1624,7 @@ export function PropertyForm({
             {previews.length >= MAX_PROPERTY_PHOTOS ? (
               <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-forest/20 bg-cream/50 px-6 py-10 text-center">
                 <p className="text-sm font-medium text-forest">
-                  Maximum {MAX_PROPERTY_PHOTOS} photos reached — remove one to add another
+                  Maximum {MAX_PROPERTY_PHOTOS} photos reached - remove one to add another
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">First photo is the cover.</p>
               </div>
@@ -1694,33 +1784,6 @@ export function PropertyForm({
                 {submitError}
               </p>
             ) : null}
-
-            <div
-              className={cn(
-                "flex flex-col items-stretch gap-2 sm:items-end",
-                isAdmin && "border-t border-gold/20 pt-5",
-              )}
-            >
-              <Button
-                type="submit"
-                disabled={isSubmitting || compressingPhotos}
-                className="sm:min-w-[220px]"
-              >
-                {compressingPhotos
-                  ? "Compressing photos…"
-                  : uploadProgress
-                    ? `Uploading photo ${uploadProgress.current} of ${uploadProgress.total}…`
-                    : isSubmitting
-                      ? isAdmin && adminPublishStatus === "PUBLISHED"
-                        ? "Publishing…"
-                        : "Uploading photos…"
-                      : isAdmin
-                        ? adminPublishStatus === "PUBLISHED"
-                          ? "Publish Immediately"
-                          : "Save as Pending Review"
-                        : "Submit for review"}
-              </Button>
-            </div>
           </div>
             </>
           )}
@@ -1738,7 +1801,27 @@ export function PropertyForm({
               <Button type="button" onClick={() => void handleContinue()} className="min-w-[140px]">
                 Continue
               </Button>
-            ) : null}
+            ) : (
+              <Button
+                type="submit"
+                disabled={isSubmitting || compressingPhotos}
+                className="min-w-[180px] sm:min-w-[220px]"
+              >
+                {compressingPhotos
+                  ? "Compressing photos…"
+                  : uploadProgress
+                    ? `Uploading photo ${uploadProgress.current} of ${uploadProgress.total}…`
+                    : isSubmitting
+                      ? isAdmin && adminPublishStatus === "PUBLISHED"
+                        ? "Publishing…"
+                        : "Uploading photos…"
+                      : isAdmin
+                        ? adminPublishStatus === "PUBLISHED"
+                          ? "Publish Immediately"
+                          : "Save as Pending Review"
+                        : "Submit for review"}
+              </Button>
+            )}
           </div>
         </form>
       </Form>

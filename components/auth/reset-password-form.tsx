@@ -46,7 +46,7 @@ function classifyVerifyError(code: string): InvalidReason {
   return "invalid";
 }
 
-/** Completes Firebase password reset on our domain — only confirmPasswordReset consumes the code. */
+/** Completes Firebase password reset on our domain - only confirmPasswordReset consumes the code. */
 export function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const verifiedOnce = useRef(false);
@@ -92,7 +92,7 @@ export function ResetPasswordForm() {
 
     void (async () => {
       try {
-        // verifyPasswordResetCode does NOT consume the oobCode — safe on load / for scanners.
+        // verifyPasswordResetCode does NOT consume the oobCode - safe on load / for scanners.
         console.info("[reset-password] verifying oobCode (non-consuming)");
         const email = await verifyPasswordResetCode(auth, oobCode);
         setLink({ status: "ready", oobCode, email });

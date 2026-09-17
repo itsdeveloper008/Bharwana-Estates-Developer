@@ -26,12 +26,22 @@ export function normalizeHighlightKeys(
   return picked.length > 0 ? picked : defaultHighlightKeys(category);
 }
 
+export function isValidFeatureTag(raw: string): boolean {
+  const tag = raw.trim().replace(/\s+/g, " ");
+  if (!tag || tag.length > FEATURE_TAG_MAX_LENGTH) return false;
+  // Reject whitespace-only (already trimmed) and pure numbers.
+  if (/^\d+(\.\d+)?$/.test(tag)) return false;
+  // Require at least one letter (Latin or Arabic script).
+  if (!/[A-Za-z\u0600-\u06FF]/.test(tag)) return false;
+  return true;
+}
+
 export function normalizeFeatureTags(tags: string[] | undefined): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of tags ?? []) {
+    if (!isValidFeatureTag(raw)) continue;
     const tag = raw.trim().replace(/\s+/g, " ");
-    if (!tag || tag.length > FEATURE_TAG_MAX_LENGTH) continue;
     const key = tag.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -48,7 +58,7 @@ export type PropertyFeatureDisplay = {
   icon: typeof BedDouble;
 };
 
-/** Bold map/detail feature rows — core specs the lister chose to highlight. */
+/** Bold map/detail feature rows - core specs the lister chose to highlight. */
 export function propertyHighlightDisplay(property: Property): PropertyFeatureDisplay[] {
   const keys = normalizeHighlightKeys(property.highlightSpecs, property.category);
   const items: PropertyFeatureDisplay[] = [];

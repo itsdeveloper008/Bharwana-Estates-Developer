@@ -234,7 +234,7 @@ function flagPendingDealers(developers: Developer[]) {
   return developers
     .filter((developer) => {
       if (developer.status !== "PENDING_REVIEW" || developer.accountDeleted) return false;
-      // Missing createdAt = legacy docs — include so Admin can see/clean them.
+      // Missing createdAt = legacy docs - include so Admin can see/clean them.
       return !developer.createdAt || developer.createdAt <= cutoff;
     })
     .map((developer) => ({

@@ -3,7 +3,7 @@ import type { Property } from "@/lib/types";
 /** Optional. Used only for Mapbox Geocoding in the listing pin picker. */
 export const MAPBOX_TOKEN = (process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "").trim();
 
-/** Google Maps JavaScript API — /map view + map type modes (roadmap / satellite / hybrid / terrain). */
+/** Google Maps JavaScript API - /map view + map type modes (roadmap / satellite / hybrid / terrain). */
 export const GOOGLE_MAPS_API_KEY = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "").trim();
 
 export function hasMapboxToken() {
@@ -18,7 +18,7 @@ export function warnMissingMapKeys() {
   if (process.env.NODE_ENV !== "development") return;
   if (!hasGoogleMapsKey()) {
     console.warn(
-      "[Bharwana] Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY — enable Maps JavaScript API and add the key to .env.local.",
+      "[Bharwana] Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY - enable Maps JavaScript API and add the key to .env.local.",
     );
   }
   if (!hasMapboxToken()) {
@@ -67,7 +67,7 @@ export const MAP_STYLE = {
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       ],
       tileSize: 256,
-      attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
+      attribution: "Tiles © Esri - Source: Esri, Maxar, Earthstar Geographics",
       maxzoom: 19,
     },
   },

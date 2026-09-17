@@ -30,7 +30,7 @@ npm run dev
 1. Create a project at [Firebase Console](https://console.firebase.google.com/).
 2. Add a **Web** app → copy config into `.env.local`.
 3. Enable **Firestore** and **Storage**.
-4. Deploy rules (dev-open rules are in the repo — tighten before production):
+4. Deploy rules (dev-open rules are in the repo - tighten before production):
 
 ```bash
 # optional CLI
@@ -42,7 +42,7 @@ firebase init firestore storage   # or paste rules from firestore.rules / storag
 Or in Console → Firestore → Rules / Storage → Rules, paste `firestore.rules` and `storage.rules`.
 
 5. Sign in to Admin → `/admin/login` → **Seed Firestore** on the dashboard (writes `teamMembers` + `properties` if empty).
-6. Edit team at `/admin/team` — changes sync to `/about` via Firestore.
+6. Edit team at `/admin/team` - changes sync to `/about` via Firestore.
 
 Without Firebase env vars the app still runs on local seed/mock data.
 
@@ -88,7 +88,7 @@ Never commit `.env.local`.
 
 1. Go to [vercel.com](https://vercel.com) → **Add New Project** → import the GitHub repo.
 2. Framework: **Next.js** (auto-detected).
-3. **Environment Variables** — add the same keys as `.env.local`:
+3. **Environment Variables** - add the same keys as `.env.local`:
    - `NEXT_PUBLIC_FIREBASE_*` (all six)
    - `NEXT_PUBLIC_MAPBOX_TOKEN` (optional)
 4. Deploy.

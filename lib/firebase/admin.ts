@@ -2,7 +2,7 @@ import { getApps, initializeApp, cert, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
-/** Prefer REST over gRPC for Firestore on Vercel/serverless — avoids flaky gRPC auth. */
+/** Prefer REST over gRPC for Firestore on Vercel/serverless - avoids flaky gRPC auth. */
 if (!process.env.FIRESTORE_PREFER_REST) {
   process.env.FIRESTORE_PREFER_REST = "true";
 }
@@ -47,7 +47,7 @@ function adminConfigured(): boolean {
 }
 
 /**
- * Server-only: presence / PEM armor fingerprint — never logs key body bytes.
+ * Server-only: presence / PEM armor fingerprint - never logs key body bytes.
  */
 function logAdminCredentialPresence(phase: string) {
   const projectId = readAdminProjectId();

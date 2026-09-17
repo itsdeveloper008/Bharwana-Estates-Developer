@@ -1,4 +1,4 @@
-/** Admin panel module keys — match sidebar / route gates. */
+/** Admin panel module keys - match sidebar / route gates. */
 export const ADMIN_MODULES = [
   "dashboard",
   "submissions",
@@ -15,7 +15,7 @@ export const ADMIN_MODULES = [
 
 export type AdminModule = (typeof ADMIN_MODULES)[number];
 
-/** Super-Admin-only — never assignable to staff. */
+/** Super-Admin-only - never assignable to staff. */
 export type AdminPanelRole = "super_admin" | "staff";
 
 export const ADMIN_MODULE_LABELS: Record<AdminModule, string> = {

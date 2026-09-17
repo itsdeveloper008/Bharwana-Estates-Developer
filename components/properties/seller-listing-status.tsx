@@ -50,7 +50,7 @@ export function SellerRejectionNotice({ property }: { property: Property }) {
   if (property.status !== "REJECTED") return null;
 
   const reason =
-    property.rejectionReason?.trim() || "Not approved — contact support for details";
+    property.rejectionReason?.trim() || "Not approved - contact support for details";
   const rejectionEntries = (property.statusHistory ?? [])
     .filter((entry) => entry.status === "REJECTED")
     .slice()
