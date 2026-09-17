@@ -2,21 +2,29 @@ import { getApps, initializeApp, cert, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
-/**
- * Normalize the PEM private key from Vercel / .env.
- * Handles: wrapping quotes, literal `\n` / `\r\n`, and real multiline pastes.
- */
-export function readPrivateKey(): string {
-  let raw = process.env.FIREBASE_ADMIN_PRIVATE_KEY ?? "";
-  raw = raw.trim();
+/** Prefer REST over gRPC for Firestore on Vercel/serverless — avoids flaky gRPC auth. */
+if (!process.env.FIRESTORE_PREFER_REST) {
+  process.env.FIRESTORE_PREFER_REST = "true";
+}
 
-  // dotenv / some paste flows keep surrounding quotes as part of the value
+function readEnv(name: string): string {
+  let raw = process.env[name] ?? "";
+  raw = raw.trim();
   if (
     (raw.startsWith('"') && raw.endsWith('"')) ||
     (raw.startsWith("'") && raw.endsWith("'"))
   ) {
     raw = raw.slice(1, -1).trim();
   }
+  return raw;
+}
+
+/**
+ * Normalize the PEM private key from Vercel / .env.
+ * Handles: wrapping quotes, literal `\n` / `\r\n`, and real multiline pastes.
+ */
+export function readPrivateKey(): string {
+  let raw = readEnv("FIREBASE_ADMIN_PRIVATE_KEY");
 
   // Convert escaped newlines (possibly double-escaped from copy/paste)
   for (let i = 0; i < 3 && (raw.includes("\\n") || raw.includes("\\r")); i += 1) {
@@ -26,37 +34,48 @@ export function readPrivateKey(): string {
   return raw.replace(/\r\n/g, "\n").trim();
 }
 
+export function readAdminProjectId(): string {
+  return readEnv("FIREBASE_ADMIN_PROJECT_ID") || readEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID");
+}
+
+export function readAdminClientEmail(): string {
+  return readEnv("FIREBASE_ADMIN_CLIENT_EMAIL");
+}
+
 function adminConfigured(): boolean {
-  return Boolean(
-    process.env.FIREBASE_ADMIN_PROJECT_ID?.trim() &&
-      process.env.FIREBASE_ADMIN_CLIENT_EMAIL?.trim() &&
-      readPrivateKey(),
-  );
+  return Boolean(readAdminProjectId() && readAdminClientEmail() && readPrivateKey());
 }
 
 /**
  * Server-only: presence / PEM armor fingerprint — never logs key body bytes.
- * Confirms the value starts/ends with BEGIN/END PRIVATE KEY after parsing.
  */
 function logAdminCredentialPresence(phase: string) {
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID?.trim() ?? "";
-  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL?.trim() ?? "";
+  const projectId = readAdminProjectId();
+  const clientEmail = readAdminClientEmail();
   const privateKey = readPrivateKey();
   const lines = privateKey.split("\n").filter(Boolean);
   const firstLine = lines[0] ?? "";
   const lastLine = lines[lines.length - 1] ?? "";
+  const publicProjectId = readEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID");
   console.info(`[firebase-admin] ${phase}`, {
-    projectIdPresent: Boolean(projectId),
+    projectId,
     projectIdLength: projectId.length,
-    clientEmailPresent: Boolean(clientEmail),
-    clientEmailLooksValid: clientEmail.includes("@") && clientEmail.includes("."),
+    publicProjectId,
+    projectIdsMatch: Boolean(projectId) && projectId === publicProjectId,
+    clientEmail,
+    clientEmailLength: clientEmail.length,
+    clientEmailLooksValid: clientEmail.includes("@") && clientEmail.endsWith(".iam.gserviceaccount.com"),
     privateKeyPresent: Boolean(privateKey),
     privateKeyLength: privateKey.length,
     privateKeyNewlineCount: (privateKey.match(/\n/g) ?? []).length,
     privateKeyFirstLine: firstLine.slice(0, 40),
     privateKeyLastLine: lastLine.slice(-40),
-    privateKeyStartsWithBegin: firstLine.startsWith("-----BEGIN PRIVATE KEY-----") || firstLine.startsWith("-----BEGIN RSA PRIVATE KEY-----"),
-    privateKeyEndsWithEnd: lastLine.startsWith("-----END PRIVATE KEY-----") || lastLine.startsWith("-----END RSA PRIVATE KEY-----"),
+    privateKeyStartsWithBegin:
+      firstLine.startsWith("-----BEGIN PRIVATE KEY-----") ||
+      firstLine.startsWith("-----BEGIN RSA PRIVATE KEY-----"),
+    privateKeyEndsWithEnd:
+      lastLine.startsWith("-----END PRIVATE KEY-----") ||
+      lastLine.startsWith("-----END RSA PRIVATE KEY-----"),
   });
 }
 
@@ -79,8 +98,8 @@ export function getFirebaseAdminApp(): App {
     );
   }
 
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID!.trim();
-  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL!.trim();
+  const projectId = readAdminProjectId();
+  const clientEmail = readAdminClientEmail();
   const privateKey = readPrivateKey();
 
   if (
@@ -100,6 +119,7 @@ export function getFirebaseAdminApp(): App {
         clientEmail,
         privateKey,
       }),
+      projectId,
     });
   } catch (error) {
     console.error("[firebase-admin] initializeApp/cert failed", error);

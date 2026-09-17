@@ -1,5 +1,11 @@
 import { ALL_ADMIN_MODULES, normalizePermissions, type AdminDoc, type AdminModule, type AdminPanelRole } from "@/lib/admin/modules";
-import { getAdminAuth, getAdminDb, isFirebaseAdminConfigured } from "@/lib/firebase/admin";
+import {
+  getAdminAuth,
+  getAdminDb,
+  isFirebaseAdminConfigured,
+  readAdminClientEmail,
+  readAdminProjectId,
+} from "@/lib/firebase/admin";
 
 export type VerifiedAdminCaller = {
   uid: string;
@@ -14,6 +20,33 @@ function bearerToken(request: Request): string | null {
   if (!header) return null;
   const match = /^Bearer\s+(.+)$/i.exec(header.trim());
   return match?.[1]?.trim() || null;
+}
+
+function errorCode(error: unknown): string {
+  if (error && typeof error === "object" && "code" in error) {
+    return String((error as { code?: string }).code ?? "");
+  }
+  return "";
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isServiceAccountAuthFailure(error: unknown): boolean {
+  const message = errorMessage(error);
+  const code = errorCode(error);
+  return (
+    code === "16" ||
+    code === "UNAUTHENTICATED" ||
+    message.includes("UNAUTHENTICATED") ||
+    message.includes("invalid authentication credentials") ||
+    message.includes("Failed to parse private key") ||
+    message.includes("FIREBASE_ADMIN_PRIVATE_KEY") ||
+    message.includes("error:1E") ||
+    message.includes("DECODER") ||
+    code.startsWith("app/")
+  );
 }
 
 /** Resolve panel role from admins/{uid} + legacy users.role === ADMIN. */
@@ -82,43 +115,75 @@ export async function requireSuperAdmin(
     return { ok: false, status: 401, error: "Missing Authorization bearer token." };
   }
 
+  console.info("[requireSuperAdmin] token received", {
+    length: token.length,
+    prefix: token.slice(0, 10),
+    suffix: token.slice(-10),
+    adminProjectId: readAdminProjectId(),
+    adminClientEmail: readAdminClientEmail(),
+  });
+
+  // Step A — verify the end-user Firebase ID token (local JWT check; does not call Firestore).
+  let decoded: { uid: string; email?: string };
   try {
-    const decoded = await getAdminAuth().verifyIdToken(token);
-    const caller = await loadAdminCaller(decoded.uid, decoded.email ?? "");
-    if (!caller) {
-      return { ok: false, status: 403, error: "Not an admin account." };
-    }
-    if (caller.adminRole !== "super_admin") {
-      return { ok: false, status: 403, error: "Only Super Admins can manage staff." };
-    }
-    return { ok: true, caller };
+    decoded = await getAdminAuth().verifyIdToken(token);
+    console.info("[requireSuperAdmin] verifyIdToken ok", {
+      uid: decoded.uid,
+      email: decoded.email ?? null,
+    });
   } catch (error) {
-    console.error("[requireSuperAdmin]", error);
-    const message = error instanceof Error ? error.message : String(error);
-    const code =
-      error && typeof error === "object" && "code" in error
-        ? String((error as { code?: string }).code)
-        : "";
-    // Surface Admin SDK / PEM issues clearly (not a bad user token).
-    if (
-      message.includes("FIREBASE_ADMIN_PRIVATE_KEY") ||
-      message.includes("Failed to parse private key") ||
-      message.includes("error:1E") ||
-      message.includes("DECODER") ||
-      code.startsWith("app/")
-    ) {
+    console.error("[requireSuperAdmin] verifyIdToken failed", error);
+    const message = errorMessage(error);
+    const code = errorCode(error);
+    if (isServiceAccountAuthFailure(error)) {
       return {
         ok: false,
         status: 503,
-        error: `Firebase Admin credentials error${code ? ` (${code})` : ""}: ${message}`,
+        error: `Firebase Admin credentials error while verifying token${code ? ` (${code})` : ""}: ${message}`,
       };
     }
     return {
       ok: false,
       status: 401,
-      error: code ? `Invalid or expired auth token (${code}).` : "Invalid or expired auth token.",
+      error: code
+        ? `Invalid or expired auth token (${code}): ${message}`
+        : `Invalid or expired auth token: ${message}`,
     };
   }
+
+  // Step B — load admin/staff role from Firestore via the service account.
+  let caller: VerifiedAdminCaller | null;
+  try {
+    caller = await loadAdminCaller(decoded.uid, decoded.email ?? "");
+  } catch (error) {
+    console.error("[requireSuperAdmin] loadAdminCaller / Firestore failed", error);
+    const message = errorMessage(error);
+    const code = errorCode(error);
+    if (isServiceAccountAuthFailure(error)) {
+      return {
+        ok: false,
+        status: 503,
+        error:
+          `Firebase Admin service account cannot access Firestore (${code || "UNAUTHENTICATED"}). ` +
+          `Confirm FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY ` +
+          `are copied from the same service-account JSON for project "${readAdminProjectId()}", ` +
+          `the key is not revoked, and the SA has Cloud Datastore User (or Firebase Admin). Detail: ${message}`,
+      };
+    }
+    return {
+      ok: false,
+      status: 503,
+      error: `Could not load admin profile from Firestore${code ? ` (${code})` : ""}: ${message}`,
+    };
+  }
+
+  if (!caller) {
+    return { ok: false, status: 403, error: "Not an admin account." };
+  }
+  if (caller.adminRole !== "super_admin") {
+    return { ok: false, status: 403, error: "Only Super Admins can manage staff." };
+  }
+  return { ok: true, caller };
 }
 
 export function staffDocFromData(uid: string, data: Record<string, unknown>): AdminDoc & { uid: string } {
