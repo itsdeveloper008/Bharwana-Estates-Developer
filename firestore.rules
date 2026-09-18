@@ -132,7 +132,15 @@ service cloud.firestore {
           isSignedIn()
           && resource.data.ownerUserId == request.auth.uid
           && request.resource.data.ownerUserId == resource.data.ownerUserId
-          && request.resource.data.status in ['DRAFT', 'PENDING_APPROVAL']
+          && (
+            // New / resubmitted listings
+            request.resource.data.status in ['DRAFT', 'PENDING_APPROVAL']
+            // Live edit of an already-published listing (status must stay the same)
+            || (
+              resource.data.status in ['PUBLISHED', 'RESERVED']
+              && request.resource.data.status == resource.data.status
+            )
+          )
         );
 
       allow delete: if canManageProperties()

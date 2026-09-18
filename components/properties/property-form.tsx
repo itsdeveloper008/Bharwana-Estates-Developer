@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LayoutGroup, motion } from "framer-motion";
 import {
-  ArrowDown,
-  ArrowUp,
   Bath,
   BedDouble,
   Check,
@@ -29,15 +27,9 @@ import { toast } from "sonner";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { CityCombobox } from "@/components/properties/city-combobox";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  SortablePropertyPhotos,
+  reorderByIds,
+} from "@/components/properties/sortable-property-photos";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -264,7 +256,12 @@ export function PropertyForm({
   const { addProperty, updateProperty, properties, getDeveloperForUser, users, developers, addUser } =
     useMockStore();
   const editingProperty = editId ? properties.find((item) => item.id === editId) : undefined;
+  const isLiveEdit =
+    Boolean(editingProperty) &&
+    (editingProperty!.status === "PUBLISHED" || editingProperty!.status === "RESERVED");
   const [previews, setPreviews] = useState<string[]>([]);
+  /** Stable ids parallel to previews - used for drag-and-drop reordering. */
+  const [photoIds, setPhotoIds] = useState<string[]>([]);
   /** Parallel to previews - File for new uploads, null for existing remote URLs. */
   const [photoFiles, setPhotoFiles] = useState<(File | null)[]>([]);
   const objectUrlsRef = useRef<string[]>([]);
@@ -287,8 +284,6 @@ export function PropertyForm({
   const [showNewOwner, setShowNewOwner] = useState(false);
   const [newOwnerName, setNewOwnerName] = useState("");
   const [previewPhotoIndex, setPreviewPhotoIndex] = useState<number | null>(null);
-  const [cityMismatchConfirmOpen, setCityMismatchConfirmOpen] = useState(false);
-  const pendingSubmitRef = useRef<PropertyFormValues | null>(null);
   const [newOwnerContact, setNewOwnerContact] = useState("");
   const [assignError, setAssignError] = useState<string | null>(null);
   const [adminPublishStatus, setAdminPublishStatus] = useState<AdminPublishChoice>("PUBLISHED");
@@ -377,21 +372,7 @@ export function PropertyForm({
   });
 
   const listingType = form.watch("listingType");
-  const watchedTitle = form.watch("title") ?? "";
-  const watchedDescription = form.watch("description") ?? "";
-  const watchedCity = form.watch("city") ?? "";
   const { isSubmitting, errors } = form.formState;
-
-  const cityMismatchWarning = useMemo(() => {
-    const city = watchedCity.trim();
-    if (!city) return null;
-    const title = watchedTitle.trim();
-    const description = watchedDescription.trim();
-    if (!title && !description) return null;
-    const haystack = `${title} ${description}`.toLowerCase();
-    if (haystack.includes(city.toLowerCase())) return null;
-    return "Your selected city doesn't match your title/description - please double check";
-  }, [watchedCity, watchedTitle, watchedDescription]);
 
   useEffect(() => {
     if (!editingProperty) return;
@@ -418,10 +399,22 @@ export function PropertyForm({
       .filter((url) => isPersistedPropertyImageUrl(url))
       .slice(0, MAX_PROPERTY_PHOTOS);
     setPreviews(safeImages);
+    setPhotoIds(safeImages.map((_, index) => `remote-${editingProperty.id}-${index}`));
     setPhotoFiles(safeImages.map(() => null));
     photoFingerprintsRef.current = safeImages.map((url) => `remote:${url}`);
     setPhotoError(false);
   }, [editingProperty?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!isAdmin || !editingProperty) return;
+    if (editingProperty.listingType === "DIRECT_OWNER" && editingProperty.ownerUserId) {
+      setAssignOwnerId(editingProperty.ownerUserId);
+      setAssignDeveloperId("");
+    } else if (editingProperty.developerId) {
+      setAssignDeveloperId(editingProperty.developerId);
+      setAssignOwnerId("");
+    }
+  }, [isAdmin, editingProperty?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isAdmin) return;
@@ -637,11 +630,15 @@ export function PropertyForm({
         }
       }
       if (nextUrls.length) {
+        const nextIds = nextUrls.map(
+          (_, index) => `local-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        );
         photoFingerprintsRef.current = [...photoFingerprintsRef.current, ...nextFingerprints].slice(
           0,
           MAX_PROPERTY_PHOTOS,
         );
         setPreviews((current) => [...current, ...nextUrls].slice(0, MAX_PROPERTY_PHOTOS));
+        setPhotoIds((current) => [...current, ...nextIds].slice(0, MAX_PROPERTY_PHOTOS));
         setPhotoFiles((current) => [...current, ...nextFiles].slice(0, MAX_PROPERTY_PHOTOS));
         setPhotoError(false);
         setSubmitError(null);
@@ -660,30 +657,28 @@ export function PropertyForm({
       }
       return current.filter((_, i) => i !== index);
     });
+    setPhotoIds((current) => current.filter((_, i) => i !== index));
     setPhotoFiles((current) => current.filter((_, i) => i !== index));
     photoFingerprintsRef.current = photoFingerprintsRef.current.filter((_, i) => i !== index);
+    setPreviewPhotoIndex((current) => {
+      if (current === null) return null;
+      if (current === index) return null;
+      if (current > index) return current - 1;
+      return current;
+    });
   }
 
-  function movePreview(index: number, direction: -1 | 1) {
-    setPreviews((current) => {
-      const target = index + direction;
-      if (target < 0 || target >= current.length) return current;
-      const copy = [...current];
-      [copy[index], copy[target]] = [copy[target], copy[index]];
-      return copy;
+  function reorderPhotos(orderedIds: string[]) {
+    setPhotoIds((currentIds) => {
+      setPreviews((currentPreviews) => reorderByIds(currentPreviews, currentIds, orderedIds));
+      setPhotoFiles((currentFiles) => reorderByIds(currentFiles, currentIds, orderedIds));
+      photoFingerprintsRef.current = reorderByIds(
+        photoFingerprintsRef.current,
+        currentIds,
+        orderedIds,
+      );
+      return orderedIds;
     });
-    setPhotoFiles((current) => {
-      const target = index + direction;
-      if (target < 0 || target >= current.length) return current;
-      const copy = [...current];
-      [copy[index], copy[target]] = [copy[target], copy[index]];
-      return copy;
-    });
-    const target = index + direction;
-    if (target < 0 || target >= photoFingerprintsRef.current.length) return;
-    const copy = [...photoFingerprintsRef.current];
-    [copy[index], copy[target]] = [copy[target], copy[index]];
-    photoFingerprintsRef.current = copy;
   }
 
   async function createOwnerQuick(): Promise<User | null> {
@@ -780,15 +775,31 @@ export function PropertyForm({
       developerId = isDealerListing ? linkedDeveloper?.id : undefined;
     }
 
-    const status: PropertyStatus = isAdmin ? adminPublishStatus : "PENDING_APPROVAL";
+    let status: PropertyStatus;
+    if (editingProperty) {
+      if (isLiveEdit) {
+        status = editingProperty.status;
+      } else if (isAdmin) {
+        status = adminPublishStatus;
+      } else {
+        status = "PENDING_APPROVAL";
+      }
+    } else {
+      status = isAdmin ? adminPublishStatus : "PENDING_APPROVAL";
+    }
 
     try {
-      if (editingProperty && !isAdmin) {
-        const statusPatch = buildStatusChangePatch(editingProperty, {
-          status: "PENDING_APPROVAL",
-          clearRejectionReason: true,
-          by: user?.fullName ?? user?.email,
-        });
+      if (editingProperty) {
+        const statusChanged = status !== editingProperty.status;
+        const statusPatch = statusChanged
+          ? buildStatusChangePatch(editingProperty, {
+              status,
+              clearRejectionReason: status === "PUBLISHED" || status === "PENDING_APPROVAL",
+              by: isAdmin
+                ? undefined
+                : user?.fullName ?? user?.email,
+            })
+          : {};
         await updateProperty(
           editingProperty.id,
           {
@@ -799,8 +810,11 @@ export function PropertyForm({
             ownerUserId: resolvedOwnerId ?? editingProperty.ownerUserId,
             highlightSpecs: normalizeHighlightKeys(values.highlightSpecs, values.category),
             featureTags: normalizeFeatureTags(values.featureTags),
+            status,
             ...statusPatch,
-            rejectionReason: undefined,
+            ...(status === "PUBLISHED" || status === "RESERVED" || !statusChanged
+              ? { rejectionReason: undefined }
+              : {}),
           },
           photoOptions,
         );
@@ -848,14 +862,16 @@ export function PropertyForm({
       setUploadProgress(null);
     }
     setSubmittedTitle(values.title);
-    setSubmittedStatus(status === "PUBLISHED" ? "PUBLISHED" : "PENDING_APPROVAL");
+    setSubmittedStatus(status === "PUBLISHED" || status === "RESERVED" ? "PUBLISHED" : "PENDING_APPROVAL");
     setDone(true);
     toast.success(
-      editingProperty && !isAdmin
-        ? "Resubmitted for review."
-        : status === "PUBLISHED"
-          ? "Property published."
-          : "Submitted for review.",
+      isLiveEdit
+        ? "Listing updated and live."
+        : editingProperty && !isAdmin
+          ? "Resubmitted for review."
+          : status === "PUBLISHED"
+            ? "Property published."
+            : "Submitted for review.",
     );
   }
 
@@ -869,15 +885,6 @@ export function PropertyForm({
       goToStep(2);
       return;
     }
-
-    const city = (normalized.city ?? "").trim();
-    const haystack = `${normalized.title ?? ""} ${normalized.description ?? ""}`.toLowerCase();
-    if (city && haystack && !haystack.includes(city.toLowerCase())) {
-      pendingSubmitRef.current = normalized;
-      setCityMismatchConfirmOpen(true);
-      return;
-    }
-
     await continuePublish(normalized);
   }
 
@@ -901,21 +908,31 @@ export function PropertyForm({
   }
 
   if (done) {
-    const published = isAdmin && submittedStatus === "PUBLISHED";
+    const published = submittedStatus === "PUBLISHED";
+    const liveUpdated =
+      published &&
+      Boolean(editingProperty) &&
+      (editingProperty?.status === "PUBLISHED" || editingProperty?.status === "RESERVED");
     return (
       <div className="border border-forest/10 bg-cream/40 px-8 py-16 text-center">
         <p className="text-[11px] uppercase tracking-[0.22em] text-amber-800">
           {published ? "Live listing" : "Pending review"}
         </p>
         <h2 className="mt-3 font-serif text-4xl">
-          {published ? "Property published" : "Submitted for verification"}
+          {liveUpdated
+            ? "Listing updated"
+            : published
+              ? "Property published"
+              : "Submitted for verification"}
         </h2>
         <p className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground">
-          {published
-            ? "This listing is live on the marketplace and map."
-            : isAdmin
-              ? "Saved to the verification queue for another admin to review."
-              : "Your property has been submitted for review. Our team will verify the details and publish it within 24-48 hours."}
+          {liveUpdated
+            ? "Your changes are live on the marketplace and map."
+            : published
+              ? "This listing is live on the marketplace and map."
+              : isAdmin
+                ? "Saved to the verification queue for another admin to review."
+                : "Your property has been submitted for review. Our team will verify the details and publish it within 24-48 hours."}
         </p>
         <div className="mx-auto mt-8 max-w-md border border-forest/10 bg-ivory px-5 py-4 text-left">
           <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Summary</p>
@@ -1651,11 +1668,6 @@ export function PropertyForm({
                 )}
               />
             </div>
-            {cityMismatchWarning ? (
-              <p className="rounded-xl border border-amber-500/30 bg-amber-50/80 px-3 py-2 text-sm text-amber-900/90" role="status">
-                {cityMismatchWarning}
-              </p>
-            ) : null}
             <FormField
               control={form.control}
               name="contactPhone"
@@ -1766,67 +1778,26 @@ export function PropertyForm({
               <p className="text-sm text-amber-800/90">Add at least one photo to submit</p>
             )}
             {previews.length > 0 && (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {previews.map((src, index) => (
-                  <div
-                    key={`${src}-${index}`}
-                    className="group/thumb relative aspect-[4/3] overflow-hidden rounded-xl bg-cream shadow-[0_10px_24px_-14px_rgba(15,46,29,0.35)]"
-                  >
-                    <button
-                      type="button"
-                      className="absolute inset-0 z-0"
-                      onClick={() => setPreviewPhotoIndex(index)}
-                      aria-label={`Preview photo ${index + 1}`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt="" className="h-full w-full object-cover" />
-                    </button>
-                    {index === 0 && (
-                      <span className="pointer-events-none absolute left-1.5 top-1.5 z-[1] rounded-full bg-gold px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-forest shadow-sm">
-                        Cover
-                      </span>
-                    )}
-                    <div className="absolute bottom-1.5 left-1.5 z-[1] flex gap-1 opacity-100 sm:opacity-0 sm:transition-opacity sm:duration-200 sm:group-hover/thumb:opacity-100">
-                      <button
-                        type="button"
-                        className="rounded-lg bg-forest/80 p-1 text-ivory disabled:opacity-40"
-                        disabled={index === 0}
-                        onClick={() => movePreview(index, -1)}
-                        aria-label="Move earlier"
-                      >
-                        <ArrowUp className="h-3 w-3" />
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-lg bg-forest/80 p-1 text-ivory disabled:opacity-40"
-                        disabled={index === previews.length - 1}
-                        onClick={() => movePreview(index, 1)}
-                        aria-label="Move later"
-                      >
-                        <ArrowDown className="h-3 w-3" />
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      className="absolute right-1.5 top-1.5 z-[1] rounded-full bg-forest/80 p-1 text-ivory opacity-100 sm:opacity-0 sm:transition-opacity sm:duration-200 sm:group-hover/thumb:opacity-100"
-                      onClick={() => removePreview(index)}
-                      aria-label="Remove photo"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                <SortablePropertyPhotos
+                  items={previews.map((src, index) => ({
+                    id: photoIds[index] ?? `fallback-${index}`,
+                    src,
+                  }))}
+                  onReorder={reorderPhotos}
+                  onPreview={setPreviewPhotoIndex}
+                  onRemove={removePreview}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {previews.length} / {MAX_PROPERTY_PHOTOS} photos · drag to reorder · first photo is
+                  the cover
+                </p>
               </div>
             )}
-            {previews.length > 0 ? (
-              <p className="text-xs text-muted-foreground">
-                {previews.length} / {MAX_PROPERTY_PHOTOS} photos
-              </p>
-            ) : null}
           </FormSection>
 
           <div className="space-y-5 rounded-2xl bg-gradient-to-br from-[#FBF6EA] via-[#F9F3E4] to-[#F4EBDA] p-7 shadow-[0_20px_55px_-30px_rgba(15,46,29,0.28)] ring-1 ring-gold/20 sm:p-10">
-            {isAdmin && (
+            {isAdmin && !isLiveEdit && (
               <div className="space-y-3">
                 <p className="type-eyebrow">Publish</p>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -1899,14 +1870,20 @@ export function PropertyForm({
                   : uploadProgress
                     ? `Uploading photo ${uploadProgress.current} of ${uploadProgress.total}…`
                     : isSubmitting
-                      ? isAdmin && adminPublishStatus === "PUBLISHED"
-                        ? "Publishing…"
-                        : "Uploading photos…"
-                      : isAdmin
-                        ? adminPublishStatus === "PUBLISHED"
-                          ? "Publish Immediately"
-                          : "Save as Pending Review"
-                        : "Submit for review"}
+                      ? isLiveEdit
+                        ? "Saving…"
+                        : isAdmin && adminPublishStatus === "PUBLISHED"
+                          ? "Publishing…"
+                          : "Uploading photos…"
+                      : isLiveEdit
+                        ? "Save changes"
+                        : isAdmin
+                          ? adminPublishStatus === "PUBLISHED"
+                            ? "Publish Immediately"
+                            : "Save as Pending Review"
+                          : editingProperty
+                            ? "Resubmit for review"
+                            : "Submit for review"}
               </Button>
             )}
           </div>
@@ -1931,37 +1908,6 @@ export function PropertyForm({
           ) : null}
         </DialogContent>
       </Dialog>
-
-      <AlertDialog
-        open={cityMismatchConfirmOpen}
-        onOpenChange={(open) => {
-          setCityMismatchConfirmOpen(open);
-          if (!open) pendingSubmitRef.current = null;
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>City doesn&apos;t match your copy</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your selected city doesn&apos;t match your title/description - please double check. You can
-              go back to edit, or continue if this is intentional.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Go back</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                const pending = pendingSubmitRef.current;
-                setCityMismatchConfirmOpen(false);
-                pendingSubmitRef.current = null;
-                if (pending) void continuePublish(pending);
-              }}
-            >
-              Continue anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

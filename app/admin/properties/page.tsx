@@ -61,6 +61,10 @@ export default function AdminPropertiesPage() {
                 </TableCell>
                 <TableCell className="text-right">{formatPrice(property.price)}</TableCell>
                 <TableCell onClick={(event) => event.stopPropagation()}>
+                <div className="flex items-center justify-end gap-2">
+                  <Button asChild variant="outline" size="sm" className="rounded-xl">
+                    <Link href={`/admin/properties/add?edit=${property.id}`}>Edit</Link>
+                  </Button>
                   <ConfirmDeleteButton
                     label={property.title}
                     onConfirm={async () => {
@@ -68,7 +72,8 @@ export default function AdminPropertiesPage() {
                       toast.success(`Deleted “${property.title}”.`);
                     }}
                   />
-                </TableCell>
+                </div>
+              </TableCell>
               </TableRow>
             ))}
           </TableBody>

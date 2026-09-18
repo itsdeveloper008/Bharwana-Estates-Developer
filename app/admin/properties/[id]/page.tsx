@@ -122,6 +122,9 @@ export default function AdminPropertyDetailPage() {
         </div>
 
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[220px]">
+          <Button asChild variant="outline">
+            <Link href={`/admin/properties/add?edit=${property.id}`}>Edit listing</Link>
+          </Button>
           {property.status === "PENDING_APPROVAL" ? (
             <>
               {dealerBlocksApproval ? (

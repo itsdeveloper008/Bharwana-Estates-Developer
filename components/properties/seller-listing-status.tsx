@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate, statusLabel } from "@/lib/format";
 import type { Property, PropertyStatus } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 function statusBadgeVariant(status: PropertyStatus) {
   if (status === "PENDING_APPROVAL") return "pending" as const;
@@ -21,17 +22,38 @@ export function SellerListingActions({
   property: Property;
   editHref: string;
 }) {
+  const isLive = property.status === "PUBLISHED" || property.status === "RESERVED";
+  const canEdit =
+    isLive ||
+    property.status === "REJECTED" ||
+    property.status === "DRAFT" ||
+    property.status === "PENDING_APPROVAL";
+  const editLabel = isLive
+    ? "Edit"
+    : property.status === "PENDING_APPROVAL"
+      ? "Edit"
+      : "Edit & Resubmit";
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Badge variant={statusBadgeVariant(property.status)}>{statusLabel(property.status)}</Badge>
-      {property.status === "PUBLISHED" || property.status === "RESERVED" ? (
+      {isLive ? (
         <Button asChild variant="outline" size="sm" className="rounded-xl">
           <Link href={`/property/${property.id}`}>View</Link>
         </Button>
       ) : null}
-      {property.status === "REJECTED" || property.status === "DRAFT" ? (
-        <Button asChild size="sm" className="rounded-xl bg-forest text-ivory hover:bg-forest-800">
-          <Link href={editHref}>Edit & Resubmit</Link>
+      {canEdit ? (
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className={cn(
+            "rounded-xl",
+            !(isLive || property.status === "PENDING_APPROVAL") &&
+              "border-transparent bg-forest text-ivory hover:bg-forest-800 hover:text-ivory",
+          )}
+        >
+          <Link href={editHref}>{editLabel}</Link>
         </Button>
       ) : null}
       {property.status === "REJECTED" ? (
