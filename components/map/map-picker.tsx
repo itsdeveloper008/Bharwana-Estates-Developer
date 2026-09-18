@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GoogleMap, OverlayView, OverlayViewF, useJsApiLoader } from "@react-google-maps/api";
 import { MapPin, Search } from "lucide-react";
 import { PropertyPin } from "@/components/map/property-pin";
@@ -14,15 +14,22 @@ import {
   hasMapboxToken,
 } from "@/lib/map";
 import { CITIES } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+const fieldClass =
+  "h-10 rounded-xl border border-[#E8E2D6]/90 bg-[#FBF9F5] shadow-[inset_0_1px_2px_rgba(15,46,29,0.045)] transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-gold focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-gold/35";
 
 export function MapPicker({
   latitude,
   longitude,
   onChange,
+  showSearch = true,
 }: {
   latitude: number;
   longitude: number;
   onChange: (coords: { latitude: number; longitude: number }) => void;
+  /** When false, city/address search is omitted (parent City field drives coords). */
+  showSearch?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [center, setCenter] = useState({
@@ -35,6 +42,11 @@ export function MapPicker({
     id: "bharwana-google-maps",
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   });
+
+  useEffect(() => {
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+    setCenter({ lat: latitude, lng: longitude });
+  }, [latitude, longitude]);
 
   async function searchAddress() {
     const match = CITIES.find((city) => city.toLowerCase() === query.trim().toLowerCase());
@@ -59,24 +71,26 @@ export function MapPicker({
 
   return (
     <div className="space-y-3">
-      <div className="relative">
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-forest/40"
-          strokeWidth={1.5}
-        />
-        <Input
-          value={query}
-          placeholder="Search a city (e.g. Lahore), then drag the pin"
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              void searchAddress();
-            }
-          }}
-          className="rounded-xl border border-[#E8E2D6]/90 bg-[#FBF9F5] pl-9 shadow-[inset_0_1px_2px_rgba(15,46,29,0.045)] transition-shadow duration-200 focus-visible:border-gold focus-visible:ring-gold/35"
-        />
-      </div>
+      {showSearch ? (
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-forest/40"
+            strokeWidth={1.5}
+          />
+          <Input
+            value={query}
+            placeholder="Search address or neighborhood, then drag the pin"
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void searchAddress();
+              }
+            }}
+            className={cn(fieldClass, "pl-9")}
+          />
+        </div>
+      ) : null}
       <div className="overflow-hidden rounded-2xl bg-white shadow-[0_18px_48px_-26px_rgba(15,46,29,0.32)] ring-1 ring-[#EDE6D8]/70">
         <div className="h-72">
           {!hasGoogleMapsKey() || !isLoaded ? (
@@ -116,7 +130,11 @@ export function MapPicker({
           )}
         </div>
       </div>
-      <p className="text-[11px] text-muted-foreground">Click the map to place the pin. Switch Map / Satellite from the control.</p>
+      <p className="text-[11px] text-muted-foreground">
+        {showSearch
+          ? "Click the map to place the pin. Switch Map / Satellite from the control."
+          : "City above centers the map. Click the map to place the pin precisely."}
+      </p>
     </div>
   );
 }

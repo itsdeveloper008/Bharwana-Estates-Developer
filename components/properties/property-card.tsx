@@ -28,46 +28,70 @@ export function PropertyCard({
   const cover = propertyCoverImage(property.images) ?? "";
   const highlights = propertyHighlightDisplay(property).filter((item) => item.key !== "price");
 
-  const media = (
-    <>
-      {cover ? (
-        cover.startsWith("data:") || cover.startsWith("blob:") ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={cover}
-            alt={property.title}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-          />
-        ) : (
-          <Image
-            src={cover}
-            alt={property.title}
-            fill
-            className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-            sizes={isList ? "96px" : "(max-width: 768px) 100vw, 33vw"}
-          />
-        )
-      ) : (
-        <div
-          className={cn(
-            "flex h-full w-full items-center justify-center bg-cream text-[10px] uppercase tracking-[0.14em]",
-            highlighted ? "text-ivory/50" : "text-muted-foreground",
-          )}
+  const image = cover ? (
+    cover.startsWith("data:") || cover.startsWith("blob:") ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={cover}
+        alt={property.title}
+        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+      />
+    ) : (
+      <Image
+        src={cover}
+        alt={property.title}
+        fill
+        className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+        sizes={isList ? "96px" : "(max-width: 768px) 100vw, 33vw"}
+      />
+    )
+  ) : (
+    <div
+      className={cn(
+        "flex h-full w-full items-center justify-center bg-cream text-[10px] uppercase tracking-[0.14em]",
+        highlighted ? "text-ivory/50" : "text-muted-foreground",
+      )}
+    >
+      No photo
+    </div>
+  );
+
+  const mediaShell = (
+    <div
+      className={cn(
+        "relative overflow-hidden",
+        isList ? "h-[96px] w-full" : "aspect-[16/10] w-full",
+      )}
+    >
+      {onSelect ? (
+        <button
+          type="button"
+          className="absolute inset-0 block h-full w-full text-left"
+          onClick={() => onSelect(property.id)}
+          aria-label={`View ${property.title}`}
         >
-          No photo
-        </div>
+          {image}
+        </button>
+      ) : (
+        <Link
+          href={href}
+          className="absolute inset-0 block"
+          aria-label={`View ${property.title}`}
+        >
+          {image}
+        </Link>
       )}
       <Badge
         variant={property.listingType === "DIRECT_OWNER" ? "owner" : "verified"}
         className={cn(
-          "absolute rounded-full uppercase",
+          "pointer-events-none absolute rounded-full uppercase",
           isList ? "left-1.5 top-1.5 scale-90 text-[8px]" : "left-2.5 top-2.5 text-[10px]",
         )}
       >
         {listingBadge(property.listingType)}
       </Badge>
       <PropertySaveButton propertyId={property.id} variant="card" />
-    </>
+    </div>
   );
 
   const seeMoreClass = isList
@@ -91,25 +115,7 @@ export function PropertyCard({
       onMouseEnter={() => onHover?.(property.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      {onSelect ? (
-        <button
-          type="button"
-          className={cn(
-            "relative block overflow-hidden text-left",
-            isList ? "h-[96px] w-full" : "aspect-[16/10] w-full",
-          )}
-          onClick={() => onSelect(property.id)}
-        >
-          {media}
-        </button>
-      ) : (
-        <Link
-          href={href}
-          className={cn("relative block overflow-hidden", isList ? "h-[96px] w-full" : "aspect-[16/10]")}
-        >
-          {media}
-        </Link>
-      )}
+      {mediaShell}
 
       {isList ? (
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 p-2.5">

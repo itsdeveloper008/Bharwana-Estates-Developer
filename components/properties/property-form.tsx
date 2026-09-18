@@ -353,7 +353,12 @@ export function PropertyForm({
     defaultValues: {
       title: "",
       description: "",
-      listingType: user?.role === "DEALER" ? "BUSINESS" : (undefined as unknown as PropertyFormValues["listingType"]),
+      listingType:
+        user?.role === "DEALER"
+          ? "BUSINESS"
+          : isIndividualRole(user?.role)
+            ? "DIRECT_OWNER"
+            : (undefined as unknown as PropertyFormValues["listingType"]),
       purpose: "SALE",
       category: "HOME",
       subtype: "HOUSE",
@@ -422,6 +427,8 @@ export function PropertyForm({
     if (isAdmin) return;
     if (user?.role === "DEALER") {
       form.setValue("listingType", "BUSINESS");
+    } else if (isIndividualRole(user?.role)) {
+      form.setValue("listingType", "DIRECT_OWNER");
     }
   }, [user?.role, form, isAdmin]);
 
@@ -769,7 +776,7 @@ export function PropertyForm({
     } else {
       const linkedDeveloper = ownerId ? getDeveloperForUser(ownerId) : undefined;
       const isDealerListing = Boolean(linkedDeveloper) || user?.role === "DEALER";
-      listingTypeValue = isDealerListing ? "BUSINESS" : values.listingType;
+      listingTypeValue = isDealerListing ? "BUSINESS" : "DIRECT_OWNER";
       developerId = isDealerListing ? linkedDeveloper?.id : undefined;
     }
 
@@ -1189,31 +1196,59 @@ export function PropertyForm({
               <FormField
                 control={form.control}
                 name="listingType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="mb-0.5">Origin</FormLabel>
-                    <Select
-                      value={field.value || undefined}
-                      onValueChange={field.onChange}
-                      disabled={!isAdmin && user?.role === "DEALER"}
-                    >
-                      <FormControl>
-                        <SelectTrigger className={cn("h-10", fieldFocus)}>
-                          <SelectValue placeholder="Select origin" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="DIRECT_OWNER">
-                          {isAdmin ? "Direct Owner" : "Direct from owner"}
-                        </SelectItem>
-                        <SelectItem value="BUSINESS">
-                          {isAdmin ? "Business / Dealer" : "Dealer verified"}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const originLabel =
+                    field.value === "BUSINESS"
+                      ? isAdmin
+                        ? "Business / Dealer"
+                        : "Dealer verified"
+                      : field.value === "DIRECT_OWNER"
+                        ? isAdmin
+                          ? "Direct Owner"
+                          : "Direct from owner"
+                        : null;
+
+                  // Non-admin origin is locked to the signed-in role; keep a read-only
+                  // field so Pricing stays a two-column layout beside price.
+                  if (!isAdmin) {
+                    return (
+                      <FormItem>
+                        <FormLabel className="mb-0.5">Origin</FormLabel>
+                        <FormControl>
+                          <Input
+                            readOnly
+                            tabIndex={-1}
+                            value={originLabel ?? ""}
+                            className={cn("h-10 cursor-default", fieldFocus)}
+                            aria-readonly="true"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }
+
+                  return (
+                    <FormItem>
+                      <FormLabel className="mb-0.5">Origin</FormLabel>
+                      <Select
+                        value={field.value || undefined}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger className={cn("h-10", fieldFocus)}>
+                            <SelectValue placeholder="Select origin" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="DIRECT_OWNER">Direct Owner</SelectItem>
+                          <SelectItem value="BUSINESS">Business / Dealer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
               <FormField
                 control={form.control}
@@ -1646,6 +1681,7 @@ export function PropertyForm({
             <MapPicker
               latitude={form.watch("latitude")}
               longitude={form.watch("longitude")}
+              showSearch={false}
               onChange={(coords) => {
                 form.setValue("latitude", coords.latitude);
                 form.setValue("longitude", coords.longitude);

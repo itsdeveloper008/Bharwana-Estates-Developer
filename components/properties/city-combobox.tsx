@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Check, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -43,14 +43,15 @@ export function CityCombobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "h-10 w-full justify-between rounded-md border bg-white px-3 font-normal",
+            "h-10 w-full justify-start gap-2 rounded-xl border border-[#E8E2D6]/90 bg-[#FBF9F5] px-3 font-normal shadow-[inset_0_1px_2px_rgba(15,46,29,0.045)] transition-[border-color,box-shadow,background-color] duration-200 hover:bg-[#FBF9F5]",
+            "focus-visible:border-gold focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-gold/35",
             !value && "text-muted-foreground",
             hasError && "border-destructive",
             className,
           )}
         >
-          <span className="truncate">{value || "Select City"}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <Search className="h-4 w-4 shrink-0 text-forest/40" strokeWidth={1.5} />
+          <span className="truncate">{value || "Search a city (e.g. Lahore)"}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-2" align="start">
@@ -59,8 +60,8 @@ export function CityCombobox({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search city…"
-            className="h-9 pl-8"
+            placeholder="Type to filter cities…"
+            className="h-9 rounded-xl border-[#E8E2D6]/90 bg-[#FBF9F5] pl-8"
             autoFocus
           />
         </div>
