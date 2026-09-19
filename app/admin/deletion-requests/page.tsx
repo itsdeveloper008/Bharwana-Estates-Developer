@@ -26,10 +26,12 @@ import {
   updateDeletionRequestStatus,
 } from "@/lib/firestore/deletion";
 import { useMockStore } from "@/lib/mock-store";
+import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 import { displayUserEmail, isSyntheticPhoneEmail } from "@/lib/user-display";
 import { formatUserRole } from "@/lib/user-role";
 
 export default function AdminDeletionRequestsPage() {
+  useMarkAdminModuleViewed("deletion");
   const { properties, inquiries, developers, deleteProperty, removeInquiry } = useMockStore();
   const [requests, setRequests] = useState<DeletionRequest[]>([]);
   const [loading, setLoading] = useState(true);

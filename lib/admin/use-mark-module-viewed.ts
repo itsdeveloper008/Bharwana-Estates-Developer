@@ -7,7 +7,8 @@ import {
   type AdminBadgeModule,
 } from "@/lib/admin/unseen-badges";
 
-/** Clears the sidebar unseen badge when an admin actually opens a module page. */
+/** Marks last-viewed for unseen-style badges (inquiries, users, newsletter).
+ * Queue badges (submissions, dealers, deletion) ignore this timestamp and clear when status changes. */
 export function useMarkAdminModuleViewed(badgeModule: AdminBadgeModule) {
   const { admin } = useAdminAuth();
   useEffect(() => {

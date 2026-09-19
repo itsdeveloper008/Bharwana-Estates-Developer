@@ -18,8 +18,10 @@ import {
   type NewsletterSignup,
 } from "@/lib/firestore/inquiries";
 import { formatDate } from "@/lib/format";
+import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 
 export default function AdminNewsletterPage() {
+  useMarkAdminModuleViewed("newsletter");
   const [signups, setSignups] = useState<NewsletterSignup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

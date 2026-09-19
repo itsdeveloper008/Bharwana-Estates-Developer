@@ -31,14 +31,19 @@ import { useAdminAuth } from "@/lib/admin-auth";
 import type { AdminModule } from "@/lib/admin/modules";
 import {
   ADMIN_MODULE_VIEWED_EVENT,
-  countUnseenDealers,
+  countPendingDealers,
+  countPendingDeletions,
+  countPendingSubmissions,
   countUnseenInquiries,
-  countUnseenSubmissions,
+  countUnseenNewsletter,
   countUnseenUsers,
   ensureAdminModuleBaselines,
   getAdminModuleLastViewedAt,
   type AdminBadgeModule,
 } from "@/lib/admin/unseen-badges";
+import { isFirebaseConfigured } from "@/lib/firebase/client";
+import { subscribeDeletionRequests, type DeletionRequest } from "@/lib/firestore/deletion";
+import { subscribeNewsletterSignups, type NewsletterSignup } from "@/lib/firestore/inquiries";
 import { useMockStore } from "@/lib/mock-store";
 import { cn } from "@/lib/utils";
 
@@ -75,10 +80,10 @@ const navItems: NavItem[] = [
     module: "inquiries",
     badgeModule: "inquiries",
   },
-  { href: "/admin/newsletter", label: "Newsletter", icon: Mail, module: "newsletter" },
+  { href: "/admin/newsletter", label: "Newsletter", icon: Mail, module: "newsletter", badgeModule: "newsletter" },
   { href: "/admin/team", label: "Team", icon: UsersRound, module: "team" },
   { href: "/admin/users", label: "Users", icon: Users, module: "users", badgeModule: "users" },
-  { href: "/admin/deletion-requests", label: "Deletion", icon: ShieldAlert, module: "deletion" },
+  { href: "/admin/deletion-requests", label: "Deletion", icon: ShieldAlert, module: "deletion", badgeModule: "deletion" },
   { href: "/admin/reports", label: "Reports", icon: FileBarChart, module: "reports" },
   { href: "/admin/staff", label: "Staff", icon: UserCog, module: "staff" },
 ];
@@ -106,6 +111,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const { properties, inquiries, users, developers } = useMockStore();
   const { hasModule, isSuperAdmin, admin } = useAdminAuth();
   const [viewTick, setViewTick] = useState(0);
+  const [newsletterSignups, setNewsletterSignups] = useState<NewsletterSignup[]>([]);
+  const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>([]);
 
   useEffect(() => {
     if (!admin?.uid) return;
@@ -119,19 +126,61 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
     return () => window.removeEventListener(ADMIN_MODULE_VIEWED_EVENT, onViewed);
   }, []);
 
+  // Live badge feeds for collections not in MockStore (same onSnapshot pattern as those pages).
+  useEffect(() => {
+    if (!admin?.uid || !isFirebaseConfigured()) {
+      setNewsletterSignups([]);
+      setDeletionRequests([]);
+      return;
+    }
+    const unsubNewsletter = subscribeNewsletterSignups(
+      (next) => setNewsletterSignups(next),
+      (error) => console.error("Newsletter badge subscription failed", error),
+    );
+    const unsubDeletion = subscribeDeletionRequests(
+      (next) => setDeletionRequests(next),
+      (error) => console.error("Deletion badge subscription failed", error),
+    );
+    return () => {
+      unsubNewsletter?.();
+      unsubDeletion?.();
+    };
+  }, [admin?.uid]);
+
   const badgeCounts = useMemo(() => {
     void viewTick;
     const uid = admin?.uid;
     if (!uid) {
-      return { submissions: 0, inquiries: 0, users: 0, dealers: 0 };
+      return {
+        submissions: 0,
+        inquiries: 0,
+        users: 0,
+        dealers: 0,
+        newsletter: 0,
+        deletion: 0,
+      };
     }
     return {
-      submissions: countUnseenSubmissions(properties, getAdminModuleLastViewedAt(uid, "submissions")),
+      submissions: countPendingSubmissions(properties),
       inquiries: countUnseenInquiries(inquiries, getAdminModuleLastViewedAt(uid, "inquiries")),
       users: countUnseenUsers(users, getAdminModuleLastViewedAt(uid, "users")),
-      dealers: countUnseenDealers(developers, getAdminModuleLastViewedAt(uid, "dealers")),
+      dealers: countPendingDealers(developers),
+      newsletter: countUnseenNewsletter(
+        newsletterSignups,
+        getAdminModuleLastViewedAt(uid, "newsletter"),
+      ),
+      deletion: countPendingDeletions(deletionRequests),
     };
-  }, [admin?.uid, properties, inquiries, users, developers, viewTick]);
+  }, [
+    admin?.uid,
+    properties,
+    inquiries,
+    users,
+    developers,
+    newsletterSignups,
+    deletionRequests,
+    viewTick,
+  ]);
 
   const visible = useMemo(() => {
     return navItems.filter((item) => {

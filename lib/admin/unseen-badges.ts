@@ -1,9 +1,17 @@
 import type { AdminModule } from "@/lib/admin/modules";
 
-/** Modules that show unseen-count badges in the admin sidebar. */
+/**
+ * Modules that show count badges in the admin sidebar.
+ *
+ * Two badge styles:
+ * - Queue (status): submissions, dealers, deletion — count items awaiting action;
+ *   clears when the queue is processed, not when the page is opened.
+ * - Unseen (timestamp): inquiries, users, newsletter — count items created after
+ *   this admin last opened that module (localStorage baseline per admin uid).
+ */
 export type AdminBadgeModule = Extract<
   AdminModule,
-  "submissions" | "inquiries" | "users" | "dealers"
+  "submissions" | "inquiries" | "users" | "dealers" | "newsletter" | "deletion"
 >;
 
 export const ADMIN_BADGE_MODULES: AdminBadgeModule[] = [
@@ -11,6 +19,8 @@ export const ADMIN_BADGE_MODULES: AdminBadgeModule[] = [
   "inquiries",
   "users",
   "dealers",
+  "newsletter",
+  "deletion",
 ];
 
 const VIEWED_KEY = "bharwana_admin_module_last_viewed_v1";
@@ -46,7 +56,7 @@ export function getAdminModuleLastViewedAt(
   return readMap()[adminUid]?.[badgeModule] ?? null;
 }
 
-/** Seed "now" once so existing backlog does not all light up as unread. */
+/** Seed "now" once so existing backlog does not all light up as unread for unseen-style modules. */
 export function ensureAdminModuleBaselines(adminUid: string): void {
   if (typeof window === "undefined" || !adminUid) return;
   const map = readMap();
@@ -79,17 +89,14 @@ function createdAfter(iso: string | undefined, lastViewedAt: string | null): boo
   return iso > lastViewedAt;
 }
 
-export function countUnseenSubmissions(
-  properties: { status: string; createdAt?: string; statusUpdatedAt?: string }[],
-  lastViewedAt: string | null,
+/** Queue: all listings waiting for approve/reject. */
+export function countPendingSubmissions(
+  properties: { status: string }[],
 ): number {
-  return properties.filter((property) => {
-    if (property.status !== "PENDING_APPROVAL") return false;
-    const stamp = property.statusUpdatedAt || property.createdAt;
-    return createdAfter(stamp, lastViewedAt);
-  }).length;
+  return properties.filter((property) => property.status === "PENDING_APPROVAL").length;
 }
 
+/** Unseen: inquiries created after this admin last opened Inquiries. */
 export function countUnseenInquiries(
   inquiries: { createdAt?: string }[],
   lastViewedAt: string | null,
@@ -97,6 +104,7 @@ export function countUnseenInquiries(
   return inquiries.filter((item) => createdAfter(item.createdAt, lastViewedAt)).length;
 }
 
+/** Unseen: non-admin user profiles created after this admin last opened Users. */
 export function countUnseenUsers(
   users: { createdAt?: string; role?: string }[],
   lastViewedAt: string | null,
@@ -107,12 +115,24 @@ export function countUnseenUsers(
   }).length;
 }
 
-export function countUnseenDealers(
-  developers: { status: string; createdAt?: string }[],
+/** Queue: dealer agencies awaiting approval. */
+export function countPendingDealers(
+  developers: { status: string }[],
+): number {
+  return developers.filter((developer) => developer.status === "PENDING_REVIEW").length;
+}
+
+/** Unseen: newsletter emails subscribed after this admin last opened Newsletter. */
+export function countUnseenNewsletter(
+  signups: { subscribedAt?: string }[],
   lastViewedAt: string | null,
 ): number {
-  return developers.filter((developer) => {
-    if (developer.status !== "PENDING_REVIEW") return false;
-    return createdAfter(developer.createdAt, lastViewedAt);
-  }).length;
+  return signups.filter((item) => createdAfter(item.subscribedAt, lastViewedAt)).length;
+}
+
+/** Queue: account deletion requests still awaiting admin action. */
+export function countPendingDeletions(
+  requests: { status: string }[],
+): number {
+  return requests.filter((request) => request.status === "PENDING").length;
 }
