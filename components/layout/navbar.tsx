@@ -42,24 +42,49 @@ const ease = [0.22, 1, 0.36, 1] as const;
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, logout } = useMockAuth();
-  const { isAuthenticated: isAdminSession } = useAdminAuth();
+  const { user, logout: marketplaceLogout } = useMockAuth();
+  const { admin, isAuthenticated: isAdminSession, logout: adminLogout } = useAdminAuth();
   const { properties, getDeveloperForUser } = useMockStore();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [viewedTick, setViewedTick] = useState(0);
   const menuId = useId();
 
-  /** Marketplace session only - Admin panel sessions must not appear as signed-in on public pages. */
-  const signedIn =
-    Boolean(user) && user!.role !== "ADMIN" && !isAdminSession;
+  /**
+   * Public navbar identity for the current browser only:
+   * - Marketplace buyers/sellers → MockAuth `user` (admins are intentionally not stored there).
+   * - Admin browsing the public site in their own browser → AdminAuth session.
+   * Guests / incognito never have AdminAuth localStorage, so they always see Sign In.
+   */
+  const marketplaceSignedIn = Boolean(user) && user!.role !== "ADMIN";
+  const adminSignedIn = isAdminSession && Boolean(admin);
+  const signedIn = marketplaceSignedIn || adminSignedIn;
   const showSignIn = !signedIn;
 
-  const listPropertyHref = signedIn
+  const sessionName = marketplaceSignedIn
+    ? user!.fullName
+    : adminSignedIn
+      ? admin!.fullName
+      : "";
+  const sessionEmail = marketplaceSignedIn
+    ? user!.email
+    : adminSignedIn
+      ? admin!.email
+      : "";
+  const sessionPhone = marketplaceSignedIn ? user!.phone : undefined;
+
+  const listPropertyHref = marketplaceSignedIn
     ? user!.role === "DEALER"
       ? "/dealer/add-property"
       : "/owner/add-property"
-    : `/login?returnTo=${encodeURIComponent("/owner/add-property")}`;
+    : adminSignedIn
+      ? "/admin/properties/add"
+      : `/login?returnTo=${encodeURIComponent("/owner/add-property")}`;
+
+  function handleSignOut() {
+    if (adminSignedIn) adminLogout();
+    if (marketplaceSignedIn) marketplaceLogout();
+  }
 
   useEffect(() => {
     const onViewed = () => setViewedTick((tick) => tick + 1);
@@ -128,8 +153,8 @@ export function Navbar() {
     };
   }, [open]);
 
-  const initials = user
-    ? user.fullName
+  const initials = sessionName
+    ? sessionName
         .split(" ")
         .map((part) => part[0])
         .join("")
@@ -137,33 +162,37 @@ export function Navbar() {
         .toUpperCase()
     : "";
 
-  const accountLinks = signedIn && user
-    ? [
-        { href: "/saved", label: "Saved Residences" },
-        ...(isIndividualRole(user.role)
-          ? [
-              { href: "/owner", label: "My Listings" },
-              { href: "/owner/add-property", label: "Add Property" },
-            ]
-          : user.role === "DEALER"
-            ? [
-                { href: "/dealer", label: "My Listings" },
-                { href: "/dealer/add-property", label: "Add Property" },
-                { href: "/dealer?tab=commission", label: "Commission" },
-              ]
-            : user.role === "SALES_REP"
-              ? [{ href: "/sales", label: "Pipeline" }]
-              : user.role === "ADMIN"
+  const accountLinks = signedIn
+    ? adminSignedIn && !marketplaceSignedIn
+      ? [
+          { href: "/saved", label: "Saved Residences" },
+          { href: "/owner", label: "My Listings" },
+          { href: "/admin", label: "Admin" },
+          { href: "/account", label: "Account Settings" },
+        ]
+      : user
+        ? [
+            { href: "/saved", label: "Saved Residences" },
+            ...(isIndividualRole(user.role)
+              ? [
+                  { href: "/owner", label: "My Listings" },
+                  { href: "/owner/add-property", label: "Add Property" },
+                ]
+              : user.role === "DEALER"
                 ? [
-                    { href: "/owner", label: "My Listings" },
-                    { href: "/admin", label: "Admin" },
+                    { href: "/dealer", label: "My Listings" },
+                    { href: "/dealer/add-property", label: "Add Property" },
+                    { href: "/dealer?tab=commission", label: "Commission" },
                   ]
-                : [
-                    { href: "/owner", label: "My Listings" },
-                    { href: "/owner/add-property", label: "Add Property" },
-                  ]),
-        { href: "/account", label: "Account Settings" },
-      ]
+                : user.role === "SALES_REP"
+                  ? [{ href: "/sales", label: "Pipeline" }]
+                  : [
+                      { href: "/owner", label: "My Listings" },
+                      { href: "/owner/add-property", label: "Add Property" },
+                    ]),
+            { href: "/account", label: "Account Settings" },
+          ]
+        : []
     : [];
 
   return (
@@ -331,7 +360,7 @@ export function Navbar() {
               </Link>
             ) : null}
 
-            {signedIn && user ? (
+            {signedIn ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -356,13 +385,13 @@ export function Navbar() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-60 rounded-xl border-forest/10 bg-ivory p-1.5 shadow-[0_20px_40px_-20px_rgba(8,43,29,0.35)]">
                   <DropdownMenuLabel className="px-3 py-2.5 font-normal">
-                    <p className="font-serif text-lg text-forest">{user.fullName}</p>
-                    {displayUserEmail(user.email) ? (
+                    <p className="font-serif text-lg text-forest">{sessionName}</p>
+                    {displayUserEmail(sessionEmail) ? (
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {displayUserEmail(user.email)}
+                        {displayUserEmail(sessionEmail)}
                       </p>
-                    ) : user.phone ? (
-                      <p className="mt-0.5 text-xs text-muted-foreground">{user.phone}</p>
+                    ) : sessionPhone ? (
+                      <p className="mt-0.5 text-xs text-muted-foreground">{sessionPhone}</p>
                     ) : null}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-forest/10" />
@@ -378,7 +407,7 @@ export function Navbar() {
                   ))}
                   <DropdownMenuSeparator className="bg-forest/10" />
                   <DropdownMenuItem
-                    onClick={logout}
+                    onClick={handleSignOut}
                     className="cursor-pointer rounded-lg text-destructive focus:bg-cream focus:text-destructive"
                   >
                     Sign Out
@@ -558,16 +587,16 @@ export function Navbar() {
                 </Link>
               ) : null}
 
-              {signedIn && user ? (
+              {signedIn ? (
                 <button
                   type="button"
                   onClick={() => {
-                    logout();
+                    handleSignOut();
                     setOpen(false);
                   }}
                   className="mx-auto block text-[11px] uppercase tracking-[0.18em] text-[#F5F1E8]/50 transition-colors hover:text-[#F5F1E8]"
                 >
-                  Sign out · {user.fullName.split(" ")[0]}
+                  Sign out · {sessionName.split(" ")[0] || "Account"}
                 </button>
               ) : null}
             </motion.div>

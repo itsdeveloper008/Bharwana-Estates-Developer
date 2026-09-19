@@ -234,7 +234,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   function handleViewWebsite() {
-    // Open the public site as a guest - do not leak the admin Firebase/session into marketplace chrome.
+    // Keep the admin session; public navbar reads AdminAuth and shows the admin account menu.
     router.push("/");
   }
 
