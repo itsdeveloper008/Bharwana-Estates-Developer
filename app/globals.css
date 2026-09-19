@@ -109,19 +109,3 @@
     );
   }
 }
-
-.mapboxgl-popup-content,
-.maplibregl-popup-content {
-  @apply !rounded-xl !border !border-border !bg-card !p-0 !shadow-lg;
-  font-family: inherit;
-}
-
-.mapboxgl-popup-tip,
-.maplibregl-popup-tip {
-  border-top-color: hsl(var(--card)) !important;
-}
-
-.mapboxgl-ctrl-logo,
-.maplibregl-ctrl-logo {
-  opacity: 0.45;
-}

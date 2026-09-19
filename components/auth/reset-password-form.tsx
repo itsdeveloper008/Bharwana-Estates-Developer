@@ -92,7 +92,6 @@ export function ResetPasswordForm() {
     void (async () => {
       try {
         // verifyPasswordResetCode does NOT consume the oobCode - safe on load / for scanners.
-        console.info("[reset-password] verifying oobCode (non-consuming)");
         const email = await verifyPasswordResetCode(auth, oobCode);
         setLink({ status: "ready", oobCode, email });
       } catch (err) {
@@ -113,7 +112,6 @@ export function ResetPasswordForm() {
       return;
     }
     try {
-      console.info("[reset-password] confirming reset (consumes oobCode)");
       await confirmPasswordReset(auth, link.oobCode, values.password);
       setLink({ status: "success" });
     } catch (err) {

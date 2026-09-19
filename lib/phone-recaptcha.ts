@@ -157,15 +157,11 @@ export async function createPhoneRecaptchaVerifier(
       });
     }
 
-    console.info("[phone-recaptcha] creating invisible RecaptchaVerifier", {
-      containerId,
-      grecaptchaReady: Boolean(window.grecaptcha?.ready || window.grecaptcha?.render),
-    });
 
     const verifier = new RecaptchaVerifier(auth, containerId, {
       size: "invisible",
       callback: () => {
-        console.info("[phone-recaptcha] challenge solved");
+        // Challenge solved — Firebase Phone Auth continues from the send/verify caller.
       },
       "expired-callback": () => {
         console.warn("[phone-recaptcha] challenge expired");
@@ -178,8 +174,7 @@ export async function createPhoneRecaptchaVerifier(
     verifiersByContainer.set(containerId, verifier);
 
     try {
-      const widgetId = await verifier.render();
-      console.info("[phone-recaptcha] rendered", { containerId, widgetId });
+      await verifier.render();
     } catch (error) {
       console.error("[phone-recaptcha] render failed", error);
       verifiersByContainer.delete(containerId);

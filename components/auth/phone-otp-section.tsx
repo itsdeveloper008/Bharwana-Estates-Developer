@@ -180,7 +180,6 @@ export function PhoneOtpSection({
     setOtpSecondsLeft(0);
     const e164 = formatPakistanMobileE164(localDigits);
     try {
-      console.info("[phone-otp] preparing send", { localDigits, e164 });
       let verifier = await createFreshRecaptchaVerifier();
       let result = await sendPhoneOtp(e164, verifier);
 
@@ -278,7 +277,6 @@ export function PhoneOtpSection({
     setErrorCode(null);
     setPending(true);
     try {
-      console.info("[phone-otp] verifying");
       const result = await verifyPhoneOtp(confirmation, values.otp);
       if (!result.ok) {
         console.error("[phone-otp] verify failed", result.error);

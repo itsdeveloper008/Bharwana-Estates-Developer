@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -159,8 +160,18 @@ function DealerDashboard() {
                   aria-label={`View ${property.title}`}
                 >
                   {property.images[0] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={property.images[0]} alt="" className="h-full w-full object-cover" />
+                    property.images[0].startsWith("data:") || property.images[0].startsWith("blob:") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={property.images[0]} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <Image
+                        src={property.images[0]}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="96px"
+                      />
+                    )
                   ) : null}
                 </Link>
                 <div className="min-w-0">

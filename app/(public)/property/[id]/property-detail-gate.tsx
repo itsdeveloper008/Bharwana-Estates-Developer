@@ -6,6 +6,13 @@ import { getPropertyDoc } from "@/lib/firestore/properties";
 import { useMockStore } from "@/lib/mock-store";
 import type { Property } from "@/lib/types";
 
+/**
+ * Client gate for `/property/[id]`.
+ * Prefers the live store (or SSR `initial` when present). If the listing is missing
+ * from the scoped public subscription (e.g. pending draft opened by owner link),
+ * falls back to a single-doc Firestore fetch via `getPropertyDoc`.
+ * Note: the route's server `generateMetadata` may still use seed helpers — SEO vs live can differ.
+ */
 export function PropertyDetailGate({
   id,
   initial,

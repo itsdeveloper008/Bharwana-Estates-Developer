@@ -1,5 +1,16 @@
 "use client";
 
+/**
+ * Marketplace auth provider (`useMockAuth`).
+ * Name is historical: with Firebase configured this is real Firebase Auth
+ * (email/password, Google, Facebook, phone OTP) synced to `users/{uid}`.
+ * Seed/localStorage is only the offline fallback.
+ *
+ * Important behaviors:
+ * - Attach `onAuthStateChanged` before awaiting `getRedirectResult` (redirect can hang).
+ * - If the signed-in UID is an admin (`resolveAdminAuthorization`), clear marketplace
+ *   session so admin accounts do not appear as buyers/sellers on public pages.
+ */
 import {
   createContext,
   useCallback,
@@ -945,7 +956,6 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        console.info("[phone-otp] signInWithPhoneNumber", { e164: normalized, length: normalized.length });
         const confirmation = await signInWithPhoneNumber(auth, normalized, verifier);
         return { ok: true as const, confirmation };
       } catch (error) {
@@ -1033,7 +1043,6 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        console.info("[change-phone] verifyPhoneNumber", { e164: normalized, length: normalized.length });
         const provider = new PhoneAuthProvider(auth);
         const verificationId = await provider.verifyPhoneNumber(normalized, verifier);
         return { ok: true as const, verificationId, phone: normalized };
@@ -1210,12 +1219,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       };
 
       async function finishWithProfile(uid: string, firebaseUser?: FirebaseUser) {
-        console.info("[register] Writing Firestore profile", { uid, email, role });
         const profile = await createUserDocWithRetry(uid, {
           ...profileInput,
           avatarUrl: firebaseUser?.photoURL ?? undefined,
         });
-        console.info("[register] Firestore profile saved", { uid: profile.id });
         if (firebaseUser && profileInput.fullName) {
           void updateProfile(firebaseUser, { displayName: profileInput.fullName }).catch((err) =>
             console.warn("[register] displayName update skipped", err),
@@ -1230,9 +1237,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         const auth = getFirebaseAuth();
         if (auth) {
           try {
-            console.info("[register] Creating Firebase Auth user", { email });
             const credential = await createUserWithEmailAndPassword(auth, email, input.password);
-            console.info("[register] Auth user created", { uid: credential.user.uid });
             return await finishWithProfile(credential.user.uid, credential.user);
           } catch (error) {
             const code =

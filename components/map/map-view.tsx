@@ -97,6 +97,7 @@ export function MapView({
   const mapRef = useRef<google.maps.Map | null>(null);
   const searchParams = useSearchParams();
   const city = searchParams.get("city");
+  // After the user pans/zooms, show "Search this area" once the map settles (debounced).
   const dirtyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userMoved = useRef(false);
   const fittedKey = useRef<string>("");
@@ -498,8 +499,6 @@ export function MapView({
   );
 }
 
-/** @deprecated Prefer MapView - kept for existing imports */
-export const MapCanvas = MapView;
 
 export function MiniMap({ property }: { property: Property }) {
   const router = useRouter();

@@ -5,9 +5,12 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   onSnapshot,
+  query,
   serverTimestamp,
   setDoc,
+  where,
   writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -25,6 +28,20 @@ import {
 import { withTimeout } from "@/lib/utils";
 
 const COLLECTION = "properties";
+
+/** Statuses shown on public marketplace surfaces (Properties, Map, Featured). */
+export const PUBLIC_MARKETPLACE_STATUSES = ["PUBLISHED", "RESERVED"] as const;
+
+/** Cap public inventory payload; raise when listings grow past this. */
+export const PUBLIC_PROPERTIES_LIMIT = 250;
+
+/**
+ * Three subscription helpers on purpose (wired from MockStoreProvider):
+ * - subscribeAllProperties — admin panels need drafts / pending / rejected / sold
+ * - subscribePublicProperties — marketplace visitors must not download every status
+ * - subscribeOwnerProperties — seller desks need their non-public listings too
+ * Do not collapse these into one full-collection listener for everyone.
+ */
 
 const MAX_UPLOAD_BYTES = 9 * 1024 * 1024;
 const ALREADY_COMPRESSED_BYTES = LISTING_IMAGE_MAX_MB * 1024 * 1024;
@@ -123,31 +140,6 @@ function toFirestorePayload(property: Property): Record<string, unknown> {
   return payload;
 }
 
-function logPropertyPayload(propertyId: string, payload: Record<string, unknown>) {
-  try {
-    const preview = JSON.stringify(
-      payload,
-      (_key, value) => {
-        if (isFieldValueSentinel(value)) {
-          const method =
-            value && typeof value === "object" && "_methodName" in value
-              ? String((value as { _methodName?: string })._methodName)
-              : "FieldValue";
-          return `[FieldValue:${method}]`;
-        }
-        if (typeof value === "string" && value.length > 120) {
-          return `${value.slice(0, 80)}…(${value.length} chars)`;
-        }
-        return value;
-      },
-      2,
-    );
-    console.info(`[upsertProperty:${propertyId}] Firestore payload`, preview);
-  } catch (error) {
-    console.info(`[upsertProperty:${propertyId}] Firestore payload (unserializable)`, payload, error);
-  }
-}
-
 /** Upload data:/blob: images (or raw File/Blob) to Storage so Firestore only stores URLs. */
 async function resolvePropertyImages(
   propertyId: string,
@@ -184,7 +176,6 @@ async function resolvePropertyImages(
   const urls: string[] = [];
   for (let index = 0; index < images.length; index += 1) {
     onProgress?.(index + 1, total);
-    console.info(`[resolvePropertyImages] photo ${index + 1}/${total} start`);
     const image = images[index];
     if (isRemoteImageUrl(image) && !imageFiles?.[index]) {
       urls.push(image);
@@ -223,9 +214,6 @@ async function resolvePropertyImages(
       throw new Error(`Photo ${index + 1} could not be processed. Try a JPG or PNG.`);
     }
 
-    console.info(`[resolvePropertyImages] photo ${index + 1}/${total} uploading`, {
-      bytes: blob.size,
-    });
 
     const contentType = "image/jpeg";
     const storageRef = ref(storage, `listings/${uid}/${propertyId}/${index}.jpg`);
@@ -250,7 +238,6 @@ async function resolvePropertyImages(
       throw new Error(`Photo ${index + 1} upload returned an invalid URL`);
     }
     urls.push(downloadUrl);
-    console.info(`[resolvePropertyImages] photo ${index + 1}/${total} done`);
   }
   return urls;
 }
@@ -325,7 +312,8 @@ function mapProperty(id: string, data: Record<string, unknown>): Property {
   };
 }
 
-export function subscribeProperties(
+/** Full inventory — admin panels that need every status. */
+export function subscribeAllProperties(
   onData: (properties: Property[]) => void,
   onError?: (error: Error) => void,
 ): Unsubscribe | null {
@@ -339,6 +327,57 @@ export function subscribeProperties(
     },
     (error) => onError?.(error),
   );
+}
+
+/** Public marketplace: PUBLISHED + RESERVED only, capped for payload size. */
+export function subscribePublicProperties(
+  onData: (properties: Property[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe | null {
+  const db = getDb();
+  if (!db) return null;
+
+  const q = query(
+    collection(db, COLLECTION),
+    where("status", "in", [...PUBLIC_MARKETPLACE_STATUSES]),
+    limit(PUBLIC_PROPERTIES_LIMIT),
+  );
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      onData(snap.docs.map((item) => mapProperty(item.id, item.data())));
+    },
+    (error) => onError?.(error),
+  );
+}
+
+/** Seller dashboard: all statuses for a given owner. */
+export function subscribeOwnerProperties(
+  ownerUserId: string,
+  onData: (properties: Property[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe | null {
+  const db = getDb();
+  if (!db || !ownerUserId) return null;
+
+  const q = query(collection(db, COLLECTION), where("ownerUserId", "==", ownerUserId));
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      onData(snap.docs.map((item) => mapProperty(item.id, item.data())));
+    },
+    (error) => onError?.(error),
+  );
+}
+
+/** @deprecated Prefer subscribePublicProperties / subscribeAllProperties / subscribeOwnerProperties */
+export function subscribeProperties(
+  onData: (properties: Property[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe | null {
+  return subscribeAllProperties(onData, onError);
 }
 
 export async function getPropertyDoc(id: string): Promise<Property | null> {
@@ -400,11 +439,6 @@ export async function upsertProperty(
   const perPhotoBudget = PHOTO_UPLOAD_TIMEOUT_MS + FIRESTORE_WRITE_TIMEOUT_MS + 15_000;
   const uploadBudget = perPhotoBudget * photoCount;
 
-  console.info(`[upsertProperty:${property.id}] starting photo resolve`, {
-    imageCount: property.images.length,
-    fileCount: options?.imageFiles?.filter(Boolean).length ?? 0,
-    uploadBudgetMs: uploadBudget,
-  });
 
   const images = await withTimeout(
     resolvePropertyImages(
@@ -416,7 +450,6 @@ export async function upsertProperty(
     uploadBudget,
     "Photo upload",
   );
-  console.info(`[upsertProperty:${property.id}] photos resolved`, { count: images.length });
 
   const unresolved = images.find(
     (url) => url.startsWith("blob:") || url.startsWith("data:") || !isStoredImageUrl(url),
@@ -457,8 +490,6 @@ export async function upsertProperty(
   for (const [key, value] of Object.entries(payload)) {
     if (value === undefined) delete payload[key];
   }
-
-  logPropertyPayload(property.id, payload);
 
   try {
     if (!existing.exists()) {

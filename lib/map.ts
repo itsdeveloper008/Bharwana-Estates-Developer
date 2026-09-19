@@ -22,7 +22,7 @@ export function warnMissingMapKeys() {
     );
   }
   if (!hasMapboxToken()) {
-    console.info(
+    console.warn(
       "[Bharwana] Optional NEXT_PUBLIC_MAPBOX_TOKEN enables address geocoding in the property form.",
     );
   }
@@ -55,32 +55,6 @@ export function preloadGoogleMaps() {
 
   return googleMapsPreload;
 }
-
-/** @deprecated Kept for any MapLibre fallbacks; primary map uses Google Maps. */
-export const MAP_STYLE = {
-  version: 8 as const,
-  name: "Bharwana Satellite",
-  sources: {
-    esriSatellite: {
-      type: "raster" as const,
-      tiles: [
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      ],
-      tileSize: 256,
-      attribution: "Tiles © Esri - Source: Esri, Maxar, Earthstar Geographics",
-      maxzoom: 19,
-    },
-  },
-  layers: [
-    {
-      id: "esri-satellite",
-      type: "raster" as const,
-      source: "esriSatellite",
-      minzoom: 0,
-      maxzoom: 22,
-    },
-  ],
-};
 
 export const DEFAULT_MAP_VIEW = {
   latitude: 31.52,

@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * Admin panel auth — separate from marketplace `MockAuthProvider` on purpose.
+ *
+ * Admin sessions live in their own context (`useAdminAuth`) so signing into `/admin`
+ * never populates marketplace `user` / owner-dealer desks. Authorization prefers
+ * `admins/{uid}` (super_admin | staff + module permissions), with a legacy fallback
+ * to `users.role === ADMIN` via `resolveAdminAuthorization`.
+ */
 import {
   createContext,
   useCallback,

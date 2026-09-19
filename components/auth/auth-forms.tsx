@@ -535,7 +535,6 @@ export function RegisterForm() {
     setError(null);
     setSubmitting(true);
     try {
-      console.info("[RegisterForm] submit start", { email: values.email, role: values.role });
       const result = await register({
         fullName: values.fullName.trim(),
         email: values.email,
@@ -571,7 +570,6 @@ export function RegisterForm() {
         }
       }
 
-      console.info("[RegisterForm] success", { uid: result.user.id });
       goAfterAuth(result.user);
     } catch (err) {
       console.error("[RegisterForm] unexpected failure", err);

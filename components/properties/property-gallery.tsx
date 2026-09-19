@@ -2,9 +2,13 @@
 
 import Image from "next/image";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+
+function isInlineImageSrc(src: string) {
+  return src.startsWith("data:") || src.startsWith("blob:");
+}
 
 function GalleryImage({
   src,
@@ -13,6 +17,7 @@ function GalleryImage({
   priority = false,
   className,
   sizes,
+  onLoad,
 }: {
   src: string;
   alt: string;
@@ -20,11 +25,17 @@ function GalleryImage({
   priority?: boolean;
   className?: string;
   sizes?: string;
+  onLoad?: () => void;
 }) {
-  if (src.startsWith("data:") || src.startsWith("blob:")) {
+  if (isInlineImageSrc(src)) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt={alt} className={cn(fill ? "h-full w-full object-cover" : className)} />
+      <img
+        src={src}
+        alt={alt}
+        className={cn(fill ? "h-full w-full object-cover" : className)}
+        onLoad={onLoad}
+      />
     );
   }
   if (fill) {
@@ -36,18 +47,45 @@ function GalleryImage({
         className={cn("object-cover", className)}
         sizes={sizes}
         priority={priority}
+        onLoad={onLoad}
       />
     );
   }
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} className={className} />
+    <Image
+      src={src}
+      alt={alt}
+      width={1600}
+      height={1200}
+      className={className}
+      sizes={sizes}
+      quality={85}
+      priority={priority}
+      onLoad={onLoad}
+    />
   );
+}
+
+function preloadAdjacentImages(images: string[], active: number) {
+  if (images.length < 2 || typeof window === "undefined") return;
+  const total = images.length;
+  const neighbors = [
+    images[(active - 1 + total) % total],
+    images[(active + 1) % total],
+  ].filter(Boolean) as string[];
+
+  for (const src of neighbors) {
+    if (isInlineImageSrc(src)) continue;
+    const img = new window.Image();
+    img.decoding = "async";
+    img.src = src;
+  }
 }
 
 export function PropertyGallery({ images, title }: { images: string[]; title: string }) {
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxLoading, setLightboxLoading] = useState(false);
   const total = images.length;
 
   function go(delta: number) {
@@ -64,6 +102,27 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [lightboxOpen, total, active]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!lightboxOpen) {
+      setLightboxLoading(false);
+      return;
+    }
+    setLightboxLoading(true);
+    preloadAdjacentImages(images, active);
+    // Cached images may not fire onLoad reliably; clear spinner as a safety net.
+    const safety = window.setTimeout(() => setLightboxLoading(false), 4_000);
+    return () => window.clearTimeout(safety);
+  }, [lightboxOpen, active, images]);
+
+  const adjacentForOptimizer = useMemo(() => {
+    if (!lightboxOpen || total < 2) return [] as string[];
+    const prev = images[(active - 1 + total) % total];
+    const next = images[(active + 1) % total];
+    return [prev, next].filter(
+      (src): src is string => Boolean(src) && src !== images[active] && !isInlineImageSrc(src),
+    );
+  }, [lightboxOpen, active, images, total]);
 
   if (total === 0) {
     return (
@@ -161,12 +220,62 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
             </DialogPrimitive.Close>
 
             <div className="relative flex min-h-[50vh] items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={current}
-                alt={title}
-                className="max-h-[82vh] w-auto max-w-full object-contain"
-              />
+              {lightboxLoading ? (
+                <div
+                  className="absolute inset-0 z-10 flex items-center justify-center"
+                  aria-hidden
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="h-40 w-56 animate-pulse rounded-md bg-white/10 sm:h-52 sm:w-72" />
+                    <Loader2 className="h-6 w-6 animate-spin text-white/80" />
+                  </div>
+                </div>
+              ) : null}
+
+              {isInlineImageSrc(current) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={current}
+                  src={current}
+                  alt={title}
+                  className={cn(
+                    "max-h-[82vh] w-auto max-w-full object-contain transition-opacity duration-200",
+                    lightboxLoading ? "opacity-0" : "opacity-100",
+                  )}
+                  onLoad={() => setLightboxLoading(false)}
+                />
+              ) : (
+                <Image
+                  key={current}
+                  src={current}
+                  alt={title}
+                  width={1600}
+                  height={1200}
+                  sizes="(max-width: 1100px) 96vw, 1100px"
+                  quality={85}
+                  priority
+                  className={cn(
+                    "max-h-[82vh] h-auto w-auto max-w-full object-contain transition-opacity duration-200",
+                    lightboxLoading ? "opacity-0" : "opacity-100",
+                  )}
+                  onLoad={() => setLightboxLoading(false)}
+                />
+              )}
+
+              {/* Warm Next.js optimizer cache for neighbors (same sizes/quality as lightbox). */}
+              {adjacentForOptimizer.map((src) => (
+                <Image
+                  key={`preload-${src.slice(0, 48)}`}
+                  src={src}
+                  alt=""
+                  width={1600}
+                  height={1200}
+                  sizes="(max-width: 1100px) 96vw, 1100px"
+                  quality={85}
+                  className="pointer-events-none fixed left-[-9999px] top-0 h-px w-px opacity-0"
+                  aria-hidden
+                />
+              ))}
 
               {total > 1 ? (
                 <>
@@ -186,7 +295,7 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
                   >
                     <ChevronRight className="h-6 w-6" strokeWidth={1.75} />
                   </button>
-                  <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-xs text-white">
+                  <span className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-xs text-white">
                     {active + 1} / {total}
                   </span>
                 </>

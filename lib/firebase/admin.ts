@@ -46,51 +46,13 @@ function adminConfigured(): boolean {
   return Boolean(readAdminProjectId() && readAdminClientEmail() && readPrivateKey());
 }
 
-/**
- * Server-only: presence / PEM armor fingerprint - never logs key body bytes.
- */
-function logAdminCredentialPresence(phase: string) {
-  const projectId = readAdminProjectId();
-  const clientEmail = readAdminClientEmail();
-  const privateKey = readPrivateKey();
-  const lines = privateKey.split("\n").filter(Boolean);
-  const firstLine = lines[0] ?? "";
-  const lastLine = lines[lines.length - 1] ?? "";
-  const publicProjectId = readEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID");
-  console.info(`[firebase-admin] ${phase}`, {
-    projectId,
-    projectIdLength: projectId.length,
-    publicProjectId,
-    projectIdsMatch: Boolean(projectId) && projectId === publicProjectId,
-    clientEmail,
-    clientEmailLength: clientEmail.length,
-    clientEmailLooksValid: clientEmail.includes("@") && clientEmail.endsWith(".iam.gserviceaccount.com"),
-    privateKeyPresent: Boolean(privateKey),
-    privateKeyLength: privateKey.length,
-    privateKeyNewlineCount: (privateKey.match(/\n/g) ?? []).length,
-    privateKeyFirstLine: firstLine.slice(0, 40),
-    privateKeyLastLine: lastLine.slice(-40),
-    privateKeyStartsWithBegin:
-      firstLine.startsWith("-----BEGIN PRIVATE KEY-----") ||
-      firstLine.startsWith("-----BEGIN RSA PRIVATE KEY-----"),
-    privateKeyEndsWithEnd:
-      lastLine.startsWith("-----END PRIVATE KEY-----") ||
-      lastLine.startsWith("-----END RSA PRIVATE KEY-----"),
-  });
-}
-
 let app: App | null = null;
-let loggedPresence = false;
 
 export function getFirebaseAdminApp(): App {
   if (app) return app;
   if (getApps().length > 0) {
     app = getApps()[0]!;
     return app;
-  }
-  if (!loggedPresence) {
-    logAdminCredentialPresence("init");
-    loggedPresence = true;
   }
   if (!adminConfigured()) {
     throw new Error(

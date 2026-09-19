@@ -137,7 +137,6 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
     try {
       const verifier = await createFreshRecaptchaVerifier();
       const e164 = formatPakistanMobileE164(localDigits);
-      console.info("[change-phone] preparing send", { e164 });
       const result = await sendChangePhoneOtp(e164, verifier);
       if (!result.ok) {
         setError(result.error);

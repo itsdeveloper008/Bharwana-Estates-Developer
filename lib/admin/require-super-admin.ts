@@ -3,7 +3,6 @@ import {
   getAdminAuth,
   getAdminDb,
   isFirebaseAdminConfigured,
-  readAdminClientEmail,
   readAdminProjectId,
 } from "@/lib/firebase/admin";
 
@@ -98,6 +97,12 @@ export async function loadAdminCaller(uid: string, emailFallback = ""): Promise<
   return null;
 }
 
+/**
+ * Server-side gate for Admin SDK staff routes (`/api/admin/*`).
+ * Verifies the caller's Firebase ID token, then loads `admins/{uid}` (or legacy
+ * users.role) via the service account — never trusts client-claimed permissions.
+ * Do not log token contents; verifyIdToken failures stay in console.error only.
+ */
 export async function requireSuperAdmin(
   request: Request,
 ): Promise<{ ok: true; caller: VerifiedAdminCaller } | { ok: false; status: number; error: string }> {
@@ -115,22 +120,11 @@ export async function requireSuperAdmin(
     return { ok: false, status: 401, error: "Missing Authorization bearer token." };
   }
 
-  console.info("[requireSuperAdmin] token received", {
-    length: token.length,
-    prefix: token.slice(0, 10),
-    suffix: token.slice(-10),
-    adminProjectId: readAdminProjectId(),
-    adminClientEmail: readAdminClientEmail(),
-  });
 
   // Step A - verify the end-user Firebase ID token (local JWT check; does not call Firestore).
   let decoded: { uid: string; email?: string };
   try {
     decoded = await getAdminAuth().verifyIdToken(token);
-    console.info("[requireSuperAdmin] verifyIdToken ok", {
-      uid: decoded.uid,
-      email: decoded.email ?? null,
-    });
   } catch (error) {
     console.error("[requireSuperAdmin] verifyIdToken failed", error);
     const message = errorMessage(error);

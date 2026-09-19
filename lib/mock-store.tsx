@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -28,11 +29,15 @@ import {
 } from "@/lib/firestore/inquiries";
 import {
   deleteProperty as deletePropertyRemote,
-  subscribeProperties,
+  subscribeAllProperties,
+  subscribeOwnerProperties,
+  subscribePublicProperties,
   upsertProperty,
   type UpsertPropertyOptions,
+  PUBLIC_MARKETPLACE_STATUSES,
 } from "@/lib/firestore/properties";
 import { createUserDoc, subscribeUsers, updateUserRole } from "@/lib/firestore/users";
+import { useMockAuth } from "@/lib/mock-auth";
 import { developers as seedDevelopers } from "@/lib/mock-data/developers";
 import { inquiries as seedInquiries } from "@/lib/mock-data/inquiries";
 import { properties as seedPropertiesList } from "@/lib/mock-data/properties";
@@ -117,8 +122,36 @@ function mergeById<T extends { id: string }>(seed: T[], stored: T[] | null): T[]
   return Array.from(map.values());
 }
 
+function mergePropertyLists(...lists: Property[][]): Property[] {
+  const map = new Map<string, Property>();
+  for (const list of lists) {
+    for (const item of list) map.set(item.id, item);
+  }
+  return Array.from(map.values());
+}
+
+function isPublicMarketplaceStatus(status: Property["status"]) {
+  return (PUBLIC_MARKETPLACE_STATUSES as readonly string[]).includes(status);
+}
+
+/**
+ * Global client data store for marketplace + admin.
+ *
+ * Despite the "Mock" name, when Firebase is configured this is the live Firestore
+ * subscription layer. Seed/localStorage is only used when Firebase env is missing.
+ *
+ * Property loading is intentionally split (see refs below):
+ * - Admin session  → full `properties` collection (all statuses)
+ * - Public visitors → PUBLISHED + RESERVED only (capped)
+ * - Logged-in seller → public set merged with their owned docs (any status)
+ * Mixing these incorrectly will hide pending listings from owners or leak drafts to the public.
+ */
 export function MockStoreProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated: isAdminSession } = useAdminAuth();
+  const { user } = useMockAuth();
+  // While an admin panel session is active, do not also pull the marketplace user's owned query.
+  const marketplaceUserId = isAdminSession ? null : (user?.id ?? null);
+
   const [properties, setProperties] = useState<Property[]>(() =>
     isFirebaseConfigured() ? [] : seedPropertiesList,
   );
@@ -135,6 +168,21 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const [usingFirestoreDevelopers, setUsingFirestoreDevelopers] = useState(false);
   const [propertiesLoading, setPropertiesLoading] = useState(isFirebaseConfigured());
   const [propertiesError, setPropertiesError] = useState<string | null>(null);
+
+  const publicPropertiesRef = useRef<Property[]>([]);
+  const ownedPropertiesRef = useRef<Property[]>([]);
+  const adminPropertiesRef = useRef<Property[]>([]);
+  const isAdminSessionRef = useRef(isAdminSession);
+  isAdminSessionRef.current = isAdminSession;
+
+  /** Rebuild the single `properties` array consumers read from the three subscription sources. */
+  const rebuildProperties = useCallback(() => {
+    if (isAdminSessionRef.current) {
+      setProperties(adminPropertiesRef.current);
+      return;
+    }
+    setProperties(mergePropertyLists(publicPropertiesRef.current, ownedPropertiesRef.current));
+  }, []);
 
   useEffect(() => {
     if (isFirebaseConfigured()) {
@@ -198,6 +246,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     return () => unsub?.();
   }, [isAdminSession]);
 
+  // Admin: full inventory. Public: PUBLISHED/RESERVED only (capped).
   useEffect(() => {
     if (!isFirebaseConfigured()) {
       setUsingFirestoreProperties(false);
@@ -216,23 +265,54 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       );
     }, 8_000);
 
-    const unsub = subscribeProperties(
+    const onError = (error: Error) => {
+      window.clearTimeout(timeout);
+      console.error("Firestore properties subscription failed", error);
+      setUsingFirestoreProperties(false);
+      setProperties([]);
+      setPropertiesLoading(false);
+      setPropertiesError(firestoreErrorMessage(error, "Could not load properties from Firestore."));
+      toast.error("Could not load properties from Firestore.");
+    };
+
+    if (isAdminSession) {
+      ownedPropertiesRef.current = [];
+      publicPropertiesRef.current = [];
+      const unsub = subscribeAllProperties(
+        (next) => {
+          window.clearTimeout(timeout);
+          adminPropertiesRef.current = next;
+          setUsingFirestoreProperties(true);
+          setProperties(next);
+          setPropertiesLoading(false);
+          setPropertiesError(null);
+        },
+        onError,
+      );
+
+      if (!unsub) {
+        window.clearTimeout(timeout);
+        setPropertiesLoading(false);
+        setPropertiesError("Properties are unavailable right now.");
+      }
+
+      return () => {
+        window.clearTimeout(timeout);
+        unsub?.();
+      };
+    }
+
+    adminPropertiesRef.current = [];
+    const unsub = subscribePublicProperties(
       (next) => {
         window.clearTimeout(timeout);
+        publicPropertiesRef.current = next;
         setUsingFirestoreProperties(true);
-        setProperties(next);
+        rebuildProperties();
         setPropertiesLoading(false);
         setPropertiesError(null);
       },
-      (error) => {
-        window.clearTimeout(timeout);
-        console.error("Firestore properties subscription failed", error);
-        setUsingFirestoreProperties(false);
-        setProperties([]);
-        setPropertiesLoading(false);
-        setPropertiesError(firestoreErrorMessage(error, "Could not load properties from Firestore."));
-        toast.error("Could not load properties from Firestore.");
-      },
+      onError,
     );
 
     if (!unsub) {
@@ -245,7 +325,31 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       window.clearTimeout(timeout);
       unsub?.();
     };
-  }, []);
+  }, [isAdminSession, rebuildProperties]);
+
+  // Sellers: merge their listings (all statuses) into the public marketplace set.
+  useEffect(() => {
+    if (!isFirebaseConfigured() || isAdminSession || !marketplaceUserId) {
+      ownedPropertiesRef.current = [];
+      if (!isAdminSession && isFirebaseConfigured()) rebuildProperties();
+      return;
+    }
+
+    const unsub = subscribeOwnerProperties(
+      marketplaceUserId,
+      (next) => {
+        ownedPropertiesRef.current = next;
+        setUsingFirestoreProperties(true);
+        rebuildProperties();
+      },
+      (error) => {
+        console.error("Firestore owner properties subscription failed", error);
+        toast.error("Could not load your listings from Firestore.");
+      },
+    );
+
+    return () => unsub?.();
+  }, [isAdminSession, marketplaceUserId, rebuildProperties]);
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
@@ -289,12 +393,48 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, [isAdminSession]);
 
   const addProperty = useCallback(async (property: Property, options?: UpsertPropertyOptions) => {
+    if (isAdminSessionRef.current) {
+      adminPropertiesRef.current = [property, ...adminPropertiesRef.current.filter((item) => item.id !== property.id)];
+    } else {
+      if (isPublicMarketplaceStatus(property.status)) {
+        publicPropertiesRef.current = [
+          property,
+          ...publicPropertiesRef.current.filter((item) => item.id !== property.id),
+        ];
+      }
+      if (property.ownerUserId) {
+        ownedPropertiesRef.current = [
+          property,
+          ...ownedPropertiesRef.current.filter((item) => item.id !== property.id),
+        ];
+      }
+    }
     setProperties((current) => [property, ...current.filter((item) => item.id !== property.id)]);
 
     if (!isFirebaseConfigured()) return;
 
     try {
       const saved = await upsertProperty(property, options);
+      if (isAdminSessionRef.current) {
+        adminPropertiesRef.current = adminPropertiesRef.current.map((item) =>
+          item.id === property.id ? saved : item,
+        );
+      } else {
+        if (isPublicMarketplaceStatus(saved.status)) {
+          publicPropertiesRef.current = [
+            saved,
+            ...publicPropertiesRef.current.filter((item) => item.id !== saved.id),
+          ];
+        } else {
+          publicPropertiesRef.current = publicPropertiesRef.current.filter((item) => item.id !== saved.id);
+        }
+        if (saved.ownerUserId) {
+          ownedPropertiesRef.current = [
+            saved,
+            ...ownedPropertiesRef.current.filter((item) => item.id !== saved.id),
+          ];
+        }
+      }
       setProperties((current) =>
         current.map((item) => (item.id === property.id ? saved : item)),
       );
@@ -318,10 +458,51 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     });
     if (!merged) return;
 
+    if (isAdminSessionRef.current) {
+      adminPropertiesRef.current = adminPropertiesRef.current.map((item) =>
+        item.id === id ? merged! : item,
+      );
+    } else {
+      if (isPublicMarketplaceStatus(merged.status)) {
+        publicPropertiesRef.current = [
+          merged,
+          ...publicPropertiesRef.current.filter((item) => item.id !== id),
+        ];
+      } else {
+        publicPropertiesRef.current = publicPropertiesRef.current.filter((item) => item.id !== id);
+      }
+      if (merged.ownerUserId) {
+        ownedPropertiesRef.current = [
+          merged,
+          ...ownedPropertiesRef.current.filter((item) => item.id !== id),
+        ];
+      }
+    }
+
     if (!isFirebaseConfigured()) return;
 
     try {
       const saved = await upsertProperty(merged, options);
+      if (isAdminSessionRef.current) {
+        adminPropertiesRef.current = adminPropertiesRef.current.map((item) =>
+          item.id === id ? saved : item,
+        );
+      } else {
+        if (isPublicMarketplaceStatus(saved.status)) {
+          publicPropertiesRef.current = [
+            saved,
+            ...publicPropertiesRef.current.filter((item) => item.id !== id),
+          ];
+        } else {
+          publicPropertiesRef.current = publicPropertiesRef.current.filter((item) => item.id !== id);
+        }
+        if (saved.ownerUserId) {
+          ownedPropertiesRef.current = [
+            saved,
+            ...ownedPropertiesRef.current.filter((item) => item.id !== id),
+          ];
+        }
+      }
       setProperties((current) =>
         current.map((property) => (property.id === id ? saved : property)),
       );
@@ -333,6 +514,9 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteProperty = useCallback(async (id: string) => {
+    adminPropertiesRef.current = adminPropertiesRef.current.filter((item) => item.id !== id);
+    publicPropertiesRef.current = publicPropertiesRef.current.filter((item) => item.id !== id);
+    ownedPropertiesRef.current = ownedPropertiesRef.current.filter((item) => item.id !== id);
     setProperties((current) => current.filter((property) => property.id !== id));
     if (isFirebaseConfigured()) {
       try {

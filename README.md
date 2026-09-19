@@ -1,114 +1,112 @@
-# Bharwana Estates Developer
+# Bharwana Estates
 
-Next.js 14 real-estate frontend with Firestore for **team** and **properties**. Admin login is still mock (email/password in `lib/mock-data/admin-users.ts`) until Firebase Auth is added.
+Next.js marketplace and admin panel for Bharwana Estates — property listings,
+map browse, seller desks (individual / dealer), and a permissioned admin CMS
+backed by Firebase Auth, Firestore, and Storage.
 
-## 1. Local setup
+## Tech stack
+
+- **Next.js 14** (App Router) + React 18 + TypeScript
+- **Firebase** Auth, Firestore, Storage (`firebase` client + `firebase-admin` for staff APIs)
+- **Tailwind CSS** + Radix UI + Framer Motion
+- **Maps:** Google Maps JS (`@react-google-maps/api`); optional Mapbox token for address geocoding only
+- Forms: react-hook-form + Zod; images: browser-image-compression + Next `<Image>`
+
+## Folder structure
+
+| Path | Role |
+|------|------|
+| `app/(public)/` | Marketing + marketplace (home, properties, map, property detail, account, saved) |
+| `app/(auth)/` | Login / register / password reset |
+| `app/owner/` · `app/dealer/` · `app/sales/` | Role desks |
+| `app/admin/` | Admin panel (submissions, properties, dealers, staff, reports, …) |
+| `app/api/` | Phone-registered check, admin staff Admin SDK routes |
+| `components/` | UI by domain (`properties`, `map`, `auth`, `admin`, …) |
+| `lib/` | Auth, Firestore modules, domain helpers, types |
+| `firestore.rules` / `storage.rules` | Security rules |
+
+## Run locally
 
 ```bash
 npm install
-cp .env.example .env.local
-```
-
-Fill `.env.local` (Mapbox optional for maps; Firebase required for live data):
-
-```env
-NEXT_PUBLIC_MAPBOX_TOKEN=pk....
-NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-NEXT_PUBLIC_FIREBASE_APP_ID=...
-```
-
-```bash
+cp .env.local.example .env.local
 npm run dev
 ```
 
-### Firebase console checklist
+Fill `.env.local`:
 
-1. Create a project at [Firebase Console](https://console.firebase.google.com/).
-2. Add a **Web** app → copy config into `.env.local`.
-3. Enable **Firestore** and **Storage**.
-4. Deploy rules (dev-open rules are in the repo - tighten before production):
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_FIREBASE_*` | Required for live Auth / Firestore / Storage |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | `/map` and map pickers |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | Optional — address geocoding in the listing form |
+| `NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID` | Google sign-in web client |
+| `FIREBASE_ADMIN_*` | Server-only staff Admin SDK APIs |
 
-```bash
-# optional CLI
-npm i -g firebase-tools
-firebase login
-firebase init firestore storage   # or paste rules from firestore.rules / storage.rules in Console
-```
-
-Or in Console → Firestore → Rules / Storage → Rules, paste `firestore.rules` and `storage.rules`.
-
-5. Sign in to Admin → `/admin/login` → **Seed Firestore** on the dashboard (writes `teamMembers` + `properties` if empty).
-6. Edit team at `/admin/team` - changes sync to `/about` via Firestore.
-
-Without Firebase env vars the app still runs on local seed/mock data.
-
-Demo admin: `admin@bharwana.example` / `admin123`
-
----
-
-## 2. Put the repo on GitHub
-
-In the project folder:
+Without Firebase env vars the app falls back to seed/localStorage data.
 
 ```bash
-# if git is already initialized (it is)
-git add .
-git status   # confirm .env.local is NOT listed (it is gitignored)
-
-git commit -m "$(cat <<'EOF'
-Add Bharwana Estates frontend with Firestore team and properties sync.
-
-EOF
-)"
+npm run lint
+npm run build
+npm run admin:grant          # grant panel access
+npm run phone-auth:diagnose
 ```
 
-Create an empty GitHub repo (no README), then:
+Deploy rules from the repo when they change:
 
 ```bash
-git remote add origin https://github.com/YOUR_USERNAME/bharwana-estates.git
-git branch -M main
-git push -u origin main
+firebase deploy --only firestore:rules,storage
 ```
 
-Or with GitHub CLI:
+## Architecture
 
-```bash
-gh repo create bharwana-estates --private --source=. --remote=origin --push
-```
+### Auth (two systems on purpose)
 
-Never commit `.env.local`.
+1. **Marketplace** — `lib/mock-auth.tsx` / `useMockAuth`  
+   Name is historical. When Firebase is configured this is **real** Firebase Auth
+   (email/password, Google, phone OTP). Profiles live in `users/{uid}`.
 
----
+2. **Admin panel** — `lib/admin-auth.tsx` / `useAdminAuth`  
+   Separate session. Sign-in checks `admins/{uid}` (super_admin | staff + module
+   permissions), with legacy fallback `users.role === ADMIN`. Admin session does
+   **not** become a marketplace `user`.
 
-## 3. Host on Vercel
+Provider order (`components/providers.tsx`):
 
-1. Go to [vercel.com](https://vercel.com) → **Add New Project** → import the GitHub repo.
-2. Framework: **Next.js** (auto-detected).
-3. **Environment Variables** - add the same keys as `.env.local`:
-   - `NEXT_PUBLIC_FIREBASE_*` (all six)
-   - `NEXT_PUBLIC_MAPBOX_TOKEN` (optional)
-4. Deploy.
-5. After deploy, open your Vercel URL → `/admin` → Seed Firestore once (same Firebase project as local).
+`MockAuthProvider` → `AdminAuthProvider` → `MockStoreProvider` → …
 
-### Custom domain (optional)
+### Roles & routes
 
-Vercel → Project → Settings → Domains → add `www.yourdomain.com`.
+| Role | Desk |
+|------|------|
+| `INDIVIDUAL` (legacy `BUYER` / `HOUSE_OWNER` normalize here) | `/owner` |
+| `DEALER` | `/dealer` (agency profile in `developers`) |
+| `SALES_REP` | `/sales` |
+| Admin panel | `/admin/*` via AdminAuth |
 
-### Firebase + Vercel note
+### Firestore collections
 
-Client Firebase keys (`NEXT_PUBLIC_*`) are public by design. Protect data with **Firestore/Storage security rules** (and later Firebase Auth), not by hiding the API key.
+| Collection | Purpose |
+|------------|---------|
+| `users` | Marketplace profiles |
+| `admins` | Panel allow-list (client write denied) |
+| `properties` | Listings (public read; status-scoped client subscriptions) |
+| `developers` | Dealer/agency profiles |
+| `inquiries` | Buyer leads |
+| `teamMembers` | About / team page |
+| `transactions` | Commission records (rules exist; UI still partly seed-backed) |
+| `contactMessages` / `newsletterSignups` / `deletionRequests` | Ops |
 
----
+### Property data loading
 
-## Collections
+- **Public marketplace:** `PUBLISHED` + `RESERVED` only (capped at 250).
+- **Logged-in seller:** those + own listings of any status.
+- **Admin session:** full collection.
 
-| Collection     | Used by                          |
-|----------------|----------------------------------|
-| `teamMembers`  | `/about`, `/admin/team`          |
-| `properties`   | listings, map, admin properties  |
+Listing photos are client-compressed (~250KB JPEG) before Storage upload
+(`lib/compress-listing-image.ts`).
 
-Photo uploads from Admin go to Storage path `team/{id}.jpg|png`.
+## Hosting notes
+
+Client Firebase keys (`NEXT_PUBLIC_*`) are public by design. Protect data with
+**Firestore / Storage security rules**, not by hiding the API key.

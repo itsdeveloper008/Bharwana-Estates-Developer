@@ -2,32 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { MapPinned, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { hasMapboxToken } from "@/lib/map";
 import { formatPrice, listingBadge } from "@/lib/format";
 import { propertyHighlightDisplay } from "@/lib/property-features";
 import { propertyCoverImage } from "@/lib/property-images";
 import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-export function MapFallback({ message }: { message?: string }) {
-  return (
-    <div className="flex h-full min-h-[320px] items-center justify-center bg-forest px-6 text-center text-ivory">
-      <div>
-        <MapPinned className="mx-auto h-8 w-8 text-gold" />
-        <p className="mt-4 font-serif text-2xl">Map awaits a token</p>
-        <p className="mt-2 max-w-sm text-sm text-ivory/70">
-          {message ??
-            "Add NEXT_PUBLIC_MAPBOX_TOKEN to .env.local to render Mapbox pins. See .env.local.example. The listing grid still works from mock data."}
-        </p>
-        {!hasMapboxToken() && (
-          <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-gold-800">Frontend-only · no geocoding backend</p>
-        )}
-      </div>
-    </div>
-  );
-}
 
 /** Large left-side preview - map stays visible beside it */
 export function MapPreviewCard({

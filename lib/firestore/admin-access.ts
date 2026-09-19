@@ -11,6 +11,12 @@ import type { User } from "@/lib/types";
 
 const ADMINS_COLLECTION = "admins";
 
+/**
+ * Dual-path admin gate used by both client AdminAuth and server staff APIs:
+ * 1. Preferred: document in `admins/{uid}` (role + permissions; client writes denied by rules)
+ * 2. Legacy: `users/{uid}.role === "ADMIN"` treated as super-admin
+ * Prefer granting via `admins` going forward; do not assume marketplace ADMIN role alone.
+ */
 export type AdminAuthorizationResult =
   | {
       authorized: true;
