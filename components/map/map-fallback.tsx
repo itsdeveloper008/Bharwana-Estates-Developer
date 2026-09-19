@@ -45,19 +45,21 @@ export function MapPreviewCard({
   return (
     <div className="flex w-[min(560px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_24px_60px_rgba(15,46,29,0.3)] sm:w-[580px]">
       <div className="relative aspect-[16/10] w-full bg-cream">
-        {image.startsWith("data:") || image.startsWith("blob:") ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={image} alt="" className="h-full w-full object-cover" />
-        ) : image ? (
-          <Image src={image} alt="" fill className="object-cover" sizes="580px" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-cream text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-            No photo
-          </div>
-        )}
+        <Link href={href} className="absolute inset-0 block" aria-label={`View ${property.title}`}>
+          {image.startsWith("data:") || image.startsWith("blob:") ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={image} alt="" className="h-full w-full object-cover" />
+          ) : image ? (
+            <Image src={image} alt="" fill className="object-cover" sizes="580px" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-cream text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              No photo
+            </div>
+          )}
+        </Link>
         <Badge
           variant={property.listingType === "DIRECT_OWNER" ? "owner" : "verified"}
-          className="absolute left-3 top-3 text-[10px] uppercase"
+          className="pointer-events-none absolute left-3 top-3 text-[10px] uppercase"
         >
           {listingBadge(property.listingType)}
         </Badge>
@@ -77,7 +79,9 @@ export function MapPreviewCard({
         ) : null}
       </div>
       <div className="px-6 py-5 sm:px-7 sm:py-6">
-        <p className="font-serif text-2xl leading-snug text-forest sm:text-[1.75rem]">{property.title}</p>
+        <Link href={href} className="font-serif text-2xl leading-snug text-forest hover:underline sm:text-[1.75rem]">
+          {property.title}
+        </Link>
         <p className="mt-2 text-sm text-muted-foreground sm:text-[15px]">
           {property.city}
           {property.address ? ` · ${property.address}` : ""}

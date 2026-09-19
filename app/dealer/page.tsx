@@ -153,14 +153,20 @@ function DealerDashboard() {
               className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between"
             >
               <div className="flex min-w-0 items-start gap-4">
-                <div className="relative h-16 w-24 shrink-0 overflow-hidden bg-cream">
+                <Link
+                  href={`/property/${property.id}`}
+                  className="relative h-16 w-24 shrink-0 overflow-hidden bg-cream"
+                  aria-label={`View ${property.title}`}
+                >
                   {property.images[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={property.images[0]} alt="" className="h-full w-full object-cover" />
                   ) : null}
-                </div>
+                </Link>
                 <div className="min-w-0">
-                  <p className="font-medium text-forest">{property.title}</p>
+                  <Link href={`/property/${property.id}`} className="font-medium text-forest hover:underline">
+                    {property.title}
+                  </Link>
                   <p className="text-sm text-muted-foreground">
                     {property.city} · {formatPrice(property.price)}
                   </p>

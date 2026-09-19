@@ -29,6 +29,7 @@ import { buildStatusChangePatch } from "@/lib/property-status";
 import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import Link from "next/link";
 import { useAdminAuth } from "@/lib/admin-auth";
 import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 
@@ -161,7 +162,12 @@ export default function AdminSubmissionsPage() {
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="relative h-12 w-16 shrink-0 overflow-hidden bg-cream">
+                      <Link
+                        href={`/admin/properties/${property.id}`}
+                        onClick={(event) => event.stopPropagation()}
+                        className="relative h-12 w-16 shrink-0 overflow-hidden bg-cream"
+                        aria-label={`View ${property.title}`}
+                      >
                         {property.images[0] ? (
                           property.images[0].startsWith("data:") ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -170,8 +176,14 @@ export default function AdminSubmissionsPage() {
                             <Image src={property.images[0]} alt="" fill className="object-cover" sizes="64px" />
                           )
                         ) : null}
-                      </div>
-                      <span className="font-medium text-forest">{property.title}</span>
+                      </Link>
+                      <Link
+                        href={`/admin/properties/${property.id}`}
+                        onClick={(event) => event.stopPropagation()}
+                        className="font-medium text-forest hover:underline"
+                      >
+                        {property.title}
+                      </Link>
                     </div>
                   </TableCell>
                   <TableCell>{owner?.fullName ?? "Unknown"}</TableCell>

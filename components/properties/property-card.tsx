@@ -63,24 +63,14 @@ export function PropertyCard({
         isList ? "h-[96px] w-full" : "aspect-[16/10] w-full",
       )}
     >
-      {onSelect ? (
-        <button
-          type="button"
-          className="absolute inset-0 block h-full w-full text-left"
-          onClick={() => onSelect(property.id)}
-          aria-label={`View ${property.title}`}
-        >
-          {image}
-        </button>
-      ) : (
-        <Link
-          href={href}
-          className="absolute inset-0 block"
-          aria-label={`View ${property.title}`}
-        >
-          {image}
-        </Link>
-      )}
+      <Link
+        href={href}
+        className="absolute inset-0 block"
+        aria-label={`View ${property.title}`}
+        onClick={() => onSelect?.(property.id)}
+      >
+        {image}
+      </Link>
       <Badge
         variant={property.listingType === "DIRECT_OWNER" ? "owner" : "verified"}
         className={cn(
@@ -119,77 +109,77 @@ export function PropertyCard({
 
       {isList ? (
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 p-2.5">
-          {onSelect ? (
-            <button type="button" className="min-w-0 text-left" onClick={() => onSelect(property.id)}>
-              <h3
-                className={cn(
-                  "line-clamp-2 font-serif text-[13px] leading-snug",
-                  highlighted ? "text-ivory" : "text-forest",
-                )}
-              >
-                {property.title}
-              </h3>
-              <p className={cn("text-[11px]", highlighted ? "text-ivory/70" : "text-muted-foreground")}>
-                {property.city}
-              </p>
-              <p className={cn("text-[12px] font-medium", highlighted ? "text-gold" : "text-gold-700")}>
-                {formatPrice(property.price)}
-              </p>
-            </button>
-          ) : (
-            <Link href={href} className="min-w-0">
-              <h3 className="line-clamp-2 font-serif text-[13px] leading-snug text-forest">
-                {property.title}
-              </h3>
-              <p className="text-[11px] text-muted-foreground">{property.city}</p>
-              <p className="text-[12px] font-medium text-gold-700">{formatPrice(property.price)}</p>
-            </Link>
-          )}
+          <Link
+            href={href}
+            className="min-w-0"
+            onClick={() => onSelect?.(property.id)}
+          >
+            <h3
+              className={cn(
+                "line-clamp-2 font-serif text-[13px] leading-snug",
+                highlighted ? "text-ivory" : "text-forest",
+              )}
+            >
+              {property.title}
+            </h3>
+            <p className={cn("text-[11px]", highlighted ? "text-ivory/70" : "text-muted-foreground")}>
+              {property.city}
+            </p>
+            <p className={cn("text-[12px] font-medium", highlighted ? "text-gold" : "text-gold-700")}>
+              {formatPrice(property.price)}
+            </p>
+          </Link>
           <Link href={href} className={seeMoreClass}>
             See more
           </Link>
         </div>
       ) : (
         <div className="flex items-end justify-between gap-3 p-4">
-          {onSelect ? (
-            <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onSelect(property.id)}>
-              <h3 className="truncate font-serif text-lg leading-snug text-forest">{property.title}</h3>
-              <p className="mt-0.5 text-sm text-muted-foreground">{property.city}</p>
-              <p className="mt-2 text-sm font-medium text-gold-700">{formatPrice(property.price)}</p>
-              {highlights.length > 0 ? (
-                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-forest/10 pt-3">
-                  {highlights.slice(0, 3).map((spec) => (
-                    <div key={spec.key} className="min-w-0">
-                      <spec.icon className="h-3.5 w-3.5 text-gold" />
-                      <p className="mt-1 truncate text-xs font-semibold text-forest">{spec.value}</p>
-                      <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-                        {spec.label}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </button>
-          ) : (
-            <Link href={href} className="min-w-0 flex-1">
-              <h3 className="truncate font-serif text-lg leading-snug text-forest">{property.title}</h3>
-              <p className="mt-0.5 text-sm text-muted-foreground">{property.city}</p>
-              <p className="mt-2 text-sm font-medium text-gold-700">{formatPrice(property.price)}</p>
-              {highlights.length > 0 ? (
-                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-forest/10 pt-3">
-                  {highlights.slice(0, 3).map((spec) => (
-                    <div key={spec.key} className="min-w-0">
-                      <spec.icon className="h-3.5 w-3.5 text-gold" />
-                      <p className="mt-1 truncate text-xs font-semibold text-forest">{spec.value}</p>
-                      <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-                        {spec.label}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </Link>
-          )}
+          <Link
+            href={href}
+            className="min-w-0 flex-1"
+            onClick={() => onSelect?.(property.id)}
+          >
+            <h3
+              className={cn(
+                "truncate font-serif text-lg leading-snug",
+                highlighted ? "text-ivory" : "text-forest",
+              )}
+            >
+              {property.title}
+            </h3>
+            <p className={cn("mt-0.5 text-sm", highlighted ? "text-ivory/70" : "text-muted-foreground")}>
+              {property.city}
+            </p>
+            <p className={cn("mt-2 text-sm font-medium", highlighted ? "text-gold" : "text-gold-700")}>
+              {formatPrice(property.price)}
+            </p>
+            {highlights.length > 0 ? (
+              <div className="mt-3 grid grid-cols-3 gap-2 border-t border-forest/10 pt-3">
+                {highlights.slice(0, 3).map((spec) => (
+                  <div key={spec.key} className="min-w-0">
+                    <spec.icon className={cn("h-3.5 w-3.5", highlighted ? "text-gold" : "text-gold")} />
+                    <p
+                      className={cn(
+                        "mt-1 truncate text-xs font-semibold",
+                        highlighted ? "text-ivory" : "text-forest",
+                      )}
+                    >
+                      {spec.value}
+                    </p>
+                    <p
+                      className={cn(
+                        "text-[9px] uppercase tracking-[0.12em]",
+                        highlighted ? "text-ivory/60" : "text-muted-foreground",
+                      )}
+                    >
+                      {spec.label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </Link>
           <Link href={href} className={seeMoreClass}>
             See more
           </Link>
