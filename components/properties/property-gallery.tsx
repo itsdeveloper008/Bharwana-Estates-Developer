@@ -205,77 +205,84 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
 
       <DialogPrimitive.Root open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogPrimitive.Portal>
-          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/85 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/90 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
           <DialogPrimitive.Content
-            className="fixed left-1/2 top-1/2 z-50 flex w-[min(96vw,1100px)] max-w-none -translate-x-1/2 -translate-y-1/2 flex-col outline-none"
+            className="fixed left-1/2 top-1/2 z-50 flex h-[95vh] w-[95vw] max-w-none -translate-x-1/2 -translate-y-1/2 flex-col outline-none sm:h-[90vh] sm:w-[90vw]"
             onOpenAutoFocus={(event) => event.preventDefault()}
             aria-describedby={undefined}
           >
             <DialogPrimitive.Title className="sr-only">{title} photo gallery</DialogPrimitive.Title>
             <DialogPrimitive.Close
-              className="absolute right-0 top-0 z-20 flex h-10 w-10 -translate-y-12 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+              className="absolute right-2 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold sm:right-3 sm:top-3"
               aria-label="Close photo viewer"
             >
               <X className="h-5 w-5" />
             </DialogPrimitive.Close>
 
-            <div className="relative flex min-h-[50vh] items-center justify-center">
+            <div className="relative flex h-full w-full items-center justify-center">
               {lightboxLoading ? (
                 <div
                   className="absolute inset-0 z-10 flex items-center justify-center"
                   aria-hidden
                 >
                   <div className="flex flex-col items-center gap-3">
-                    <div className="h-40 w-56 animate-pulse rounded-md bg-white/10 sm:h-52 sm:w-72" />
+                    <div className="h-[40vh] w-[70vw] max-w-3xl animate-pulse rounded-md bg-white/10 sm:h-[50vh] sm:w-[55vw]" />
                     <Loader2 className="h-6 w-6 animate-spin text-white/80" />
                   </div>
                 </div>
               ) : null}
 
-              {isInlineImageSrc(current) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={current}
-                  src={current}
-                  alt={title}
-                  className={cn(
-                    "max-h-[82vh] w-auto max-w-full object-contain transition-opacity duration-200",
-                    lightboxLoading ? "opacity-0" : "opacity-100",
-                  )}
-                  onLoad={() => setLightboxLoading(false)}
-                />
-              ) : (
-                <Image
-                  key={current}
-                  src={current}
-                  alt={title}
-                  width={1600}
-                  height={1200}
-                  sizes="(max-width: 1100px) 96vw, 1100px"
-                  quality={85}
-                  priority
-                  className={cn(
-                    "max-h-[82vh] h-auto w-auto max-w-full object-contain transition-opacity duration-200",
-                    lightboxLoading ? "opacity-0" : "opacity-100",
-                  )}
-                  onLoad={() => setLightboxLoading(false)}
-                />
-              )}
+              {/* Fill the lightbox frame; object-contain keeps landscape + portrait aspect ratios. */}
+              <div
+                className={cn(
+                  "relative h-full w-full transition-opacity duration-200",
+                  lightboxLoading ? "opacity-0" : "opacity-100",
+                )}
+              >
+                {isInlineImageSrc(current) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={current}
+                    src={current}
+                    alt={title}
+                    className="absolute inset-0 h-full w-full object-contain"
+                    onLoad={() => setLightboxLoading(false)}
+                  />
+                ) : (
+                  <Image
+                    key={current}
+                    src={current}
+                    alt={title}
+                    fill
+                    sizes="(max-width: 640px) 95vw, 90vw"
+                    quality={90}
+                    priority
+                    className="object-contain"
+                    onLoad={() => setLightboxLoading(false)}
+                  />
+                )}
+              </div>
 
-              {/* Warm Next.js optimizer cache for neighbors (same sizes/quality as lightbox). */}
+              {/* Warm Next.js optimizer cache for neighbors (same sizes as lightbox). */}
               {adjacentForOptimizer.map((src) => (
                 <Image
                   key={`preload-${src.slice(0, 48)}`}
                   src={src}
                   alt=""
-                  width={1600}
-                  height={1200}
-                  sizes="(max-width: 1100px) 96vw, 1100px"
-                  quality={85}
+                  width={2400}
+                  height={1800}
+                  sizes="(max-width: 640px) 95vw, 90vw"
+                  quality={90}
                   className="pointer-events-none fixed left-[-9999px] top-0 h-px w-px opacity-0"
                   aria-hidden
                 />
               ))}
+
+              {title ? (
+                <p className="pointer-events-none absolute bottom-14 left-1/2 z-10 max-w-[90%] -translate-x-1/2 truncate rounded-full bg-black/55 px-4 py-1.5 text-center text-xs font-medium tracking-wide text-white sm:bottom-16 sm:text-sm">
+                  {title}
+                </p>
+              ) : null}
 
               {total > 1 ? (
                 <>
@@ -283,7 +290,7 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
                     type="button"
                     onClick={() => go(-1)}
                     aria-label="Previous photo"
-                    className="absolute left-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 sm:left-3"
+                    className="absolute left-1 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 sm:left-3 sm:h-12 sm:w-12"
                   >
                     <ChevronLeft className="h-6 w-6" strokeWidth={1.75} />
                   </button>
@@ -291,11 +298,11 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
                     type="button"
                     onClick={() => go(1)}
                     aria-label="Next photo"
-                    className="absolute right-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 sm:right-3"
+                    className="absolute right-1 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 sm:right-3 sm:h-12 sm:w-12"
                   >
                     <ChevronRight className="h-6 w-6" strokeWidth={1.75} />
                   </button>
-                  <span className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-xs text-white">
+                  <span className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-xs text-white sm:bottom-4">
                     {active + 1} / {total}
                   </span>
                 </>
