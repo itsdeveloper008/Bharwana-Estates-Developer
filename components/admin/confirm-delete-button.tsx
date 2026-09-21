@@ -79,10 +79,12 @@ export function ConfirmDeleteButton({
           </Button>
         )}
       </AlertDialogTrigger>
-      <AlertDialogContent className="bg-ivory">
+      <AlertDialogContent className="max-w-md overflow-hidden bg-ivory sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle className="font-serif text-2xl">Delete “{label}”?</AlertDialogTitle>
-          <AlertDialogDescription>
+          <AlertDialogTitle className="break-words font-serif text-2xl leading-snug">
+            Delete “{label}”?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="break-words">
             {description ?? "This cannot be undone."}
           </AlertDialogDescription>
         </AlertDialogHeader>

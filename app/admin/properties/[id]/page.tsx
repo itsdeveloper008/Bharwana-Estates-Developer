@@ -32,6 +32,7 @@ export default function AdminPropertyDetailPage() {
   const { properties, developers, users, updateProperty, deleteProperty } = useMockStore();
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [rejectError, setRejectError] = useState<string | null>(null);
 
   const property = useMemo(
     () => properties.find((item) => item.id === id) ?? null,
@@ -61,7 +62,12 @@ export default function AdminPropertyDetailPage() {
   }
 
   async function reject(target: Property) {
-    const reason = rejectReason.trim() || "Did not meet verification standards";
+    const reason = rejectReason.trim();
+    if (!reason) {
+      setRejectError("Please provide a reason for rejection");
+      return;
+    }
+    setRejectError(null);
     await updateProperty(
       target.id,
       buildStatusChangePatch(target, {
@@ -179,8 +185,16 @@ export default function AdminPropertyDetailPage() {
             className="bg-white"
             placeholder="e.g. Missing title documents, price inconsistency, duplicate listing"
             value={rejectReason}
-            onChange={(event) => setRejectReason(event.target.value)}
+            onChange={(event) => {
+              setRejectReason(event.target.value);
+              if (rejectError) setRejectError(null);
+            }}
           />
+          {rejectError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {rejectError}
+            </p>
+          ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectOpen(false)}>
               Cancel

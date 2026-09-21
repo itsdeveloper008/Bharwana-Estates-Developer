@@ -275,7 +275,6 @@ function PasswordField({
   fieldState: { error?: { message?: string } };
 }) {
   const [show, setShow] = useState(false);
-  const [unlocked, setUnlocked] = useState(false);
   const value = field.value ?? "";
   return (
     <FormItem>
@@ -289,16 +288,10 @@ function PasswordField({
           />
           <Input
             type={show ? "text" : "password"}
-            autoComplete="off"
-            data-1p-ignore="true"
-            data-lpignore="true"
-            data-bwignore="true"
-            data-form-type="other"
+            autoComplete="current-password"
             placeholder="Password"
-            readOnly={!unlocked}
-            onFocus={() => setUnlocked(true)}
             value={value}
-            name="bharwana-login-password"
+            name={field.name}
             onBlur={field.onBlur}
             onChange={field.onChange}
             ref={field.ref}
@@ -330,6 +323,7 @@ function EmailField({
   placeholder = "Email",
   inputType = "email",
   inputMode = "email",
+  autoComplete = "email",
 }: {
   field: { value: string; onChange: (...args: unknown[]) => void; onBlur: () => void; name: string; ref: Ref<HTMLInputElement> };
   fieldState: { error?: { message?: string } };
@@ -338,8 +332,8 @@ function EmailField({
   placeholder?: string;
   inputType?: "email" | "text";
   inputMode?: "email" | "text" | "tel";
+  autoComplete?: string;
 }) {
-  const [unlocked, setUnlocked] = useState(false);
   return (
     <FormItem>
       <FormLabel className="text-forest/80">{label}</FormLabel>
@@ -353,19 +347,14 @@ function EmailField({
           <Input
             type={inputType}
             inputMode={inputMode}
-            autoComplete="off"
+            autoComplete={autoComplete}
             autoCorrect="off"
             autoCapitalize="none"
             spellCheck={false}
-            data-1p-ignore="true"
-            data-lpignore="true"
-            data-form-type="other"
             placeholder={placeholder}
             maxLength={80}
-            readOnly={!unlocked}
-            onFocus={() => setUnlocked(true)}
             value={field.value ?? ""}
-            name="bharwana-login-identifier"
+            name={field.name}
             onBlur={field.onBlur}
             onChange={field.onChange}
             ref={field.ref}
@@ -394,14 +383,12 @@ export function LoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
-  // Mount-only autofill wipe - but keep an explicit ?phone= prefill from signup.
+  // Prefill from signup deep-link only — do not wipe browser password-manager autofill.
   useEffect(() => {
     const phonePrefill = (searchParams.get("phone") ?? searchParams.get("identifier") ?? "").trim();
-    form.reset({ email: phonePrefill, password: "" });
-    const timer = window.setTimeout(() => {
-      form.reset({ email: phonePrefill, password: "" });
-    }, 50);
-    return () => window.clearTimeout(timer);
+    if (phonePrefill) {
+      form.setValue("email", phonePrefill, { shouldDirty: false });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only
   }, []);
 
@@ -439,7 +426,7 @@ export function LoginForm() {
             setError("Enter a valid email or phone and password to continue.");
           })}
           className="space-y-4"
-          autoComplete="off"
+          autoComplete="on"
         >
           <FormField
             control={form.control}
@@ -452,6 +439,7 @@ export function LoginForm() {
                 placeholder="Email or phone"
                 inputMode="text"
                 inputType="text"
+                autoComplete="username"
               />
             )}
           />

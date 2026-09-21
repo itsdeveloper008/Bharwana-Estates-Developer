@@ -44,6 +44,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
+import { getPropertyDoc } from "@/lib/firestore/properties";
+import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { compressListingImage, MAX_PROPERTY_PHOTOS } from "@/lib/compress-listing-image";
 import { formatPakistanMobileE164, toPakistanMobileLocal } from "@/lib/phone-format";
 import { buildStatusChangePatch } from "@/lib/property-status";
@@ -161,6 +163,8 @@ function NumberInput({
   name,
   icon: Icon,
   placeholder,
+  max,
+  integerOnly = false,
 }: {
   value: number | undefined;
   onChange: (value: number | undefined) => void;
@@ -168,6 +172,8 @@ function NumberInput({
   name: string;
   icon?: LucideIcon;
   placeholder?: string;
+  max?: number;
+  integerOnly?: boolean;
 }) {
   return (
     <div className="relative">
@@ -178,15 +184,31 @@ function NumberInput({
         />
       ) : null}
       <Input
-        type="number"
+        type="text"
+        inputMode="decimal"
         className={cn("h-10", fieldFocus, Icon && "pl-9")}
         name={name}
         placeholder={placeholder}
-        value={Number.isFinite(value) ? value : ""}
+        value={Number.isFinite(value) ? String(value) : ""}
         onBlur={onBlur}
         onChange={(event) => {
-          const next = event.target.valueAsNumber;
-          onChange(Number.isFinite(next) ? next : undefined);
+          const raw = event.target.value.trim();
+          if (!raw) {
+            onChange(undefined);
+            return;
+          }
+          // Reject scientific notation and non-numeric junk.
+          if (/[eE]/.test(raw) || !/^\d+(\.\d*)?$/.test(raw)) {
+            return;
+          }
+          const next = Number(raw);
+          if (!Number.isFinite(next) || next < 0) return;
+          if (integerOnly && !Number.isInteger(next)) return;
+          if (typeof max === "number" && next > max) {
+            onChange(max);
+            return;
+          }
+          onChange(next);
         }}
       />
     </div>
@@ -253,9 +275,48 @@ export function PropertyForm({
   const isAdmin = mode === "admin";
   const router = useRouter();
   const { user } = useMockAuth();
-  const { addProperty, updateProperty, properties, getDeveloperForUser, users, developers, addUser } =
+  const { addProperty, updateProperty, properties, propertiesLoading, getDeveloperForUser, users, developers, addUser } =
     useMockStore();
-  const editingProperty = editId ? properties.find((item) => item.id === editId) : undefined;
+  const [fetchedEdit, setFetchedEdit] = useState<Property | null>(null);
+  const [editLoadError, setEditLoadError] = useState<string | null>(null);
+
+  // Prefer store, then a one-shot Firestore fetch so edit never falls through to "create".
+  const editingProperty =
+    (editId ? properties.find((item) => item.id === editId) : undefined) ??
+    (fetchedEdit?.id === editId ? fetchedEdit : undefined);
+
+  useEffect(() => {
+    if (!editId) {
+      setFetchedEdit(null);
+      setEditLoadError(null);
+      return;
+    }
+    if (properties.some((item) => item.id === editId)) {
+      setFetchedEdit(null);
+      setEditLoadError(null);
+      return;
+    }
+    if (propertiesLoading) return;
+    if (!isFirebaseConfigured()) {
+      setEditLoadError("Listing not found.");
+      return;
+    }
+    let cancelled = false;
+    setEditLoadError(null);
+    void getPropertyDoc(editId)
+      .then((doc) => {
+        if (cancelled) return;
+        if (doc) setFetchedEdit(doc);
+        else setEditLoadError("Listing not found.");
+      })
+      .catch(() => {
+        if (!cancelled) setEditLoadError("Could not load listing for edit.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editId, properties, propertiesLoading]);
+
   const isLiveEdit =
     Boolean(editingProperty) &&
     (editingProperty!.status === "PUBLISHED" || editingProperty!.status === "RESERVED");
@@ -463,6 +524,27 @@ export function PropertyForm({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function scrollToField(fieldName: string) {
+    window.setTimeout(() => {
+      const mapFields = fieldName === "latitude" || fieldName === "longitude" || fieldName === "city";
+      const target = mapFields
+        ? document.getElementById(fieldName === "city" ? "city" : "map-place") ??
+          document.querySelector(`[name="${fieldName}"]`)
+        : document.querySelector(`[name="${fieldName}"]`) ??
+          document.getElementById(fieldName);
+      if (target && "scrollIntoView" in target) {
+        (target as HTMLElement).scrollIntoView({ behavior: "smooth", block: "center" });
+        if (target instanceof HTMLElement && typeof target.focus === "function") {
+          try {
+            target.focus({ preventScroll: true });
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    }, 120);
+  }
+
   function stepForField(field: string): number {
     const map: Record<string, number> = {
       purpose: 0,
@@ -550,7 +632,9 @@ export function PropertyForm({
       "longitude",
     ] as const;
     const first = order.find((name) => errors[name] || form.getFieldState(name).error);
-    goToStep(first ? stepForField(first) : 0);
+    const step = first ? stepForField(first) : 0;
+    goToStep(step);
+    if (first) scrollToField(first);
   }
 
   function isAcceptableImageFile(file: File) {
@@ -789,7 +873,12 @@ export function PropertyForm({
     }
 
     try {
-      if (editingProperty) {
+      // When ?edit= is present, ALWAYS update that document — never mint a new id.
+      if (editId) {
+        if (!editingProperty) {
+          toast.error("Still loading this listing. Wait a moment and try again.");
+          return;
+        }
         const statusChanged = status !== editingProperty.status;
         const statusPatch = statusChanged
           ? buildStatusChangePatch(editingProperty, {
@@ -801,7 +890,7 @@ export function PropertyForm({
             })
           : {};
         await updateProperty(
-          editingProperty.id,
+          editId,
           {
             ...values,
             listingType: listingTypeValue,
@@ -818,7 +907,7 @@ export function PropertyForm({
           },
           photoOptions,
         );
-        setSubmittedId(editingProperty.id);
+        setSubmittedId(editId);
       } else {
         const id = `p-${Date.now()}`;
         const listing: Property = {
@@ -905,6 +994,22 @@ export function PropertyForm({
       return;
     }
     await commitPublish(values, user.id);
+  }
+
+  if (editId && !editingProperty && !editLoadError && (propertiesLoading || isFirebaseConfigured())) {
+    return (
+      <div className="border border-forest/10 bg-cream/40 px-8 py-16 text-center">
+        <p className="text-sm text-muted-foreground">Loading listing for edit…</p>
+      </div>
+    );
+  }
+
+  if (editId && editLoadError && !editingProperty) {
+    return (
+      <div className="border border-forest/10 bg-cream/40 px-8 py-16 text-center">
+        <p className="text-sm text-destructive">{editLoadError}</p>
+      </div>
+    );
   }
 
   if (done) {
@@ -1465,6 +1570,7 @@ export function PropertyForm({
                           name={field.name}
                           icon={Maximize2}
                           placeholder="e.g. 1800"
+                          max={1_000_000}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1488,6 +1594,7 @@ export function PropertyForm({
                         name={field.name}
                         icon={Maximize2}
                         placeholder="e.g. 5 Marla in sqft"
+                        max={1_000_000}
                       />
                     </FormControl>
                     <FormMessage />
@@ -1565,13 +1672,13 @@ export function PropertyForm({
                         {tags.map((tag) => (
                           <span
                             key={tag}
-                            className="inline-flex items-center gap-1 rounded-full border border-forest/10 bg-cream px-2.5 py-1 text-xs text-forest"
+                            className="inline-flex items-center gap-1 rounded-full border border-forest bg-forest px-2.5 py-1 text-xs font-medium text-ivory"
                           >
                             {tag}
                             <button
                               type="button"
                               aria-label={`Remove ${tag}`}
-                              className="text-forest/50 hover:text-forest"
+                              className="text-ivory/70 hover:text-ivory"
                               onClick={() =>
                                 field.onChange(tags.filter((item) => item !== tag))
                               }
@@ -1633,7 +1740,7 @@ export function PropertyForm({
                 control={form.control}
                 name="city"
                 render={({ field, fieldState }) => (
-                  <FormItem>
+                  <FormItem id="city" className="scroll-mt-28">
                     <FormLabel className="mb-0.5">City</FormLabel>
                     <FormControl>
                       <CityCombobox
@@ -1642,6 +1749,8 @@ export function PropertyForm({
                         className={cn("h-10", fieldFocus)}
                         onChange={(value) => {
                           field.onChange(value);
+                          form.clearErrors("city");
+                          void form.trigger("city");
                           const coords = CITY_COORDS[value];
                           if (coords) {
                             form.setValue("latitude", coords.latitude);
@@ -1690,15 +1799,23 @@ export function PropertyForm({
                 </FormItem>
               )}
             />
-            <MapPicker
-              latitude={form.watch("latitude")}
-              longitude={form.watch("longitude")}
-              showSearch={false}
-              onChange={(coords) => {
-                form.setValue("latitude", coords.latitude);
-                form.setValue("longitude", coords.longitude);
-              }}
-            />
+            <div id="map-place" className="scroll-mt-28 space-y-2">
+              <MapPicker
+                latitude={form.watch("latitude")}
+                longitude={form.watch("longitude")}
+                showSearch={false}
+                onChange={(coords) => {
+                  form.setValue("latitude", coords.latitude, { shouldValidate: true });
+                  form.setValue("longitude", coords.longitude, { shouldValidate: true });
+                  form.clearErrors(["latitude", "longitude"]);
+                }}
+              />
+              {(form.formState.errors.latitude || form.formState.errors.longitude) && (
+                <p className="text-sm text-destructive" role="alert">
+                  Pin the property on the map (or select a city above).
+                </p>
+              )}
+            </div>
           </FormSection>
             </>
           )}
@@ -1727,7 +1844,11 @@ export function PropertyForm({
                 aria-disabled={compressingPhotos}
                 onKeyDown={(event) => {
                   if (compressingPhotos) return;
-                  if (event.key === "Enter" || event.key === " ") fileInputRef.current?.click();
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    fileInputRef.current?.click();
+                  }
                 }}
                 onDragOver={(event) => {
                   event.preventDefault();
@@ -1736,10 +1857,13 @@ export function PropertyForm({
                 onDragLeave={() => setDragOver(false)}
                 onDrop={(event) => {
                   event.preventDefault();
+                  event.stopPropagation();
                   setDragOver(false);
                   if (!compressingPhotos) void onFiles(event.dataTransfer.files);
                 }}
-                onClick={() => {
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
                   if (!compressingPhotos) fileInputRef.current?.click();
                 }}
                 className={cn(
@@ -1775,7 +1899,9 @@ export function PropertyForm({
               </div>
             )}
             {photoError && previews.length < 1 && (
-              <p className="text-sm text-amber-800/90">Add at least one photo to submit</p>
+              <p className="text-sm text-destructive" role="alert">
+                Add at least one photo to submit
+              </p>
             )}
             {previews.length > 0 && (
               <div className="space-y-2">

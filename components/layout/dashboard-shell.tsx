@@ -68,7 +68,12 @@ export function DashboardShell({
                 <h1 className="font-serif text-2xl sm:text-3xl">{user?.fullName ?? copy.title}</h1>
               </div>
               {pathname !== "/" && (
-                <Button variant="ghost" asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="shrink-0 gap-2 border-forest/20 bg-white/80 text-forest hover:bg-forest hover:text-ivory"
+                >
                   <Link href={isAddProperty ? listingsHref : "/properties?intent=buy"}>
                     <ArrowLeft className="h-4 w-4" />
                     {isAddProperty ? "My listings" : "Marketplace"}
@@ -114,7 +119,12 @@ export function DashboardShell({
             <h1 className="font-serif text-2xl sm:text-3xl">{user.fullName}</h1>
           </div>
           {pathname !== "/" && (
-            <Button variant="ghost" asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="shrink-0 gap-2 border-forest/20 bg-white/80 text-forest hover:bg-forest hover:text-ivory"
+            >
               <Link href="/properties?intent=buy">
                 <ArrowLeft className="h-4 w-4" />
                 Marketplace

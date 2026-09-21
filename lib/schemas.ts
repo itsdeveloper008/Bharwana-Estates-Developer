@@ -57,7 +57,10 @@ export const propertyFormSchema = z.object({
   category: z.enum(["HOME", "PLOTS", "COMMERCIAL"]),
   subtype: z.string().trim().min(2, "Select a property type"),
   price: z.number({ message: "Enter a price" }).positive("Enter a price"),
-  areaSqft: z.number({ message: "Enter the covered area" }).positive("Enter the covered area"),
+  areaSqft: z
+    .number({ message: "Enter the covered area" })
+    .positive("Enter the covered area")
+    .max(1_000_000, "Area must be 1,000,000 sqft or less"),
   bedrooms: z.number({ message: "Enter bedrooms" }).int().min(0),
   bathrooms: z.number({ message: "Enter bathrooms" }).min(0),
   address: z
@@ -102,7 +105,7 @@ export const registerSchema = z
       .refine((value) => value.replace(/\s+/g, " ").trim().length >= 2, {
         message: "Please enter your name.",
       })
-      .max(50, "Name must be 50 characters or fewer"),
+      .max(60, "Name must be 60 characters or fewer"),
     email: z
       .string()
       .max(50, "Email must be 50 characters or fewer")

@@ -74,9 +74,21 @@ export function GoogleRoleCompletionDialog({
   async function handleSubmit() {
     if (!draft) return;
     const resolvedName = requireFullName ? fullName.trim() : draft.fullName.trim();
-    if (requireFullName && resolvedName.replace(/\s+/g, " ").trim().length < 2) {
-      setError("Please enter your name.");
-      return;
+    if (requireFullName) {
+      const normalized = resolvedName.replace(/\s+/g, " ").trim();
+      if (normalized.length < 2) {
+        setError("Please enter your name.");
+        return;
+      }
+      if (normalized.length > 60) {
+        setError("Name must be 60 characters or fewer.");
+        return;
+      }
+      // Require at least one letter; allow spaces between words.
+      if (!/[A-Za-z\u00C0-\u024F]/.test(normalized)) {
+        setError("Please enter a valid name.");
+        return;
+      }
     }
     const localPhone = toPakistanMobileLocal(phone || draft.phone || "");
     if (!isValidPakistanMobileLocal(localPhone)) {
@@ -153,9 +165,15 @@ export function GoogleRoleCompletionDialog({
               <Input
                 id="signup-full-name"
                 className="bg-white"
-                placeholder="Your name"
+                placeholder="Your full name"
                 value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
+                maxLength={60}
+                autoComplete="name"
+                onChange={(event) => {
+                  // Allow normal spaced names; only strip control characters.
+                  const next = event.target.value.replace(/[\u0000-\u001F\u007F]/g, "");
+                  setFullName(next.slice(0, 60));
+                }}
               />
             </div>
           )}

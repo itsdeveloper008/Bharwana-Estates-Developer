@@ -29,6 +29,7 @@ import {
 } from "@/lib/firestore/inquiries";
 import {
   deleteProperty as deletePropertyRemote,
+  getPropertyDoc,
   subscribeAllProperties,
   subscribeOwnerProperties,
   subscribePublicProperties,
@@ -456,12 +457,37 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       }
       return current.map((property) => (property.id === id ? merged! : property));
     });
-    if (!merged) return;
+
+    // Listing may not be in the scoped store yet (edit race) — load remote then merge.
+    if (!merged) {
+      if (!isFirebaseConfigured()) return;
+      try {
+        const remote = await getPropertyDoc(id);
+        if (!remote) {
+          throw new Error("Listing not found — cannot update.");
+        }
+        merged = { ...remote, ...patch, id };
+        if ("rejectionReason" in patch && patch.rejectionReason === undefined) {
+          delete merged.rejectionReason;
+        }
+        setProperties((current) => {
+          if (current.some((item) => item.id === id)) {
+            return current.map((item) => (item.id === id ? merged! : item));
+          }
+          return [merged!, ...current];
+        });
+      } catch (error) {
+        console.error(error);
+        toast.error(firestoreErrorMessage(error, "Could not update property in Firestore."));
+        throw error;
+      }
+    }
 
     if (isAdminSessionRef.current) {
-      adminPropertiesRef.current = adminPropertiesRef.current.map((item) =>
-        item.id === id ? merged! : item,
-      );
+      adminPropertiesRef.current = [
+        merged,
+        ...adminPropertiesRef.current.filter((item) => item.id !== id),
+      ];
     } else {
       if (isPublicMarketplaceStatus(merged.status)) {
         publicPropertiesRef.current = [
@@ -503,9 +529,12 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
           ];
         }
       }
-      setProperties((current) =>
-        current.map((property) => (property.id === id ? saved : property)),
-      );
+      setProperties((current) => {
+        if (current.some((property) => property.id === id)) {
+          return current.map((property) => (property.id === id ? saved : property));
+        }
+        return [saved, ...current];
+      });
     } catch (error) {
       console.error(error);
       toast.error(firestoreErrorMessage(error, "Could not update property in Firestore."));

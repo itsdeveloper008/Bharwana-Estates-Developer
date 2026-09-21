@@ -50,6 +50,7 @@ export default function AdminSubmissionsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [rejectError, setRejectError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const list =
@@ -96,7 +97,12 @@ export default function AdminSubmissionsPage() {
   }
 
   async function reject(property: Property) {
-    const reason = rejectReason.trim() || "Did not meet verification standards";
+    const reason = rejectReason.trim();
+    if (!reason) {
+      setRejectError("Please provide a reason for rejection");
+      return;
+    }
+    setRejectError(null);
     // TODO: email seller on rejection once Cloud Functions / Trigger Email are set up
     // (Firestore trigger on status → REJECTED). Do not send email from the client.
     await updateProperty(
@@ -267,8 +273,16 @@ export default function AdminSubmissionsPage() {
             className="bg-white"
             placeholder="e.g. Missing title documents, price inconsistency, duplicate listing"
             value={rejectReason}
-            onChange={(event) => setRejectReason(event.target.value)}
+            onChange={(event) => {
+              setRejectReason(event.target.value);
+              if (rejectError) setRejectError(null);
+            }}
           />
+          {rejectError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {rejectError}
+            </p>
+          ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectOpen(false)}>
               Cancel

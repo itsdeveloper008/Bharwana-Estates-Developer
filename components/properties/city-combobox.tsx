@@ -43,9 +43,11 @@ export function CityCombobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "h-10 w-full justify-start gap-2 rounded-xl border border-[#E8E2D6]/90 bg-[#FBF9F5] px-3 font-normal shadow-[inset_0_1px_2px_rgba(15,46,29,0.045)] transition-[border-color,box-shadow,background-color] duration-200 hover:bg-[#FBF9F5]",
-            "focus-visible:border-gold focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-gold/35",
-            !value && "text-muted-foreground",
+            // Override outline hover (forest bg + ivory text) so labels stay readable on cream.
+            "h-10 w-full justify-start gap-2 rounded-xl border border-[#E8E2D6]/90 bg-[#FBF9F5] px-3 font-normal text-forest shadow-[inset_0_1px_2px_rgba(15,46,29,0.045)] transition-[border-color,box-shadow,background-color] duration-200",
+            "hover:bg-forest/5 hover:text-forest",
+            "focus-visible:border-gold focus-visible:bg-white focus-visible:text-forest focus-visible:ring-1 focus-visible:ring-gold/35",
+            !value && "text-muted-foreground hover:text-muted-foreground",
             hasError && "border-destructive",
             className,
           )}
@@ -77,7 +79,9 @@ export function CityCombobox({
                   type="button"
                   className={cn(
                     "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition-colors",
-                    selected ? "bg-gold/15 text-forest" : "text-forest/80 hover:bg-cream",
+                    selected
+                      ? "bg-forest text-ivory"
+                      : "text-forest hover:bg-forest/10 hover:text-forest",
                   )}
                   onClick={() => {
                     onChange(city);
