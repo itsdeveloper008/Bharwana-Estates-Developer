@@ -532,17 +532,30 @@ export function PropertyForm({
           document.querySelector(`[name="${fieldName}"]`)
         : document.querySelector(`[name="${fieldName}"]`) ??
           document.getElementById(fieldName);
-      if (target && "scrollIntoView" in target) {
-        (target as HTMLElement).scrollIntoView({ behavior: "smooth", block: "center" });
-        if (target instanceof HTMLElement && typeof target.focus === "function") {
-          try {
-            target.focus({ preventScroll: true });
-          } catch {
-            /* ignore */
-          }
+      if (!(target instanceof HTMLElement)) return;
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Only focus real controls — focusing a plain div can throw or steal clicks in some browsers.
+      const focusable =
+        target.matches("input, textarea, select, button, [tabindex]:not([tabindex='-1'])")
+          ? target
+          : target.querySelector<HTMLElement>(
+              "input, textarea, select, button, [tabindex]:not([tabindex='-1'])",
+            );
+      if (focusable) {
+        try {
+          focusable.focus({ preventScroll: true });
+        } catch {
+          /* ignore */
         }
       }
     }, 120);
+  }
+
+  function firstInvalidStepField(step: number): keyof PropertyFormValues | undefined {
+    const fields = STEP_FIELDS[step] ?? [];
+    // Prefer live formState after trigger() — the render-time `errors` proxy can be stale.
+    const live = form.formState.errors;
+    return fields.find((name) => Boolean(form.getFieldState(name).error || live[name]));
   }
 
   function stepForField(field: string): number {
@@ -588,7 +601,27 @@ export function PropertyForm({
 
   async function handleContinue() {
     const ok = await validateCurrentStep();
-    if (ok) goToStep(Math.min(currentStep + 1, 2));
+    if (ok) {
+      goToStep(Math.min(currentStep + 1, 2));
+      return;
+    }
+    // Never fail silently — scroll to the first invalid field and surface the message.
+    const first = firstInvalidStepField(currentStep);
+    if (first) {
+      scrollToField(first);
+      const message =
+        form.getFieldState(first).error?.message ||
+        form.formState.errors[first]?.message ||
+        (first === "latitude" || first === "longitude"
+          ? "Pin the property on the map (or select a city above)."
+          : "Please fix the highlighted fields.");
+      toast.error(String(message));
+      return;
+    }
+    if (currentStep === 1 && isAdmin) {
+      const issue = validateAdminAssignment(form.getValues());
+      if (issue) toast.error(issue);
+    }
   }
 
   function handleBack() {
@@ -1799,18 +1832,20 @@ export function PropertyForm({
                 </FormItem>
               )}
             />
-            <div id="map-place" className="scroll-mt-28 space-y-2">
+            <div id="map-place" tabIndex={-1} className="scroll-mt-28 space-y-2 outline-none">
               <MapPicker
                 latitude={form.watch("latitude")}
                 longitude={form.watch("longitude")}
                 showSearch={false}
                 onChange={(coords) => {
-                  form.setValue("latitude", coords.latitude, { shouldValidate: true });
-                  form.setValue("longitude", coords.longitude, { shouldValidate: true });
+                  // Avoid shouldValidate here — full-schema revalidation mid-edit can leave
+                  // stale errors that make Continue appear to do nothing.
+                  form.setValue("latitude", coords.latitude, { shouldDirty: true });
+                  form.setValue("longitude", coords.longitude, { shouldDirty: true });
                   form.clearErrors(["latitude", "longitude"]);
                 }}
               />
-              {(form.formState.errors.latitude || form.formState.errors.longitude) && (
+              {(errors.latitude || errors.longitude) && (
                 <p className="text-sm text-destructive" role="alert">
                   Pin the property on the map (or select a city above).
                 </p>
@@ -1838,65 +1873,50 @@ export function PropertyForm({
                 <p className="mt-1 text-xs text-muted-foreground">First photo is the cover.</p>
               </div>
             ) : (
-              <div
-                role="button"
-                tabIndex={0}
+              <label
+                htmlFor="property-photo-input"
                 aria-disabled={compressingPhotos}
-                onKeyDown={(event) => {
-                  if (compressingPhotos) return;
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    fileInputRef.current?.click();
-                  }
-                }}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  if (!compressingPhotos) setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setDragOver(false);
-                  if (!compressingPhotos) void onFiles(event.dataTransfer.files);
-                }}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  if (!compressingPhotos) fileInputRef.current?.click();
-                }}
                 className={cn(
-                  "flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-14 text-center transition-all duration-300",
+                  "relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed px-6 py-14 text-center transition-all duration-300",
                   compressingPhotos ? "cursor-wait opacity-70" : "cursor-pointer",
                   dragOver
                     ? "border-gold/70 bg-gold/10 shadow-[inset_0_0_0_1px_rgba(184,149,69,0.18)]"
                     : "border-[#D9CFB8]/90 bg-[#FFFCFA]/70 hover:border-gold/50 hover:bg-gold/[0.04]",
                 )}
               >
-                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#FFFCF7] via-gold/20 to-gold/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_8px_20px_-12px_rgba(184,149,69,0.55)]">
+                <span className="pointer-events-none flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#FFFCF7] via-gold/20 to-gold/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_8px_20px_-12px_rgba(184,149,69,0.55)]">
                   <ImagePlus className="h-7 w-7 text-gold-700" strokeWidth={1.5} />
                 </span>
-                <p className="mt-4 text-sm text-forest">
+                <p className="pointer-events-none mt-4 text-sm text-forest">
                   {compressingPhotos ? "Compressing photos…" : "Drop photographs or tap to select"}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="pointer-events-none mt-1 text-xs text-muted-foreground">
                   Up to {MAX_PROPERTY_PHOTOS} photos · {MAX_PROPERTY_PHOTOS - previews.length}{" "}
                   remaining. First photo is the cover. JPG, PNG, or HEIC.
                 </p>
+                {/*
+                  Transparent file input covers the dropzone. Native activation only —
+                  preventDefault + input.click() was blocking the picker after the edit fix.
+                */}
                 <input
+                  id="property-photo-input"
                   ref={fileInputRef}
                   type="file"
                   accept="image/*,.heic,.heif,image/heic,image/heif"
                   multiple
                   disabled={compressingPhotos}
-                  className="hidden"
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-wait"
+                  onDragEnter={() => {
+                    if (!compressingPhotos) setDragOver(true);
+                  }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={() => setDragOver(false)}
                   onChange={(event) => {
                     void onFiles(event.target.files);
                     event.target.value = "";
                   }}
                 />
-              </div>
+              </label>
             )}
             {photoError && previews.length < 1 && (
               <p className="text-sm text-destructive" role="alert">

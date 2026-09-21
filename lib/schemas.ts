@@ -73,8 +73,14 @@ export const propertyFormSchema = z.object({
     .trim()
     .min(1, "Select a city")
     .refine((value) => (CITIES as readonly string[]).includes(value), "Select a city"),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
+  latitude: z
+    .number({ message: "Pin the property on the map (or select a city above)." })
+    .min(-90, "Pin the property on the map (or select a city above).")
+    .max(90, "Pin the property on the map (or select a city above)."),
+  longitude: z
+    .number({ message: "Pin the property on the map (or select a city above)." })
+    .min(-180, "Pin the property on the map (or select a city above).")
+    .max(180, "Pin the property on the map (or select a city above)."),
   contactPhone: pakistanMobileLocalSchema,
   highlightSpecs: z
     .array(z.enum(["bedrooms", "bathrooms", "area", "price"]))
