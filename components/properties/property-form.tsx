@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LayoutGroup, motion } from "framer-motion";
@@ -215,14 +216,16 @@ function NumberInput({
   );
 }
 
+/** Brand section banner — dark green header with gold icon badge + lion watermark. */
 function FormSection({
   id,
   title,
   icon: Icon,
   children,
   highlighted = false,
-  tone = "white",
-  lead = false,
+  /** Kept for call-site compatibility; body fill is always the brand cream panel. */
+  tone: _tone = "white",
+  lead: _lead = false,
   className,
 }: {
   id: string;
@@ -234,32 +237,78 @@ function FormSection({
   lead?: boolean;
   className?: string;
 }) {
+  void _tone;
+  void _lead;
+
   return (
     <section
       id={id}
       data-form-section={id}
       className={cn(
-        "relative scroll-mt-28 overflow-hidden rounded-2xl p-7 transition-[box-shadow,ring] duration-300 sm:p-10",
-        "shadow-[0_20px_55px_-30px_rgba(15,46,29,0.28)] ring-1 ring-[#EDE6D8]/70",
-        "focus-within:shadow-[0_24px_60px_-28px_rgba(15,46,29,0.34)]",
-        tone === "cream" ? "bg-[#FBF8F2]" : "bg-white",
-        lead && "bg-gradient-to-br from-white via-[#FBF8F2] to-[#F5EFE4] p-8 sm:p-11",
-        highlighted && "ring-2 ring-gold/50",
+        "relative scroll-mt-28 overflow-hidden rounded-2xl bg-[#F8F7F4] transition-[box-shadow,ring] duration-300",
+        "shadow-[0_18px_48px_-28px_rgba(15,81,50,0.35)] ring-1 ring-[#0F5132]/10",
+        "focus-within:shadow-[0_22px_56px_-26px_rgba(15,81,50,0.4)]",
+        highlighted && "ring-2 ring-[#D4AF37]/60",
         className,
       )}
     >
-      <div className="relative mb-7 sm:mb-8">
-        <div className="flex items-center gap-3.5">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#FFFCF7] via-gold/20 to-gold/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_6px_16px_-10px_rgba(184,149,69,0.55)]">
-            <Icon className="h-[18px] w-[18px] text-gold-700" strokeWidth={1.5} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="type-eyebrow">{title}</p>
-            <div className="mt-2.5 h-px w-28 bg-gradient-to-r from-gold/75 via-gold/35 to-transparent sm:w-36" />
-          </div>
+      {/* Full-width brand banner */}
+      <header
+        className="relative flex min-h-[4.25rem] items-center gap-3 overflow-hidden px-4 py-3.5 sm:min-h-[4.75rem] sm:gap-4 sm:px-6 sm:py-4"
+        style={{
+          background:
+            "linear-gradient(105deg, #0F5132 0%, #0F5132 52%, #147A4A 78%, rgba(15,81,50,0.55) 100%)",
+        }}
+      >
+        {/* Soft right fade so the lion sits on a lighter edge */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-[42%] bg-gradient-to-l from-white/10 via-transparent to-transparent"
+        />
+
+        {/* Diagonal gold accent near the emblem */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-2 top-[-30%] hidden h-[160%] w-px rotate-[28deg] bg-gradient-to-b from-transparent via-[#D4AF37]/70 to-transparent sm:block"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute right-8 top-[-40%] hidden h-[180%] w-px rotate-[28deg] bg-gradient-to-b from-transparent via-[#D4AF37]/35 to-transparent sm:block"
+        />
+
+        {/* Lion watermark — mix-blend-screen drops the black plate */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-1 top-1/2 h-20 w-20 -translate-y-1/2 opacity-[0.28] sm:-right-2 sm:h-28 sm:w-28 sm:opacity-[0.32]"
+        >
+          <Image
+            src="/lion-bharwana.png"
+            alt=""
+            fill
+            sizes="112px"
+            className="object-contain object-right mix-blend-screen"
+          />
         </div>
-      </div>
-      <div className="relative space-y-5">{children}</div>
+
+        {/* Gold circular icon badge */}
+        <span className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#D4AF37] bg-[#0F5132]/35 shadow-[0_0_0_1px_rgba(212,175,55,0.15)] sm:h-11 sm:w-11">
+          <Icon className="h-4 w-4 text-[#D4AF37] sm:h-[18px] sm:w-[18px]" strokeWidth={1.6} />
+        </span>
+
+        {/* Title + gold rule */}
+        <div className="relative z-10 flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3.5">
+          <h3 className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#F8F7F4] sm:text-xs sm:tracking-[0.22em]">
+            {title}
+          </h3>
+          <div
+            aria-hidden
+            className="h-px min-w-[2rem] flex-1 bg-gradient-to-r from-[#D4AF37] via-[#D4AF37]/45 to-transparent"
+          />
+        </div>
+      </header>
+
+      {/* Form fields — unchanged; cream panel body */}
+      <div className="relative space-y-5 p-6 sm:p-8 md:p-10">{children}</div>
     </section>
   );
 }
