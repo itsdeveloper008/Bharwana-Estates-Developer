@@ -9,6 +9,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { GoogleRoleCompletionDialog } from "@/components/auth/google-role-completion-dialog";
 import { OtpDigitInputs } from "@/components/auth/otp-digit-inputs";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
+import { PhoneRecaptchaHost } from "@/components/auth/phone-recaptcha-host";
 import { SetPasswordOptional } from "@/components/auth/set-password-optional";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -456,7 +457,7 @@ export function PhoneOtpSection({
           </Form>
         )}
 
-        <div id={recaptchaId} className="absolute -left-[9999px] h-0 w-0 overflow-hidden" aria-hidden />
+        <PhoneRecaptchaHost id={recaptchaId} />
 
         {step === "phone" ? (
           <Button type="submit" form="phone-otp-request-form" className="w-full" disabled={pending}>

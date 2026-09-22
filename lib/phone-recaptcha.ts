@@ -94,7 +94,10 @@ function safeClearVerifier(verifier: RecaptchaVerifier | null | undefined) {
 
 /**
  * grecaptcha tracks render state on the *element node*, not its children.
- * Emptying innerHTML is not enough - replace the node so a new render is allowed.
+ * Emptying innerHTML is not enough — replace the node so a new render is allowed.
+ *
+ * The host must be an imperative child (see PhoneRecaptchaHost), not a React-managed
+ * element. Replacing a React fiber's DOM node causes insertBefore NotFoundError.
  */
 function replaceRecaptchaHost(containerId: string): HTMLElement | null {
   const host = document.getElementById(containerId);
@@ -132,6 +135,18 @@ export async function clearRecaptchaContainer(
   await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
 }
 
+async function waitForRecaptchaHost(containerId: string, timeoutMs = 800): Promise<HTMLElement> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const host = document.getElementById(containerId);
+    if (host) return host;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 16));
+  }
+  throw Object.assign(new Error("reCAPTCHA container is missing from the page."), {
+    code: "auth/argument-error",
+  });
+}
+
 /**
  * Invisible reCAPTCHA **v2** for Firebase Phone Auth (`RecaptchaVerifier`).
  * Exactly one live instance per container: clear + replace host before every recreate.
@@ -150,13 +165,7 @@ export async function createPhoneRecaptchaVerifier(
     // Prefer the passed ref, but always clear whatever is tracked for this id.
     await clearRecaptchaContainer(containerId, previous ?? verifiersByContainer.get(containerId));
 
-    const host = document.getElementById(containerId);
-    if (!host) {
-      throw Object.assign(new Error("reCAPTCHA container is missing from the page."), {
-        code: "auth/argument-error",
-      });
-    }
-
+    await waitForRecaptchaHost(containerId);
 
     const verifier = new RecaptchaVerifier(auth, containerId, {
       size: "invisible",

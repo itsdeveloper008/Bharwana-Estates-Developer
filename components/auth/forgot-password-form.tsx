@@ -12,6 +12,7 @@ import { AuthCrossLink } from "@/components/auth/auth-shell";
 import { OtpDigitInputs } from "@/components/auth/otp-digit-inputs";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { PasswordCreateField, ConfirmPasswordField } from "@/components/auth/password-create-field";
+import { PhoneRecaptchaHost } from "@/components/auth/phone-recaptcha-host";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -643,11 +644,7 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
             </Form>
           ) : null}
 
-          <div
-            id={RECAPTCHA_ID}
-            className="absolute -left-[9999px] h-0 w-0 overflow-hidden"
-            aria-hidden
-          />
+          <PhoneRecaptchaHost id={RECAPTCHA_ID} />
 
           {phoneStep === "phone" ? (
             <p className="text-center text-sm text-muted-foreground">

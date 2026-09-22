@@ -5,6 +5,7 @@ import type { RecaptchaVerifier } from "firebase/auth";
 import { Loader2 } from "lucide-react";
 import { OtpDigitInputs } from "@/components/auth/otp-digit-inputs";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
+import { PhoneRecaptchaHost } from "@/components/auth/phone-recaptcha-host";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
@@ -318,11 +319,7 @@ export function ChangePhoneSection({ currentPhone }: { currentPhone: string }) {
             </>
           )}
 
-          <div
-            id={RECAPTCHA_ID}
-            className="absolute -left-[9999px] h-0 w-0 overflow-hidden"
-            aria-hidden
-          />
+          <PhoneRecaptchaHost id={RECAPTCHA_ID} />
 
           {step === "phone" ? (
             <div className="flex flex-col gap-2 sm:flex-row">
