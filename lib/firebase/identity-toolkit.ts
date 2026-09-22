@@ -4,6 +4,15 @@
  * restricted PK networks) — Vercel still can, so we proxy phone OTP from API routes.
  */
 
+import dns from "node:dns";
+
+// Prefer IPv4 — some runtimes hit flaky IPv6 routes to Google APIs.
+try {
+  dns.setDefaultResultOrder("ipv4first");
+} catch {
+  /* older Node */
+}
+
 const IDENTITY_TOOLKIT_BASE = "https://identitytoolkit.googleapis.com/v1";
 
 function apiKey(): string {
@@ -23,7 +32,7 @@ async function toolkitFetch<T>(
 ): Promise<T> {
   const key = apiKey();
   const url = `${IDENTITY_TOOLKIT_BASE}${path}${path.includes("?") ? "&" : "?"}key=${encodeURIComponent(key)}`;
-  let lastError: unknown;
+  let lastNetworkError: unknown;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
@@ -40,30 +49,49 @@ async function toolkitFetch<T>(
       };
       if (!response.ok) {
         const message = data.error?.message || `Identity Toolkit HTTP ${response.status}`;
+        // Preserve Firebase's real code — do not mark API errors as network failures.
         throw Object.assign(new Error(message), {
-          code: message.startsWith("AUTH_") || message.includes("/") ? message : "auth/internal-error",
+          code: message,
           status: response.status,
           toolkit: data.error,
         });
       }
       return data;
     } catch (error) {
-      lastError = error;
+      // HTTP / toolkit errors are final — never rewrite as network-request-failed.
+      if (
+        error &&
+        typeof error === "object" &&
+        "status" in error &&
+        typeof (error as { status?: unknown }).status === "number"
+      ) {
+        throw error;
+      }
+
+      lastNetworkError = error;
+      const causeCode =
+        error &&
+        typeof error === "object" &&
+        "cause" in error &&
+        (error as { cause?: { code?: string } }).cause &&
+        typeof (error as { cause?: { code?: string } }).cause === "object"
+          ? String((error as { cause: { code?: string } }).cause.code ?? "")
+          : "";
+      const ownCode =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code?: string }).code ?? "")
+          : "";
       const retryable =
         error instanceof TypeError ||
-        (error &&
-          typeof error === "object" &&
-          "code" in error &&
-          ["ECONNRESET", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT"].includes(
-            String((error as { code?: string }).code),
-          ));
+        ["ECONNRESET", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT", "ENOTFOUND"].includes(ownCode) ||
+        ["ECONNRESET", "ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT", "ENOTFOUND"].includes(causeCode);
       if (!retryable || attempt === attempts) break;
-      await new Promise((r) => setTimeout(r, 200 * attempt));
+      await new Promise((r) => setTimeout(r, 250 * attempt));
     }
   }
 
-  throw lastError instanceof Error
-    ? Object.assign(lastError, { code: "auth/network-request-failed" })
+  throw lastNetworkError instanceof Error
+    ? Object.assign(lastNetworkError, { code: "auth/network-request-failed" })
     : Object.assign(new Error("Could not reach Firebase Auth."), {
         code: "auth/network-request-failed",
       });
@@ -96,8 +124,6 @@ export async function sendPhoneVerificationCode(
     body: JSON.stringify({
       phoneNumber,
       recaptchaToken,
-      // Web client — matches Firebase JS SDK.
-      clientType: "CLIENT_TYPE_WEB",
     }),
   });
   if (!data.sessionInfo) {
@@ -152,10 +178,20 @@ export function toolkitErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error ?? "");
   const upper = `${code} ${message}`.toUpperCase();
 
-  if (upper.includes("TOO_MANY_REQUESTS") || upper.includes("QUOTA")) {
-    return "SMS temporarily blocked (rate limit). Wait a bit, then try again — or use email reset.";
+  if (
+    upper.includes("TOO_MANY_ATTEMPTS") ||
+    upper.includes("TOO_MANY_REQUESTS") ||
+    upper.includes("QUOTA_EXCEEDED") ||
+    upper.includes("QUOTA")
+  ) {
+    return "SMS temporarily blocked (too many attempts). Wait about an hour, try a different number, or use email reset.";
   }
-  if (upper.includes("INVALID_APP_CREDENTIAL") || upper.includes("CAPTCHA")) {
+  if (
+    upper.includes("INVALID_APP_CREDENTIAL") ||
+    upper.includes("MISSING_RECAPTCHA") ||
+    upper.includes("CAPTCHA_CHECK_FAILED") ||
+    (upper.includes("CAPTCHA") && !upper.includes("RECAPTCHA_PARAMS"))
+  ) {
     return "Security check failed. Refresh the page and try again.";
   }
   if (
@@ -168,7 +204,13 @@ export function toolkitErrorMessage(error: unknown): string {
   if (upper.includes("INVALID_CODE") || upper.includes("INVALID_VERIFICATION")) {
     return "Incorrect code. Check the SMS and try again.";
   }
-  if (upper.includes("NETWORK") || upper.includes("FETCH FAILED") || upper.includes("ECONN")) {
+  if (
+    upper.includes("NETWORK-REQUEST-FAILED") ||
+    upper.includes("NETWORK_REQUEST_FAILED") ||
+    upper.includes("FETCH FAILED") ||
+    upper.includes("ECONN") ||
+    upper.includes("UND_ERR_CONNECT")
+  ) {
     return "Could not reach Firebase from the server. Try again in a moment.";
   }
   return "Could not send or verify the SMS code. Try again, or use email reset.";

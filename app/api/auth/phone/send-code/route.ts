@@ -100,7 +100,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, sessionInfo, phone });
     } catch (error) {
       console.error("[api/auth/phone/send-code] toolkit failed", error);
-      return NextResponse.json({ error: toolkitErrorMessage(error) }, { status: 502 });
+      const message = toolkitErrorMessage(error);
+      const raw =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code?: string }).code ?? "")
+          : "";
+      const status = /TOO_MANY/i.test(raw) || /TOO_MANY/i.test(message) ? 429 : 502;
+      return NextResponse.json({ error: message, code: raw || undefined }, { status });
     }
   } catch (error) {
     console.error("[api/auth/phone/send-code] unexpected", error);
