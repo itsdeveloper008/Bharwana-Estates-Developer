@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { FullNameInput } from "@/components/auth/full-name-input";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { RoleSelector } from "@/components/auth/role-selector";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,12 @@ import {
   isValidPakistanMobileLocal,
   toPakistanMobileLocal,
 } from "@/lib/phone-format";
+import {
+  FULL_NAME_MAX_LENGTH,
+  isLettersAndSpacesOnly,
+  normalizePersonName,
+  PERSON_NAME_LETTERS_MESSAGE,
+} from "@/lib/person-name";
 import {
   formatPakistanCnic,
   isValidPakistanCnic,
@@ -73,20 +80,20 @@ export function GoogleRoleCompletionDialog({
 
   async function handleSubmit() {
     if (!draft) return;
-    const resolvedName = requireFullName ? fullName.trim() : draft.fullName.trim();
+    const resolvedName = requireFullName
+      ? normalizePersonName(fullName)
+      : draft.fullName.trim();
     if (requireFullName) {
-      const normalized = resolvedName.replace(/\s+/g, " ").trim();
-      if (normalized.length < 2) {
+      if (resolvedName.length < 2) {
         setError("Please enter your name.");
         return;
       }
-      if (normalized.length > 60) {
-        setError("Name must be 60 characters or fewer.");
+      if (resolvedName.length > FULL_NAME_MAX_LENGTH) {
+        setError(`Name must be ${FULL_NAME_MAX_LENGTH} characters or fewer.`);
         return;
       }
-      // Require at least one letter; allow spaces between words.
-      if (!/[A-Za-z\u00C0-\u024F]/.test(normalized)) {
-        setError("Please enter a valid name.");
+      if (!isLettersAndSpacesOnly(resolvedName)) {
+        setError(PERSON_NAME_LETTERS_MESSAGE);
         return;
       }
     }
@@ -162,19 +169,21 @@ export function GoogleRoleCompletionDialog({
           {requireFullName && (
             <div className="space-y-1.5">
               <Label htmlFor="signup-full-name">Full name</Label>
-              <Input
+              <FullNameInput
                 id="signup-full-name"
                 className="bg-white"
                 placeholder="Your full name"
                 value={fullName}
-                maxLength={60}
-                autoComplete="name"
-                onChange={(event) => {
-                  // Allow normal spaced names; only strip control characters.
-                  const next = event.target.value.replace(/[\u0000-\u001F\u007F]/g, "");
-                  setFullName(next.slice(0, 60));
-                }}
+                maxLength={FULL_NAME_MAX_LENGTH}
+                onChange={setFullName}
               />
+              {error &&
+              (error === PERSON_NAME_LETTERS_MESSAGE ||
+                error.toLowerCase().includes("name")) ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              ) : null}
             </div>
           )}
 

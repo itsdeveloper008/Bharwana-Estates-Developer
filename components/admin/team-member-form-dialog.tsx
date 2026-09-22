@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { ImagePlus, X } from "lucide-react";
+import { FullNameInput } from "@/components/auth/full-name-input";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import type { TeamMember } from "@/lib/mock-data/team";
+import { FULL_NAME_MAX_LENGTH, normalizePersonName } from "@/lib/person-name";
 import { teamMemberFormSchema, type TeamMemberFormValues } from "@/lib/schemas";
 import type { TeamMemberInput } from "@/lib/team-store";
 
@@ -71,7 +73,7 @@ export function TeamMemberFormDialog({
 
   function onSubmit(values: TeamMemberFormValues) {
     onSave({
-      fullName: values.fullName.trim(),
+      fullName: normalizePersonName(values.fullName),
       role: values.role.trim(),
       bio: member?.bio?.trim() || "Team member at Bharwana Estates Dealer.",
       email: member?.email,
@@ -111,9 +113,14 @@ export function TeamMemberFormDialog({
                 <FormItem>
                   <FormLabel>Full name</FormLabel>
                   <FormControl>
-                    <Input
+                    <FullNameInput
                       className={fieldState.error ? "border-destructive bg-white" : "bg-white"}
-                      {...field}
+                      maxLength={FULL_NAME_MAX_LENGTH}
+                      name={field.name}
+                      ref={field.ref}
+                      value={field.value}
+                      onBlur={field.onBlur}
+                      onChange={field.onChange}
                     />
                   </FormControl>
                   <FormMessage />

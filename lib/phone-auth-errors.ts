@@ -4,6 +4,10 @@ export const PHONE_ALREADY_REGISTERED_CODE = "auth/phone-number-already-exists";
 export const PHONE_ALREADY_REGISTERED_MESSAGE =
   "This phone number is already registered. Please sign in instead.";
 
+export const PHONE_NOT_REGISTERED_CODE = "auth/phone-number-not-found";
+export const PHONE_NOT_REGISTERED_MESSAGE =
+  "This phone number is not registered. Please sign up instead.";
+
 export const NETWORK_AUTH_ERROR_MESSAGE =
   "Could not reach Firebase / reCAPTCHA. Check your internet, disable ad blockers for this site, or try another browser/network. You can also sign in with email.";
 

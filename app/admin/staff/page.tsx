@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Pencil, Plus, Trash2, UserX, UserCheck } from "lucide-react";
 import { toast } from "sonner";
+import { FullNameInput } from "@/components/auth/full-name-input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -21,6 +22,12 @@ import {
   ALL_ADMIN_MODULES,
   type AdminModule,
 } from "@/lib/admin/modules";
+import {
+  FULL_NAME_MAX_LENGTH,
+  isLettersAndSpacesOnly,
+  normalizePersonName,
+  PERSON_NAME_LETTERS_MESSAGE,
+} from "@/lib/person-name";
 
 type StaffRow = {
   uid: string;
@@ -136,11 +143,16 @@ export default function AdminStaffPage() {
   }
 
   async function handleCreate() {
+    const name = normalizePersonName(fullName);
+    if (!isLettersAndSpacesOnly(name) || name.length < 2) {
+      toast.error(PERSON_NAME_LETTERS_MESSAGE);
+      return;
+    }
     setSaving(true);
     try {
       await staffFetch(getIdToken, "/api/admin/staff", {
         method: "POST",
-        body: JSON.stringify({ fullName, email, password, permissions }),
+        body: JSON.stringify({ fullName: name, email, password, permissions }),
       });
       toast.success("Staff member created.");
       setCreateOpen(false);
@@ -155,11 +167,16 @@ export default function AdminStaffPage() {
 
   async function handleSaveEdit() {
     if (!editing) return;
+    const name = normalizePersonName(fullName);
+    if (!isLettersAndSpacesOnly(name) || name.length < 2) {
+      toast.error(PERSON_NAME_LETTERS_MESSAGE);
+      return;
+    }
     setSaving(true);
     try {
       await staffFetch(getIdToken, `/api/admin/staff/${editing.uid}`, {
         method: "PATCH",
-        body: JSON.stringify({ fullName, permissions }),
+        body: JSON.stringify({ fullName: name, permissions }),
       });
       toast.success("Permissions updated. Staff should refresh or sign in again to see changes.");
       setEditOpen(false);
@@ -328,7 +345,12 @@ export default function AdminStaffPage() {
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
               <Label htmlFor="staff-name">Full name</Label>
-              <Input id="staff-name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+              <FullNameInput
+                id="staff-name"
+                value={fullName}
+                maxLength={FULL_NAME_MAX_LENGTH}
+                onChange={setFullName}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="staff-email">Email</Label>
@@ -377,7 +399,12 @@ export default function AdminStaffPage() {
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
               <Label htmlFor="edit-name">Full name</Label>
-              <Input id="edit-name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+              <FullNameInput
+                id="edit-name"
+                value={fullName}
+                maxLength={FULL_NAME_MAX_LENGTH}
+                onChange={setFullName}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Modules</Label>

@@ -31,6 +31,7 @@ import {
   SortablePropertyPhotos,
   reorderByIds,
 } from "@/components/properties/sortable-property-photos";
+import { FullNameInput } from "@/components/auth/full-name-input";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -57,6 +58,12 @@ import {
   type AreaUnitId,
 } from "@/lib/area-units";
 import { formatPakistanMobileE164, toPakistanMobileLocal } from "@/lib/phone-format";
+import {
+  FULL_NAME_MAX_LENGTH,
+  isLettersAndSpacesOnly,
+  normalizePersonName,
+  PERSON_NAME_LETTERS_MESSAGE,
+} from "@/lib/person-name";
 import { buildStatusChangePatch } from "@/lib/property-status";
 import {
   defaultSubtypeFor,
@@ -885,10 +892,14 @@ export function PropertyForm({
   }
 
   async function createOwnerQuick(): Promise<User | null> {
-    const name = newOwnerName.trim();
+    const name = normalizePersonName(newOwnerName);
     const contact = newOwnerContact.trim();
     if (name.length < 2) {
       setAssignError("Enter the owner’s name.");
+      return null;
+    }
+    if (!isLettersAndSpacesOnly(name)) {
+      setAssignError(PERSON_NAME_LETTERS_MESSAGE);
       return null;
     }
     if (contact.length < 10 || contact.includes("@")) {
@@ -1587,10 +1598,11 @@ export function PropertyForm({
                     </Button>
                   ) : (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Input
+                      <FullNameInput
                         placeholder="Full name"
                         value={newOwnerName}
-                        onChange={(event) => setNewOwnerName(event.target.value)}
+                        maxLength={FULL_NAME_MAX_LENGTH}
+                        onChange={setNewOwnerName}
                         className={fieldFocus}
                       />
                       <Input

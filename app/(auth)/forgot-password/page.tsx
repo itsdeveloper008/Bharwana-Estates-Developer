@@ -9,7 +9,8 @@ export default function ForgotPasswordPage() {
       <p className="type-eyebrow">Account</p>
       <h1 className="mt-2 mb-3 font-serif text-4xl">Reset password</h1>
       <p className="mb-8 text-sm leading-relaxed text-muted-foreground">
-        Enter the email on your Bharwana account and we&apos;ll send a secure reset link.
+        Reset with the email or phone number on your Bharwana account. Email receives a secure
+        link; phone uses a one-time SMS code.
       </p>
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
         <ForgotPasswordForm />

@@ -9,6 +9,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthMethodToggle, type AuthMethod } from "@/components/auth/auth-method-toggle";
 import { GoogleRoleCompletionDialog } from "@/components/auth/google-role-completion-dialog";
+import { FullNameInput } from "@/components/auth/full-name-input";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { PasswordCreateField } from "@/components/auth/password-create-field";
 import { PhoneOtpSection } from "@/components/auth/phone-otp-section";
@@ -20,6 +21,7 @@ import { pathAfterAuth } from "@/lib/auth-redirect";
 import { useMockAuth } from "@/lib/mock-auth";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { formatPakistanMobileE164 } from "@/lib/phone-format";
+import { FULL_NAME_MAX_LENGTH, normalizePersonName } from "@/lib/person-name";
 import { useMockStore } from "@/lib/mock-store";
 import {
   formatPakistanCnic,
@@ -524,7 +526,7 @@ export function RegisterForm() {
     setSubmitting(true);
     try {
       const result = await register({
-        fullName: values.fullName.trim(),
+        fullName: normalizePersonName(values.fullName),
         email: values.email,
         phone: formatPakistanMobileE164(values.phone),
         password: values.password,
@@ -543,7 +545,7 @@ export function RegisterForm() {
           await addDeveloper({
             id: `d-${result.user.id}`,
             companyName: values.agencyName!.trim(),
-            contactPerson: values.fullName.trim(),
+            contactPerson: normalizePersonName(values.fullName),
             commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
             dealerUserId: result.user.id,
             status: "PENDING_REVIEW",
@@ -597,14 +599,18 @@ export function RegisterForm() {
               <FormItem className="space-y-1">
                 <FormLabel>Full name</FormLabel>
                 <FormControl>
-                  <Input
+                  <FullNameInput
                     className={cn(
                       "h-10 rounded-xl border-forest/10 bg-[#F4F2ED] shadow-none focus-visible:ring-forest/30",
                       fieldState.error && "border-destructive focus-visible:ring-destructive",
                     )}
-                    maxLength={50}
+                    maxLength={FULL_NAME_MAX_LENGTH}
                     placeholder="Your name"
-                    {...field}
+                    name={field.name}
+                    ref={field.ref}
+                    value={field.value}
+                    onBlur={field.onBlur}
+                    onChange={field.onChange}
                   />
                 </FormControl>
                 <FormMessage />

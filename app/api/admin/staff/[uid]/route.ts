@@ -3,6 +3,11 @@ import { ALL_ADMIN_MODULES, normalizePermissions, type AdminModule } from "@/lib
 import { requireSuperAdmin, staffDocFromData } from "@/lib/admin/require-super-admin";
 import { staffApiErrorResponse } from "@/lib/admin/staff-api-error";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
+import {
+  isLettersAndSpacesOnly,
+  normalizePersonName,
+  PERSON_NAME_LETTERS_MESSAGE,
+} from "@/lib/person-name";
 
 export const runtime = "nodejs";
 
@@ -44,8 +49,12 @@ export async function PATCH(request: Request, context: Ctx) {
 
     const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() };
 
-    if (typeof body.fullName === "string" && body.fullName.trim().length >= 2) {
-      patch.fullName = body.fullName.trim();
+    if (typeof body.fullName === "string") {
+      const name = normalizePersonName(body.fullName);
+      if (name.length < 2 || !isLettersAndSpacesOnly(name)) {
+        return NextResponse.json({ error: PERSON_NAME_LETTERS_MESSAGE }, { status: 400 });
+      }
+      patch.fullName = name;
     }
 
     if (body.permissions !== undefined) {

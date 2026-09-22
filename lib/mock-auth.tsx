@@ -64,6 +64,8 @@ import {
   phoneAuthErrorMessage,
   PHONE_ALREADY_REGISTERED_CODE,
   PHONE_ALREADY_REGISTERED_MESSAGE,
+  PHONE_NOT_REGISTERED_CODE,
+  PHONE_NOT_REGISTERED_MESSAGE,
 } from "@/lib/phone-auth-errors";
 import type { User, UserRole } from "@/lib/types";
 import { authEmailFromLoginIdentifier, isSyntheticPhoneEmail } from "@/lib/user-display";
@@ -130,6 +132,22 @@ interface MockAuthContextValue {
     confirmation: ConfirmationResult,
     code: string,
   ) => Promise<PhoneLoginResult>;
+  /** Forgot-password phone OTP: requires an existing Auth account (fail closed). */
+  sendPhoneResetOtp: (
+    phone: string,
+    verifier: RecaptchaVerifier,
+  ) => Promise<
+    | { ok: true; confirmation: ConfirmationResult }
+    | { ok: false; error: string; code?: string }
+  >;
+  /**
+   * Confirm reset OTP without committing an app session.
+   * Returns a fresh Firebase ID token for the Admin password-update API.
+   */
+  verifyPhoneResetOtp: (
+    confirmation: ConfirmationResult,
+    code: string,
+  ) => Promise<{ ok: true; idToken: string } | { ok: false; error: string }>;
   /** Send OTP to a new number while signed in (does not switch sessions). */
   sendChangePhoneOtp: (
     phone: string,
@@ -1011,6 +1029,102 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     [commitSession],
   );
 
+  const sendPhoneResetOtp = useCallback(
+    async (phone: string, verifier: RecaptchaVerifier) => {
+      if (!isFirebaseConfigured()) {
+        return { ok: false as const, error: "Phone reset needs Firebase on this deploy." };
+      }
+      const auth = getFirebaseAuth();
+      if (!auth) {
+        return { ok: false as const, error: "Phone reset is unavailable right now." };
+      }
+
+      const normalized = normalizePhoneE164(phone);
+      if (!isValidPhoneE164(normalized) || !/^\+923\d{9}$/.test(normalized)) {
+        return {
+          ok: false as const,
+          error: "Enter a valid Pakistani mobile number (10 digits starting with 3).",
+        };
+      }
+
+      // Fail closed: must confirm the phone is registered before spending SMS.
+      try {
+        const lookup = await fetch("/api/auth/phone-registered", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: normalized }),
+        });
+        if (!lookup.ok) {
+          return {
+            ok: false as const,
+            error: "Could not verify this number right now. Try again in a moment.",
+          };
+        }
+        const data = (await lookup.json()) as {
+          registered?: boolean | null;
+          checkSkipped?: boolean;
+        };
+        if (data.checkSkipped || data.registered == null) {
+          return {
+            ok: false as const,
+            error: "Could not verify this number right now. Try again in a moment.",
+          };
+        }
+        if (data.registered === false) {
+          return {
+            ok: false as const,
+            error: PHONE_NOT_REGISTERED_MESSAGE,
+            code: PHONE_NOT_REGISTERED_CODE,
+          };
+        }
+      } catch (lookupError) {
+        console.warn("[phone-reset] phone-registered check failed", lookupError);
+        return {
+          ok: false as const,
+          error: "Could not verify this number right now. Try again in a moment.",
+        };
+      }
+
+      try {
+        const confirmation = await signInWithPhoneNumber(auth, normalized, verifier);
+        return { ok: true as const, confirmation };
+      } catch (error) {
+        const { code, message } = firebaseErrorParts(error);
+        logFirebaseAuthError("phone-reset-otp-send", error, { e164: normalized });
+        return {
+          ok: false as const,
+          error: phoneAuthErrorMessage(code, message),
+          code: code || undefined,
+        };
+      }
+    },
+    [],
+  );
+
+  const verifyPhoneResetOtp = useCallback(
+    async (confirmation: ConfirmationResult, code: string) => {
+      const trimmed = code.trim();
+      if (!/^\d{6}$/.test(trimmed)) {
+        return { ok: false as const, error: "Enter the 6-digit code." };
+      }
+      try {
+        const result = await confirmation.confirm(trimmed);
+        const firebaseUser = result?.user;
+        if (!firebaseUser?.uid) {
+          return { ok: false as const, error: "Incorrect code. Check the SMS and try again." };
+        }
+        // Do not commit marketplace session — password reset only needs a fresh ID token.
+        const idToken = await firebaseUser.getIdToken(true);
+        return { ok: true as const, idToken };
+      } catch (error) {
+        logFirebaseAuthError("phone-reset-otp-verify", error);
+        const { code: errCode, message } = firebaseErrorParts(error);
+        return { ok: false as const, error: phoneAuthErrorMessage(errCode, message) };
+      }
+    },
+    [],
+  );
+
   const sendChangePhoneOtp = useCallback(
     async (phone: string, verifier: RecaptchaVerifier) => {
       if (!user) {
@@ -1641,6 +1755,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       cancelPendingOAuthSignup,
       sendPhoneOtp,
       verifyPhoneOtp,
+      sendPhoneResetOtp,
+      verifyPhoneResetOtp,
       sendChangePhoneOtp,
       confirmChangePhone,
       completeGoogleSignup,
@@ -1667,6 +1783,8 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       cancelPendingOAuthSignup,
       sendPhoneOtp,
       verifyPhoneOtp,
+      sendPhoneResetOtp,
+      verifyPhoneResetOtp,
       sendChangePhoneOtp,
       confirmChangePhone,
       completeGoogleSignup,

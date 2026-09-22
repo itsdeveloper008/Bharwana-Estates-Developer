@@ -3,6 +3,11 @@ import { ALL_ADMIN_MODULES, normalizePermissions, type AdminModule } from "@/lib
 import { requireSuperAdmin, staffDocFromData } from "@/lib/admin/require-super-admin";
 import { staffApiErrorResponse } from "@/lib/admin/staff-api-error";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
+import {
+  isLettersAndSpacesOnly,
+  normalizePersonName,
+  PERSON_NAME_LETTERS_MESSAGE,
+} from "@/lib/person-name";
 
 export const runtime = "nodejs";
 
@@ -42,13 +47,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
     }
 
-    const fullName = String(body.fullName ?? "").trim();
+    const fullName = normalizePersonName(String(body.fullName ?? ""));
     const email = String(body.email ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
     const permissions = normalizePermissions(body.permissions);
 
-    if (!fullName || fullName.length < 2) {
-      return NextResponse.json({ error: "Full name is required." }, { status: 400 });
+    if (!fullName || fullName.length < 2 || !isLettersAndSpacesOnly(fullName)) {
+      return NextResponse.json({ error: PERSON_NAME_LETTERS_MESSAGE }, { status: 400 });
     }
     if (!email.includes("@")) {
       return NextResponse.json({ error: "A valid email is required." }, { status: 400 });

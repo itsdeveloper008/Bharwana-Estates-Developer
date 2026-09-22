@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, Handshake, Mail, Phone, Scale, ShieldCheck, UserRound } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { FullNameInput } from "@/components/auth/full-name-input";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { formatPakistanMobileE164, toPakistanMobileLocal } from "@/lib/phone-format";
+import { FULL_NAME_MAX_LENGTH } from "@/lib/person-name";
 import { inquiryFormSchema, type InquiryFormValues } from "@/lib/schemas";
 import type { InquiryChannel, Property } from "@/lib/types";
 import { displayUserEmail } from "@/lib/user-display";
@@ -277,7 +279,15 @@ export function InquiryModal({
                     <FormItem>
                       <FormLabel>Name</FormLabel>
                       <FormControl>
-                        <Input className="bg-white" {...field} />
+                        <FullNameInput
+                          className="bg-white"
+                          maxLength={FULL_NAME_MAX_LENGTH}
+                          name={field.name}
+                          ref={field.ref}
+                          value={field.value}
+                          onBlur={field.onBlur}
+                          onChange={field.onChange}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

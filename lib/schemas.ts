@@ -1,8 +1,26 @@
 import { z } from "zod";
 import { digitsOnly, isValidPakistanMobileLocal } from "@/lib/phone-format";
 import { passwordMeetsPolicy } from "@/lib/password-policy";
+import {
+  FULL_NAME_MAX_LENGTH,
+  isLettersAndSpacesOnly,
+  normalizePersonName,
+  PERSON_NAME_LETTERS_MESSAGE,
+} from "@/lib/person-name";
 import { CITIES } from "@/lib/types";
 import { AREA_UNITS, toAreaSqft, type AreaUnitId } from "@/lib/area-units";
+
+/** Shared Full name: letters + spaces, max length, min 2 letters after normalize. */
+export const personNameSchema = z
+  .string()
+  .max(FULL_NAME_MAX_LENGTH, `Name must be ${FULL_NAME_MAX_LENGTH} characters or fewer`)
+  .refine((value) => /^[A-Za-z\s]*$/.test(value), PERSON_NAME_LETTERS_MESSAGE)
+  .refine((value) => normalizePersonName(value).length >= 2, {
+    message: "Please enter your name.",
+  })
+  .refine((value) => isLettersAndSpacesOnly(normalizePersonName(value)), {
+    message: PERSON_NAME_LETTERS_MESSAGE,
+  });
 
 /** Pakistani CNIC: 13 digits, displayed as XXXXX-XXXXXXX-X (15 chars). */
 export const PK_CNIC_DIGIT_LENGTH = 13;
@@ -28,7 +46,7 @@ export const passwordCreateSchema = z
   .refine(passwordMeetsPolicy, "Password does not meet all requirements");
 
 export const inquiryFormSchema = z.object({
-  fullName: z.string().min(2, "Please enter your name"),
+  fullName: personNameSchema,
   email: z.string().email("Enter a valid email"),
   phone: pakistanMobileLocalSchema,
   message: z.string().min(12, "A short note helps the team prepare"),
@@ -134,14 +152,7 @@ export const otpSchema = z.object({
 
 export const registerSchema = z
   .object({
-    fullName: z
-      .string()
-      .trim()
-      .min(1, "Please enter your name.")
-      .refine((value) => value.replace(/\s+/g, " ").trim().length >= 2, {
-        message: "Please enter your name.",
-      })
-      .max(60, "Name must be 60 characters or fewer"),
+    fullName: personNameSchema,
     email: z
       .string()
       .max(50, "Email must be 50 characters or fewer")
@@ -224,7 +235,7 @@ export const adminLoginSchema = z.object({
 export type AdminLoginValues = z.infer<typeof adminLoginSchema>;
 
 export const teamMemberFormSchema = z.object({
-  fullName: z.string().min(2, "Full name is required"),
+  fullName: personNameSchema,
   role: z.string().min(2, "Role is required"),
   photoUrl: z.string(),
 });
