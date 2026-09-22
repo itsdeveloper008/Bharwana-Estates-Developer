@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type ConfirmationResult, type RecaptchaVerifier } from "firebase/auth";
 import { Loader2 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
@@ -17,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { sendPasswordResetLink } from "@/lib/auth-reset";
-import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
+import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { useMockAuth } from "@/lib/mock-auth";
 import {
   firebaseErrorParts,
@@ -30,8 +29,8 @@ import {
 import { formatPakistanMobileE164 } from "@/lib/phone-format";
 import {
   clearRecaptchaContainer,
-  createPhoneRecaptchaVerifier,
   ensureRecaptchaScript,
+  solveInvisibleRecaptchaToken,
 } from "@/lib/phone-recaptcha";
 import {
   passwordCreateSchema,
@@ -78,10 +77,9 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
     defaultValues: { email: defaultEmail },
   });
 
-  // —— Phone flow ——
-  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
+  // —— Phone flow (server-proxied OTP — no client Identity Toolkit) ——
   const sendInFlightRef = useRef(false);
-  const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const sessionInfoRef = useRef<string | null>(null);
   const otpExpiresAtRef = useRef<number>(0);
   const idTokenRef = useRef<string | null>(null);
 
@@ -115,9 +113,7 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
 
   useEffect(() => {
     return () => {
-      const previous = recaptchaRef.current;
-      recaptchaRef.current = null;
-      void clearRecaptchaContainer(RECAPTCHA_ID, previous);
+      void clearRecaptchaContainer(RECAPTCHA_ID);
     };
   }, []);
 
@@ -141,8 +137,8 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
     const id = window.setInterval(() => {
       setOtpSecondsLeft((current) => {
         const next = Math.max(0, current - 1);
-        if (next === 0 && confirmationRef.current) {
-          confirmationRef.current = null;
+        if (next === 0 && sessionInfoRef.current) {
+          sessionInfoRef.current = null;
           setHasConfirmation(false);
           setPhoneError("Code expired. Request a new one.");
           setPhoneErrorCode(null);
@@ -152,22 +148,6 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
     }, 1000);
     return () => window.clearInterval(id);
   }, [otpSecondsLeft]);
-
-  async function resetRecaptcha() {
-    const previous = recaptchaRef.current;
-    recaptchaRef.current = null;
-    await clearRecaptchaContainer(RECAPTCHA_ID, previous);
-  }
-
-  async function createFreshRecaptchaVerifier() {
-    const auth = getFirebaseAuth();
-    if (!auth) throw new Error("Firebase Auth is not available");
-    const previous = recaptchaRef.current;
-    recaptchaRef.current = null;
-    const verifier = await createPhoneRecaptchaVerifier(auth, RECAPTCHA_ID, previous);
-    recaptchaRef.current = verifier;
-    return verifier;
-  }
 
   function applyPhoneFailure(message: string, code?: string | null) {
     setPhoneError(message);
@@ -186,21 +166,21 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
     setPhoneError(null);
     setPhoneErrorCode(null);
     setPending(true);
-    confirmationRef.current = null;
+    sessionInfoRef.current = null;
     otpExpiresAtRef.current = 0;
     idTokenRef.current = null;
     setHasConfirmation(false);
     setOtpSecondsLeft(0);
     const e164 = formatPakistanMobileE164(localDigits);
     try {
-      let verifier = await createFreshRecaptchaVerifier();
-      let result = await sendPhoneResetOtp(e164, verifier);
+      let recaptchaToken = await solveInvisibleRecaptchaToken(RECAPTCHA_ID);
+      let result = await sendPhoneResetOtp(e164, recaptchaToken);
 
       if (!result.ok && isNetworkAuthError(result.code ?? "", result.error)) {
         await delay(NETWORK_RETRY_DELAY_MS);
-        await resetRecaptcha();
-        verifier = await createFreshRecaptchaVerifier();
-        result = await sendPhoneResetOtp(e164, verifier);
+        await clearRecaptchaContainer(RECAPTCHA_ID);
+        recaptchaToken = await solveInvisibleRecaptchaToken(RECAPTCHA_ID);
+        result = await sendPhoneResetOtp(e164, recaptchaToken);
         if (!result.ok && isNetworkAuthError(result.code ?? "", result.error)) {
           logPersistentNetworkAuthFailure(
             "phone-reset-send",
@@ -212,11 +192,11 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
 
       if (!result.ok) {
         applyPhoneFailure(result.error, result.code);
-        await resetRecaptcha();
+        await clearRecaptchaContainer(RECAPTCHA_ID);
         return false;
       }
-      await resetRecaptcha();
-      confirmationRef.current = result.confirmation;
+      await clearRecaptchaContainer(RECAPTCHA_ID);
+      sessionInfoRef.current = result.sessionInfo;
       otpExpiresAtRef.current = Date.now() + OTP_VALID_SECONDS * 1000;
       setHasConfirmation(true);
       setSentPhone(e164);
@@ -229,7 +209,7 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
     } catch (err) {
       const { code, message } = firebaseErrorParts(err);
       applyPhoneFailure(phoneAuthErrorMessage(code, message), code || null);
-      await resetRecaptcha();
+      await clearRecaptchaContainer(RECAPTCHA_ID);
       return false;
     } finally {
       sendInFlightRef.current = false;
@@ -248,14 +228,14 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
   }
 
   async function handleVerifyOtp(values: PhoneOtpVerifyValues) {
-    const confirmation = confirmationRef.current;
-    if (!confirmation) {
+    const sessionInfo = sessionInfoRef.current;
+    if (!sessionInfo) {
       applyPhoneFailure("Request a new code, then try again.");
       setHasConfirmation(false);
       return;
     }
     if (Date.now() > otpExpiresAtRef.current) {
-      confirmationRef.current = null;
+      sessionInfoRef.current = null;
       otpExpiresAtRef.current = 0;
       setHasConfirmation(false);
       setOtpSecondsLeft(0);
@@ -266,10 +246,10 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
     setPhoneErrorCode(null);
     setPending(true);
     try {
-      const result = await verifyPhoneResetOtp(confirmation, values.otp);
+      const result = await verifyPhoneResetOtp(sessionInfo, values.otp);
       if (!result.ok) {
         if (/expired/i.test(result.error)) {
-          confirmationRef.current = null;
+          sessionInfoRef.current = null;
           otpExpiresAtRef.current = 0;
           setHasConfirmation(false);
           setOtpSecondsLeft(0);
@@ -278,7 +258,7 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
         otpForm.reset({ otp: "" });
         return;
       }
-      confirmationRef.current = null;
+      sessionInfoRef.current = null;
       otpExpiresAtRef.current = 0;
       setHasConfirmation(false);
       setOtpSecondsLeft(0);
@@ -585,13 +565,13 @@ export function ForgotPasswordForm({ defaultEmail = "" }: { defaultEmail?: strin
                       setPhoneStep("phone");
                       setPhoneError(null);
                       setPhoneErrorCode(null);
-                      confirmationRef.current = null;
+                      sessionInfoRef.current = null;
                       idTokenRef.current = null;
                       setHasConfirmation(false);
                       setSecondsLeft(0);
                       setOtpSecondsLeft(0);
                       otpForm.reset({ otp: "" });
-                      void resetRecaptcha();
+                      void clearRecaptchaContainer(RECAPTCHA_ID);
                     }}
                   >
                     Use a different number

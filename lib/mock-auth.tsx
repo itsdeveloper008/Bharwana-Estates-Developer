@@ -135,9 +135,9 @@ interface MockAuthContextValue {
   /** Forgot-password phone OTP: requires an existing Auth account (fail closed). */
   sendPhoneResetOtp: (
     phone: string,
-    verifier: RecaptchaVerifier,
+    recaptchaToken: string,
   ) => Promise<
-    | { ok: true; confirmation: ConfirmationResult }
+    | { ok: true; sessionInfo: string }
     | { ok: false; error: string; code?: string }
   >;
   /**
@@ -145,7 +145,7 @@ interface MockAuthContextValue {
    * Returns a fresh Firebase ID token for the Admin password-update API.
    */
   verifyPhoneResetOtp: (
-    confirmation: ConfirmationResult,
+    sessionInfo: string,
     code: string,
   ) => Promise<{ ok: true; idToken: string } | { ok: false; error: string }>;
   /** Send OTP to a new number while signed in (does not switch sessions). */
@@ -1030,13 +1030,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const sendPhoneResetOtp = useCallback(
-    async (phone: string, verifier: RecaptchaVerifier) => {
+    async (phone: string, recaptchaToken: string) => {
       if (!isFirebaseConfigured()) {
         return { ok: false as const, error: "Phone reset needs Firebase on this deploy." };
-      }
-      const auth = getFirebaseAuth();
-      if (!auth) {
-        return { ok: false as const, error: "Phone reset is unavailable right now." };
       }
 
       const normalized = normalizePhoneE164(phone);
@@ -1047,83 +1043,84 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      // Fail closed: must confirm the phone is registered before spending SMS.
-      try {
-        const lookup = await fetch("/api/auth/phone-registered", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: normalized }),
-        });
-        if (!lookup.ok) {
-          return {
-            ok: false as const,
-            error: "Could not verify this number right now. Try again in a moment.",
-          };
-        }
-        const data = (await lookup.json()) as {
-          registered?: boolean | null;
-          checkSkipped?: boolean;
-        };
-        if (data.checkSkipped || data.registered == null) {
-          return {
-            ok: false as const,
-            error: "Could not verify this number right now. Try again in a moment.",
-          };
-        }
-        if (data.registered === false) {
-          return {
-            ok: false as const,
-            error: PHONE_NOT_REGISTERED_MESSAGE,
-            code: PHONE_NOT_REGISTERED_CODE,
-          };
-        }
-      } catch (lookupError) {
-        console.warn("[phone-reset] phone-registered check failed", lookupError);
+      const token = recaptchaToken.trim();
+      if (!token) {
         return {
           ok: false as const,
-          error: "Could not verify this number right now. Try again in a moment.",
+          error: "Security check missing. Refresh and try again.",
+          code: "auth/network-request-failed",
         };
       }
 
       try {
-        const confirmation = await signInWithPhoneNumber(auth, normalized, verifier);
-        return { ok: true as const, confirmation };
+        const response = await fetch("/api/auth/phone/send-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: normalized,
+            recaptchaToken: token,
+            purpose: "reset",
+          }),
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          ok?: boolean;
+          sessionInfo?: string;
+          error?: string;
+          code?: string;
+        };
+        if (!response.ok || !data.sessionInfo) {
+          return {
+            ok: false as const,
+            error: data.error || "Could not send code. Try again.",
+            code: data.code,
+          };
+        }
+        return { ok: true as const, sessionInfo: data.sessionInfo };
       } catch (error) {
         const { code, message } = firebaseErrorParts(error);
         logFirebaseAuthError("phone-reset-otp-send", error, { e164: normalized });
         return {
           ok: false as const,
           error: phoneAuthErrorMessage(code, message),
-          code: code || undefined,
+          code: code || "auth/network-request-failed",
         };
       }
     },
     [],
   );
 
-  const verifyPhoneResetOtp = useCallback(
-    async (confirmation: ConfirmationResult, code: string) => {
-      const trimmed = code.trim();
-      if (!/^\d{6}$/.test(trimmed)) {
-        return { ok: false as const, error: "Enter the 6-digit code." };
+  const verifyPhoneResetOtp = useCallback(async (sessionInfo: string, code: string) => {
+    const trimmed = code.trim();
+    if (!/^\d{6}$/.test(trimmed)) {
+      return { ok: false as const, error: "Enter the 6-digit code." };
+    }
+    if (!sessionInfo.trim()) {
+      return { ok: false as const, error: "Request a new code, then try again." };
+    }
+    try {
+      const response = await fetch("/api/auth/phone/verify-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionInfo, code: trimmed }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        idToken?: string;
+        error?: string;
+      };
+      if (!response.ok || !data.idToken) {
+        return {
+          ok: false as const,
+          error: data.error || "Incorrect code. Check the SMS and try again.",
+        };
       }
-      try {
-        const result = await confirmation.confirm(trimmed);
-        const firebaseUser = result?.user;
-        if (!firebaseUser?.uid) {
-          return { ok: false as const, error: "Incorrect code. Check the SMS and try again." };
-        }
-        // Do not commit marketplace session — password reset only needs a fresh ID token.
-        const idToken = await firebaseUser.getIdToken(true);
-        return { ok: true as const, idToken };
-      } catch (error) {
-        logFirebaseAuthError("phone-reset-otp-verify", error);
-        const { code: errCode, message } = firebaseErrorParts(error);
-        return { ok: false as const, error: phoneAuthErrorMessage(errCode, message) };
-      }
-    },
-    [],
-  );
+      return { ok: true as const, idToken: data.idToken };
+    } catch (error) {
+      logFirebaseAuthError("phone-reset-otp-verify", error);
+      const { code: errCode, message } = firebaseErrorParts(error);
+      return { ok: false as const, error: phoneAuthErrorMessage(errCode, message) };
+    }
+  }, []);
 
   const sendChangePhoneOtp = useCallback(
     async (phone: string, verifier: RecaptchaVerifier) => {

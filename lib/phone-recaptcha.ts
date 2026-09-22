@@ -9,7 +9,17 @@ declare global {
     grecaptcha?: {
       ready?: (cb: () => void) => void;
       reset?: (widgetId?: number) => void;
-      render?: (...args: unknown[]) => number;
+      render?: (
+        container: string | HTMLElement,
+        parameters: {
+          sitekey: string;
+          size?: "invisible" | "compact" | "normal";
+          callback?: (token: string) => void;
+          "expired-callback"?: () => void;
+          "error-callback"?: () => void;
+        },
+      ) => number;
+      execute?: (widgetId?: number) => void;
       enterprise?: unknown;
     };
   }
@@ -194,6 +204,75 @@ export async function createPhoneRecaptchaVerifier(
     }
 
     return verifier;
+  });
+
+  createLock = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+/**
+ * Invisible reCAPTCHA token for server-proxied phone OTP.
+ * Site key comes from our API (proxied Identity Toolkit) — the browser never
+ * calls identitytoolkit.googleapis.com.
+ */
+export async function solveInvisibleRecaptchaToken(containerId: string): Promise<string> {
+  const run = createLock.then(async () => {
+    await ensureRecaptchaScript();
+
+    const paramsRes = await fetch("/api/auth/phone/recaptcha-params", { cache: "no-store" });
+    const paramsBody = (await paramsRes.json().catch(() => ({}))) as {
+      siteKey?: string;
+      error?: string;
+    };
+    if (!paramsRes.ok || !paramsBody.siteKey) {
+      throw Object.assign(
+        new Error(paramsBody.error || "Could not load security check. Try again."),
+        { code: "auth/network-request-failed" },
+      );
+    }
+
+    await clearRecaptchaContainer(containerId, verifiersByContainer.get(containerId));
+    const host = await waitForRecaptchaHost(containerId);
+    const grecaptcha = window.grecaptcha;
+    if (!grecaptcha?.render || !grecaptcha.execute) {
+      throw Object.assign(new Error("reCAPTCHA failed to initialize. Refresh and try again."), {
+        code: "auth/network-request-failed",
+      });
+    }
+
+    const token = await new Promise<string>((resolve, reject) => {
+      let settled = false;
+      const fail = (message: string) => {
+        if (settled) return;
+        settled = true;
+        reject(Object.assign(new Error(message), { code: "auth/network-request-failed" }));
+      };
+
+      try {
+        const widgetId = grecaptcha.render!(host, {
+          sitekey: paramsBody.siteKey!,
+          size: "invisible",
+          callback: (value: string) => {
+            if (settled) return;
+            settled = true;
+            resolve(value);
+          },
+          "expired-callback": () => fail("Security check expired. Try again."),
+          "error-callback": () => fail("Security check failed. Try again."),
+        });
+        grecaptcha.execute!(widgetId);
+      } catch (error) {
+        fail(error instanceof Error ? error.message : "Security check failed. Try again.");
+      }
+
+      window.setTimeout(() => fail("Security check timed out. Refresh and try again."), 45_000);
+    });
+
+    replaceRecaptchaHost(containerId);
+    return token;
   });
 
   createLock = run.then(
