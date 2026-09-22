@@ -64,8 +64,6 @@ import {
   phoneAuthErrorMessage,
   PHONE_ALREADY_REGISTERED_CODE,
   PHONE_ALREADY_REGISTERED_MESSAGE,
-  PHONE_NOT_REGISTERED_CODE,
-  PHONE_NOT_REGISTERED_MESSAGE,
 } from "@/lib/phone-auth-errors";
 import type { User, UserRole } from "@/lib/types";
 import { authEmailFromLoginIdentifier, isSyntheticPhoneEmail } from "@/lib/user-display";
