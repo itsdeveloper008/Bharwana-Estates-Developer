@@ -473,7 +473,11 @@ export function PhoneOtpSection({
 
         {step === "otp" ? (
           <div className="flex flex-col gap-2">
-            {secondsLeft <= 0 ? (
+            {secondsLeft > 0 ? (
+              <p className="text-center text-xs text-muted-foreground">
+                Resend code in {secondsLeft}s
+              </p>
+            ) : (
               <Button
                 type="button"
                 variant="outline"
@@ -483,7 +487,7 @@ export function PhoneOtpSection({
               >
                 Resend code
               </Button>
-            ) : null}
+            )}
             <Button type="button" variant="ghost" className="w-full" onClick={() => void handleChangeNumber()}>
               Use a different number
             </Button>
