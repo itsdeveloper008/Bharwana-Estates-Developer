@@ -17,6 +17,12 @@ import {
 } from "@/lib/property-taxonomy";
 import type { ListingType, PropertyCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import {
+  AREA_UNITS,
+  type AreaUnitId,
+} from "@/lib/area-units";
+
+export { AREA_UNITS, type AreaUnitId };
 
 export const PURPOSE_OPTIONS = [
   { id: "buy", label: "Buy" },
@@ -31,14 +37,6 @@ export const SOURCE_OPTIONS = [
 ] as const;
 
 export type SourceId = (typeof SOURCE_OPTIONS)[number]["id"] | "ALL";
-
-export const AREA_UNITS = [
-  { id: "sqft", label: "sqft", toSqft: 1 },
-  { id: "marla", label: "Marla", toSqft: 225 },
-  { id: "kanal", label: "Kanal", toSqft: 4500 },
-] as const;
-
-export type AreaUnitId = (typeof AREA_UNITS)[number]["id"];
 
 export const CURRENCIES = [
   { id: "PKR", label: "PKR", toPkr: 1 },

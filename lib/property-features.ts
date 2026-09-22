@@ -13,7 +13,7 @@ export const ALL_HIGHLIGHT_KEYS: PropertyHighlightKey[] = [
 ];
 
 export function defaultHighlightKeys(category?: PropertyCategory | string): PropertyHighlightKey[] {
-  if (category === "PLOTS") return ["area", "price"];
+  if (category === "PLOTS" || category === "COMMERCIAL") return ["area", "price"];
   return ["bedrooms", "bathrooms", "area", "price"];
 }
 
@@ -81,7 +81,10 @@ export function propertyHighlightDisplay(property: Property): PropertyFeatureDis
       items.push({
         key,
         label: "Area",
-        value: formatArea(property.areaSqft),
+        value: formatArea(property.areaSqft, {
+          areaValue: property.areaValue,
+          areaUnit: property.areaUnit,
+        }),
         icon: Maximize2,
       });
     } else if (key === "price") {

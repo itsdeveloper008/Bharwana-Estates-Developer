@@ -1,3 +1,4 @@
+import { formatAreaValue, resolveListingArea, type AreaUnitId } from "@/lib/area-units";
 import type { CommissionStatus, InquiryStatus, ListingType, PropertyStatus } from "./types";
 
 export function formatPrice(amount: number) {
@@ -18,7 +19,23 @@ export function formatPriceFull(amount: number) {
   return `PKR ${amount.toLocaleString("en-PK")}`;
 }
 
-export function formatArea(sqft: number) {
+/**
+ * Display area for a listing.
+ * - New listings: show the lister's chosen unit (e.g. "5 Marla").
+ * - Legacy (no areaUnit): "X sqft (Y Marla)" fallback.
+ */
+export function formatArea(
+  sqft: number,
+  options?: { areaValue?: number; areaUnit?: AreaUnitId | string },
+) {
+  if (options?.areaUnit) {
+    const resolved = resolveListingArea({
+      areaSqft: sqft,
+      areaValue: options.areaValue,
+      areaUnit: options.areaUnit,
+    });
+    return formatAreaValue(resolved.areaValue, resolved.areaUnit);
+  }
   const marla = sqft / 225;
   const marlaLabel =
     Number.isInteger(marla) || Math.abs(marla - Math.round(marla)) < 0.05

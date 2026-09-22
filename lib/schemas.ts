@@ -2,6 +2,7 @@ import { z } from "zod";
 import { digitsOnly, isValidPakistanMobileLocal } from "@/lib/phone-format";
 import { passwordMeetsPolicy } from "@/lib/password-policy";
 import { CITIES } from "@/lib/types";
+import { AREA_UNITS, toAreaSqft, type AreaUnitId } from "@/lib/area-units";
 
 /** Pakistani CNIC: 13 digits, displayed as XXXXX-XXXXXXX-X (15 chars). */
 export const PK_CNIC_DIGIT_LENGTH = 13;
@@ -38,59 +39,88 @@ export type InquiryFormValues = z.infer<typeof inquiryFormSchema>;
 
 const EMPTY_REQUIRED = "This field cannot be empty or contain only spaces";
 
-export const propertyFormSchema = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(1, EMPTY_REQUIRED)
-    .min(8, "Title should be at least 8 characters"),
-  description: z
-    .string()
-    .trim()
-    .min(1, EMPTY_REQUIRED)
-    .min(40, "Give buyers a fuller picture")
-    .max(1200, "Keep the description under 1,200 characters"),
-  listingType: z.enum(["DIRECT_OWNER", "BUSINESS"], {
-    message: "Select origin",
-  }),
-  purpose: z.enum(["SALE", "RENT"]),
-  category: z.enum(["HOME", "PLOTS", "COMMERCIAL"]),
-  subtype: z.string().trim().min(2, "Select a property type"),
-  price: z.number({ message: "Enter a price" }).positive("Enter a price"),
-  areaSqft: z
-    .number({ message: "Enter the covered area" })
-    .positive("Enter the covered area")
-    .max(1_000_000, "Area must be 1,000,000 sqft or less"),
-  bedrooms: z.number({ message: "Enter bedrooms" }).int().min(0),
-  bathrooms: z.number({ message: "Enter bathrooms" }).min(0),
-  address: z
-    .string()
-    .trim()
-    .min(1, EMPTY_REQUIRED)
-    .min(6, "Enter a street address"),
-  city: z
-    .string()
-    .trim()
-    .min(1, "Select a city")
-    .refine((value) => (CITIES as readonly string[]).includes(value), "Select a city"),
-  latitude: z
-    .number({ message: "Pin the property on the map (or select a city above)." })
-    .min(-90, "Pin the property on the map (or select a city above).")
-    .max(90, "Pin the property on the map (or select a city above)."),
-  longitude: z
-    .number({ message: "Pin the property on the map (or select a city above)." })
-    .min(-180, "Pin the property on the map (or select a city above).")
-    .max(180, "Pin the property on the map (or select a city above)."),
-  contactPhone: pakistanMobileLocalSchema,
-  highlightSpecs: z
-    .array(z.enum(["bedrooms", "bathrooms", "area", "price"]))
-    .min(1, "Select at least one feature to highlight")
-    .optional(),
-  featureTags: z
-    .array(z.string().trim().min(1).max(40))
-    .max(6, "Up to 6 custom features")
-    .optional(),
-});
+export const propertyFormSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(1, EMPTY_REQUIRED)
+      .min(8, "Title should be at least 8 characters"),
+    description: z
+      .string()
+      .trim()
+      .min(1, EMPTY_REQUIRED)
+      .min(40, "Give buyers a fuller picture"),
+    listingType: z.enum(["DIRECT_OWNER", "BUSINESS"], {
+      message: "Select origin",
+    }),
+    purpose: z.enum(["SALE", "RENT"]),
+    category: z.enum(["HOME", "PLOTS", "COMMERCIAL"]),
+    subtype: z.string().trim().min(2, "Select a property type"),
+    price: z.number({ message: "Enter a price" }).positive("Enter a price"),
+    areaValue: z
+      .number({ message: "Enter the area" })
+      .positive("Enter the area"),
+    areaUnit: z.enum(
+      AREA_UNITS.map((item) => item.id) as [AreaUnitId, ...AreaUnitId[]],
+      { message: "Select an area unit" },
+    ),
+    bedrooms: z.number().int().min(0).optional(),
+    bathrooms: z.number().min(0).optional(),
+    address: z
+      .string()
+      .trim()
+      .min(1, EMPTY_REQUIRED)
+      .min(6, "Enter a street address"),
+    city: z
+      .string()
+      .trim()
+      .min(1, "Select a city")
+      .refine((value) => (CITIES as readonly string[]).includes(value), "Select a city"),
+    latitude: z
+      .number({ message: "Pin the property on the map (or select a city above)." })
+      .min(-90, "Pin the property on the map (or select a city above).")
+      .max(90, "Pin the property on the map (or select a city above)."),
+    longitude: z
+      .number({ message: "Pin the property on the map (or select a city above)." })
+      .min(-180, "Pin the property on the map (or select a city above).")
+      .max(180, "Pin the property on the map (or select a city above)."),
+    contactPhone: pakistanMobileLocalSchema,
+    highlightSpecs: z
+      .array(z.enum(["bedrooms", "bathrooms", "area", "price"]))
+      .min(1, "Select at least one feature to highlight")
+      .optional(),
+    featureTags: z
+      .array(z.string().trim().min(1).max(40))
+      .max(6, "Up to 6 custom features")
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    const sqft = toAreaSqft(data.areaValue, data.areaUnit);
+    if (sqft > 5_000_000) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["areaValue"],
+        message: "Area is unrealistically large — check the value and unit",
+      });
+    }
+    if (data.category === "HOME") {
+      if (data.bedrooms == null || !Number.isFinite(data.bedrooms)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["bedrooms"],
+          message: "Enter bedrooms",
+        });
+      }
+      if (data.bathrooms == null || !Number.isFinite(data.bathrooms)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["bathrooms"],
+          message: "Enter bathrooms",
+        });
+      }
+    }
+  });
 
 export type PropertyFormValues = z.infer<typeof propertyFormSchema>;
 

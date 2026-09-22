@@ -105,6 +105,13 @@ function toFirestorePayload(property: Property): Record<string, unknown> {
     images,
   };
 
+  if (property.areaUnit) {
+    payload.areaUnit = property.areaUnit;
+  }
+  if (property.areaValue != null && Number.isFinite(Number(property.areaValue))) {
+    payload.areaValue = Number(property.areaValue);
+  }
+
   for (const key of ["price", "areaSqft", "bedrooms", "bathrooms", "latitude", "longitude"] as const) {
     if (!Number.isFinite(payload[key] as number)) {
       throw new Error(`Invalid numeric field "${key}" - check the listing form values.`);
@@ -282,6 +289,17 @@ function mapProperty(id: string, data: Record<string, unknown>): Property {
     status: (data.status as Property["status"]) ?? "PUBLISHED",
     price: Number(data.price ?? 0),
     areaSqft: Number(data.areaSqft ?? 0),
+    areaValue:
+      data.areaValue != null && Number.isFinite(Number(data.areaValue))
+        ? Number(data.areaValue)
+        : undefined,
+    areaUnit: (() => {
+      const raw = data.areaUnit;
+      if (raw === "sqft" || raw === "marla" || raw === "kanal" || raw === "sq_yard" || raw === "acre") {
+        return raw;
+      }
+      return undefined;
+    })(),
     bedrooms: Number(data.bedrooms ?? 0),
     bathrooms: Number(data.bathrooms ?? 0),
     address: String(data.address ?? ""),

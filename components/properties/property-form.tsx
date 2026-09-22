@@ -48,6 +48,14 @@ import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import { getPropertyDoc } from "@/lib/firestore/properties";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { compressListingImage, MAX_PROPERTY_PHOTOS } from "@/lib/compress-listing-image";
+import {
+  AREA_UNITS,
+  DEFAULT_AREA_UNIT,
+  formatAreaValue,
+  resolveListingArea,
+  toAreaSqft,
+  type AreaUnitId,
+} from "@/lib/area-units";
 import { formatPakistanMobileE164, toPakistanMobileLocal } from "@/lib/phone-format";
 import { buildStatusChangePatch } from "@/lib/property-status";
 import {
@@ -80,7 +88,6 @@ import { cn } from "@/lib/utils";
 
 const MapPicker = dynamic(() => import("@/components/map/map-picker").then((mod) => mod.MapPicker), { ssr: false });
 
-const DESC_MAX = 1200;
 const fieldFocus =
   "rounded-xl border border-[#E8E2D6]/90 bg-[#FBF9F5] shadow-[inset_0_1px_2px_rgba(15,46,29,0.045)] transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-gold focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-gold/35";
 
@@ -100,7 +107,8 @@ const STEP_FIELDS: Record<number, (keyof PropertyFormValues)[]> = {
     "price",
     "bedrooms",
     "bathrooms",
-    "areaSqft",
+    "areaValue",
+    "areaUnit",
     "city",
     "address",
     "latitude",
@@ -110,6 +118,16 @@ const STEP_FIELDS: Record<number, (keyof PropertyFormValues)[]> = {
     "featureTags",
   ],
 };
+
+function stepFieldsForCategory(
+  step: number,
+  category: PropertyFormValues["category"] | undefined,
+): (keyof PropertyFormValues)[] {
+  const fields = STEP_FIELDS[step] ?? [];
+  if (step !== 1) return fields;
+  if (category === "HOME") return fields;
+  return fields.filter((name) => name !== "bedrooms" && name !== "bathrooms");
+}
 
 function WizardStepIndicator({ current }: { current: number }) {
   return (
@@ -468,7 +486,8 @@ export function PropertyForm({
       category: "HOME",
       subtype: "HOUSE",
       price: undefined as unknown as number,
-      areaSqft: undefined as unknown as number,
+      areaValue: undefined as unknown as number,
+      areaUnit: DEFAULT_AREA_UNIT,
       bedrooms: undefined as unknown as number,
       bathrooms: undefined as unknown as number,
       address: "",
@@ -494,9 +513,25 @@ export function PropertyForm({
       category: editingProperty.category ?? "HOME",
       subtype: editingProperty.subtype ?? "HOUSE",
       price: editingProperty.price,
-      areaSqft: editingProperty.areaSqft,
-      bedrooms: editingProperty.bedrooms,
-      bathrooms: editingProperty.bathrooms,
+      ...(() => {
+        const resolved = resolveListingArea({
+          areaSqft: editingProperty.areaSqft,
+          areaValue: editingProperty.areaValue,
+          areaUnit: editingProperty.areaUnit,
+        });
+        return {
+          areaValue: resolved.areaValue || (undefined as unknown as number),
+          areaUnit: resolved.areaUnit,
+        };
+      })(),
+      bedrooms:
+        (editingProperty.category ?? "HOME") === "HOME"
+          ? editingProperty.bedrooms
+          : (undefined as unknown as number),
+      bathrooms:
+        (editingProperty.category ?? "HOME") === "HOME"
+          ? editingProperty.bathrooms
+          : (undefined as unknown as number),
       address: editingProperty.address,
       city: editingProperty.city,
       latitude: editingProperty.latitude,
@@ -601,7 +636,7 @@ export function PropertyForm({
   }
 
   function firstInvalidStepField(step: number): keyof PropertyFormValues | undefined {
-    const fields = STEP_FIELDS[step] ?? [];
+    const fields = stepFieldsForCategory(step, form.getValues("category"));
     // Prefer live formState after trigger() — the render-time `errors` proxy can be stale.
     const live = form.formState.errors;
     return fields.find((name) => Boolean(form.getFieldState(name).error || live[name]));
@@ -618,7 +653,8 @@ export function PropertyForm({
       price: 1,
       bedrooms: 1,
       bathrooms: 1,
-      areaSqft: 1,
+      areaValue: 1,
+      areaUnit: 1,
       city: 1,
       address: 1,
       latitude: 1,
@@ -636,7 +672,7 @@ export function PropertyForm({
       }
       return true;
     }
-    const fields = STEP_FIELDS[currentStep];
+    const fields = stepFieldsForCategory(currentStep, form.getValues("category"));
     const valid = await form.trigger(fields);
     if (currentStep === 1 && isAdmin) {
       const issue = validateAdminAssignment(form.getValues());
@@ -706,7 +742,8 @@ export function PropertyForm({
       "price",
       "bedrooms",
       "bathrooms",
-      "areaSqft",
+      "areaValue",
+      "areaUnit",
       "city",
       "address",
       "contactPhone",
@@ -955,6 +992,21 @@ export function PropertyForm({
     }
 
     try {
+      const areaSqft = toAreaSqft(values.areaValue, values.areaUnit);
+      const bedsBaths =
+        values.category === "HOME"
+          ? {
+              bedrooms: values.bedrooms ?? 0,
+              bathrooms: values.bathrooms ?? 0,
+            }
+          : { bedrooms: 0, bathrooms: 0 };
+      const areaPayload = {
+        areaSqft,
+        areaValue: values.areaValue,
+        areaUnit: values.areaUnit,
+        ...bedsBaths,
+      };
+
       // When ?edit= is present, ALWAYS update that document — never mint a new id.
       if (editId) {
         if (!editingProperty) {
@@ -974,8 +1026,19 @@ export function PropertyForm({
         await updateProperty(
           editId,
           {
-            ...values,
+            title: values.title,
+            description: values.description,
             listingType: listingTypeValue,
+            purpose: values.purpose,
+            category: values.category,
+            subtype: values.subtype,
+            price: values.price,
+            ...areaPayload,
+            address: values.address,
+            city: values.city,
+            latitude: values.latitude,
+            longitude: values.longitude,
+            contactPhone: values.contactPhone,
             developerId: developerId ?? editingProperty.developerId,
             images,
             ownerUserId: resolvedOwnerId ?? editingProperty.ownerUserId,
@@ -1002,9 +1065,7 @@ export function PropertyForm({
           subtype: values.subtype,
           status,
           price: values.price,
-          areaSqft: values.areaSqft,
-          bedrooms: values.bedrooms,
-          bathrooms: values.bathrooms,
+          ...areaPayload,
           address: values.address,
           city: values.city,
           latitude: values.latitude,
@@ -1266,9 +1327,10 @@ export function PropertyForm({
                               field.onChange(next);
                               form.setValue("subtype", defaultSubtypeFor(next));
                               form.setValue("highlightSpecs", defaultHighlightKeys(next));
-                              if (next === "PLOTS") {
+                              if (next === "PLOTS" || next === "COMMERCIAL") {
                                 form.setValue("bedrooms", 0);
                                 form.setValue("bathrooms", 0);
+                                form.clearErrors(["bedrooms", "bathrooms"]);
                               } else if (form.getValues("bedrooms") === 0) {
                                 form.setValue("bedrooms", undefined as unknown as number);
                                 form.setValue("bathrooms", undefined as unknown as number);
@@ -1372,14 +1434,9 @@ export function PropertyForm({
                 <FormItem>
                   <FormLabel className="mb-0.5">Description</FormLabel>
                   <FormControl>
-                    <Textarea rows={6} maxLength={DESC_MAX} className={fieldFocus} {...field} />
+                    <Textarea rows={6} className={fieldFocus} {...field} />
                   </FormControl>
-                  <div className="flex justify-between">
-                    <FormMessage />
-                    <p className="text-[11px] text-muted-foreground">
-                      {(field.value?.length ?? 0)}/{DESC_MAX}
-                    </p>
-                  </div>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -1596,8 +1653,8 @@ export function PropertyForm({
             tone="cream"
             className="mb-11"
           >
-            {form.watch("category") !== "PLOTS" && (
-              <div className="grid gap-5 sm:grid-cols-3">
+            {form.watch("category") === "HOME" && (
+              <div className="grid gap-5 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="bedrooms"
@@ -1612,6 +1669,7 @@ export function PropertyForm({
                           name={field.name}
                           icon={BedDouble}
                           placeholder="e.g. 3"
+                          integerOnly
                         />
                       </FormControl>
                       <FormMessage />
@@ -1638,36 +1696,18 @@ export function PropertyForm({
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="areaSqft"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="mb-0.5">Area (sqft)</FormLabel>
-                      <FormControl>
-                        <NumberInput
-                          value={field.value}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          icon={Maximize2}
-                          placeholder="e.g. 1800"
-                          max={1_000_000}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
             )}
-            {form.watch("category") === "PLOTS" && (
+
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10.5rem]">
               <FormField
                 control={form.control}
-                name="areaSqft"
+                name="areaValue"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="mb-0.5">Plot area (sqft)</FormLabel>
+                    <FormLabel className="mb-0.5">
+                      {form.watch("category") === "PLOTS" ? "Plot area" : "Area"}
+                    </FormLabel>
                     <FormControl>
                       <NumberInput
                         value={field.value}
@@ -1675,15 +1715,47 @@ export function PropertyForm({
                         onBlur={field.onBlur}
                         name={field.name}
                         icon={Maximize2}
-                        placeholder="e.g. 5 Marla in sqft"
-                        max={1_000_000}
+                        placeholder={
+                          form.watch("areaUnit") === "marla"
+                            ? "e.g. 5"
+                            : form.watch("areaUnit") === "kanal"
+                              ? "e.g. 1"
+                              : "e.g. 1800"
+                        }
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
+              <FormField
+                control={form.control}
+                name="areaUnit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="mb-0.5">Unit</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => field.onChange(value as AreaUnitId)}
+                    >
+                      <FormControl>
+                        <SelectTrigger className={cn("h-10", fieldFocus)}>
+                          <SelectValue placeholder="Unit" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {AREA_UNITS.map((unit) => (
+                          <SelectItem key={unit.id} value={unit.id}>
+                            {unit.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="rounded-2xl border border-forest/10 bg-white/80 px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
               <p className="text-sm font-medium text-forest">Features to highlight</p>
@@ -1699,11 +1771,14 @@ export function PropertyForm({
                   const selected = new Set(normalizeHighlightKeys(field.value, category));
                   const beds = form.watch("bedrooms");
                   const baths = form.watch("bathrooms");
-                  const area = form.watch("areaSqft");
+                  const areaValue = form.watch("areaValue");
+                  const areaUnit = form.watch("areaUnit");
                   const labels: Record<PropertyHighlightKey, string> = {
                     bedrooms: Number.isFinite(beds) ? `Bedrooms (${beds})` : "Bedrooms",
                     bathrooms: Number.isFinite(baths) ? `Bathrooms (${baths})` : "Bathrooms",
-                    area: Number.isFinite(area) ? `Area (${area} sqft)` : "Area",
+                    area: Number.isFinite(areaValue)
+                      ? `Area (${formatAreaValue(areaValue!, areaUnit)})`
+                      : "Area",
                     price: `Price`,
                   };
                   return (

@@ -33,10 +33,21 @@ function PropertyDetailInner({ property }: { property: Property }) {
   const specs = useMemo(() => {
     const highlighted = propertyHighlightDisplay(property).filter((item) => item.key !== "price");
     if (highlighted.length > 0) return highlighted;
+    const category = property.category ?? "HOME";
+    const area = {
+      key: "area",
+      label: "Area",
+      value: formatArea(property.areaSqft, {
+        areaValue: property.areaValue,
+        areaUnit: property.areaUnit,
+      }),
+      icon: Maximize2,
+    };
+    if (category === "PLOTS" || category === "COMMERCIAL") return [area];
     return [
       { key: "bedrooms", label: "Bedrooms", value: String(property.bedrooms), icon: BedDouble },
       { key: "bathrooms", label: "Bathrooms", value: String(property.bathrooms), icon: Bath },
-      { key: "area", label: "Area", value: formatArea(property.areaSqft), icon: Maximize2 },
+      area,
     ];
   }, [property]);
 

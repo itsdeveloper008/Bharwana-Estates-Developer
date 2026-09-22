@@ -154,7 +154,7 @@ function FiltersForm({ compact }: { compact?: boolean }) {
                 patch({
                   category: next.category,
                   subtype: next.subtype === "ALL" ? null : next.subtype,
-                  beds: next.category === "PLOTS" ? null : beds === "ALL" ? null : beds,
+                  beds: next.category === "PLOTS" || next.category === "COMMERCIAL" ? null : beds === "ALL" ? null : beds,
                 });
               }}
             />
@@ -185,7 +185,7 @@ function FiltersForm({ compact }: { compact?: boolean }) {
           />
           <Select
             value={beds}
-            disabled={category === "PLOTS"}
+            disabled={category === "PLOTS" || category === "COMMERCIAL"}
             onValueChange={(value) => patch({ beds: value })}
           >
             <SelectTrigger className="h-11 bg-white disabled:opacity-50">

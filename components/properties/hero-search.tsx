@@ -76,7 +76,7 @@ export function HeroSearch() {
     const maxAreaSqft = toScaledAmount(areaMax, areaUnitMeta.toSqft);
     if (minAreaSqft) params.set("minArea", String(minAreaSqft));
     if (maxAreaSqft) params.set("maxArea", String(maxAreaSqft));
-    if (beds !== "ALL" && category !== "PLOTS") params.set("beds", beds);
+    if (beds !== "ALL" && category !== "PLOTS" && category !== "COMMERCIAL") params.set("beds", beds);
     const minPricePkr = toScaledAmount(priceMin, currencyMeta.toPkr);
     const maxPricePkr = toScaledAmount(priceMax, currencyMeta.toPkr);
     if (minPricePkr) params.set("minPrice", String(minPricePkr));
@@ -131,7 +131,7 @@ export function HeroSearch() {
               onChange={(next) => {
                 setCategory(next.category);
                 setSubtype(next.subtype);
-                if (next.category === "PLOTS") setBeds("ALL");
+                if (next.category === "PLOTS" || next.category === "COMMERCIAL") setBeds("ALL");
               }}
             />
           </div>
@@ -158,7 +158,11 @@ export function HeroSearch() {
               setAreaMax("");
             }}
           />
-          <Select value={beds} onValueChange={setBeds} disabled={category === "PLOTS"}>
+          <Select
+            value={beds}
+            onValueChange={setBeds}
+            disabled={category === "PLOTS" || category === "COMMERCIAL"}
+          >
             <SelectTrigger className="h-11 bg-white disabled:opacity-50">
               <SelectValue placeholder="Beds" />
             </SelectTrigger>

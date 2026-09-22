@@ -95,7 +95,12 @@ export interface Property {
   subtype?: string;
   status: PropertyStatus;
   price: number;
+  /** Canonical area in sqft — used for filter/sort. Always present. */
   areaSqft: number;
+  /** Value the lister entered in their chosen unit (optional on legacy docs). */
+  areaValue?: number;
+  /** Unit for areaValue; missing → treat as sqft (legacy). */
+  areaUnit?: import("@/lib/area-units").AreaUnitId;
   bedrooms: number;
   bathrooms: number;
   address: string;
