@@ -28,7 +28,7 @@ export type InquiryStatus =
 
 export type InquiryChannel = "PLATFORM_ASSISTED" | "DIRECT_TO_SELLER";
 
-export type DeveloperStatus = "PENDING_REVIEW" | "ACTIVE";
+export type DeveloperStatus = "PENDING_REVIEW" | "ACTIVE" | "REJECTED";
 
 export type DeveloperOrigin = "ADMIN" | "SELF_REGISTERED";
 
@@ -70,7 +70,21 @@ export interface Developer {
   accountDeleted?: boolean;
   /** ISO timestamp when the dealer profile was created (retention / admin detail) */
   createdAt?: string;
+  /** Set when status is REJECTED — latest reason for quick display */
+  rejectionReason?: string;
+  /** When status last changed (reject / approve / resubmit) */
+  statusUpdatedAt?: string;
+  /** Trail of status changes for dealer + admin context */
+  statusHistory?: DeveloperStatusHistoryEntry[];
 }
+
+export type DeveloperStatusHistoryEntry = {
+  status: DeveloperStatus;
+  reason?: string;
+  at: string;
+  /** Display name of actor when known (e.g. admin) */
+  by?: string;
+};
 
 export type PropertyStatusHistoryEntry = {
   status: PropertyStatus;

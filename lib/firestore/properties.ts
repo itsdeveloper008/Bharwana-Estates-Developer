@@ -501,6 +501,8 @@ export async function upsertProperty(
   } else {
     if (!next.rejectionReason) {
       payload.rejectionReason = deleteField();
+      payload.rejectionEmailSentAt = deleteField();
+      payload.rejectionEmailClaimedAt = deleteField();
     }
   }
 

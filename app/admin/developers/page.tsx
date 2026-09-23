@@ -6,7 +6,16 @@ import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
 import { DealerDetailModal } from "@/components/admin/dealer-detail-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -15,9 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { adminApiJson } from "@/lib/admin/admin-api";
+import { useAdminAuth } from "@/lib/admin-auth";
+import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
+import { buildDeveloperStatusChangePatch } from "@/lib/developer-status";
 import { ensureSelfRegisteredDealer } from "@/lib/firestore/developers";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
-import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 import { formatCommissionRate } from "@/lib/format";
 import { sumCommission, useMockStore } from "@/lib/mock-store";
 import type { Developer, DeveloperOrigin } from "@/lib/types";
@@ -27,6 +39,7 @@ type Filter = "ALL" | "ADMIN" | "SELF_REGISTERED";
 
 export default function AdminDevelopersPage() {
   useMarkAdminModuleViewed("dealers");
+  const { admin, getIdToken } = useAdminAuth();
   const {
     properties,
     developers,
@@ -40,6 +53,11 @@ export default function AdminDevelopersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [rateDraft, setRateDraft] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectTargetId, setRejectTargetId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectError, setRejectError] = useState<string | null>(null);
+  const [rejectPending, setRejectPending] = useState(false);
 
   /** Repair DEALER users that never got a Firestore developers/{id} doc. */
   useEffect(() => {
@@ -82,6 +100,7 @@ export default function AdminDevelopersPage() {
   const selectedUser = selected?.dealerUserId
     ? users.find((user) => user.id === selected.dealerUserId)
     : undefined;
+  const rejectTarget = developers.find((developer) => developer.id === rejectTargetId) ?? null;
 
   function startEdit(developer: Developer) {
     setEditingId(developer.id);
@@ -100,8 +119,59 @@ export default function AdminDevelopersPage() {
   }
 
   async function approveDealer(developer: Developer) {
-    await updateDeveloper(developer.id, { status: "ACTIVE" });
+    await updateDeveloper(
+      developer.id,
+      buildDeveloperStatusChangePatch(developer, {
+        status: "ACTIVE",
+        by: admin?.fullName ?? admin?.email ?? "Admin",
+        clearRejectionReason: true,
+      }),
+    );
     toast.success(`${developer.companyName} approved.`);
+  }
+
+  function openReject(developer: Developer) {
+    setRejectTargetId(developer.id);
+    setRejectReason("");
+    setRejectError(null);
+    setRejectOpen(true);
+  }
+
+  async function rejectDealer() {
+    if (!rejectTarget) return;
+    const reason = rejectReason.trim();
+    if (!reason) {
+      setRejectError("Please provide a reason for rejection");
+      return;
+    }
+    setRejectError(null);
+    setRejectPending(true);
+    try {
+      await adminApiJson(getIdToken, `/api/admin/developers/${rejectTarget.id}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      toast.message("Dealer rejected");
+      setRejectOpen(false);
+      setRejectReason("");
+      setRejectTargetId(null);
+      if (selectedId === rejectTarget.id) setSelectedId(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not reject dealer.";
+      toast.error(message);
+    } finally {
+      setRejectPending(false);
+    }
+  }
+
+  function statusBadge(developer: Developer) {
+    if (developer.status === "PENDING_REVIEW") {
+      return <Badge variant="pending">Pending review</Badge>;
+    }
+    if (developer.status === "REJECTED") {
+      return <Badge variant="rejected">Rejected</Badge>;
+    }
+    return <Badge variant="verified">Active</Badge>;
   }
 
   const filters: { id: Filter; label: string }[] = [
@@ -173,13 +243,7 @@ export default function AdminDevelopersPage() {
                   <TableCell>
                     <Badge variant="outline">{originLabel[developer.origin]}</Badge>
                   </TableCell>
-                  <TableCell>
-                    {developer.status === "PENDING_REVIEW" ? (
-                      <Badge variant="pending">Pending review</Badge>
-                    ) : (
-                      <Badge variant="verified">Active</Badge>
-                    )}
-                  </TableCell>
+                  <TableCell>{statusBadge(developer)}</TableCell>
                   <TableCell
                     className="text-right"
                     onClick={(event) => event.stopPropagation()}
@@ -217,9 +281,20 @@ export default function AdminDevelopersPage() {
                   </TableCell>
                   <TableCell onClick={(event) => event.stopPropagation()}>
                     <div className="flex flex-wrap items-center justify-end gap-2">
-                      {developer.status === "PENDING_REVIEW" && (
+                      {(developer.status === "PENDING_REVIEW" ||
+                        developer.status === "REJECTED") && (
                         <Button size="sm" type="button" onClick={() => void approveDealer(developer)}>
                           Approve Dealer
+                        </Button>
+                      )}
+                      {developer.status === "PENDING_REVIEW" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          type="button"
+                          onClick={() => openReject(developer)}
+                        >
+                          Reject
                         </Button>
                       )}
                       <ConfirmDeleteButton
@@ -274,6 +349,47 @@ export default function AdminDevelopersPage() {
         open={Boolean(selected)}
         onOpenChange={(open) => !open && setSelectedId(null)}
       />
+
+      <Dialog
+        open={rejectOpen}
+        onOpenChange={(open) => {
+          setRejectOpen(open);
+          if (!open) {
+            setRejectTargetId(null);
+            setRejectReason("");
+            setRejectError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject dealer</DialogTitle>
+            <DialogDescription>
+              {rejectTarget
+                ? `Provide a reason for rejecting ${rejectTarget.companyName}. They will see it on their dealer desk${
+                    selectedUser?.email ? " and receive an email if they have a real address on file" : ""
+                  }.`
+                : "Provide a reason for rejection."}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={rejectReason}
+            onChange={(event) => setRejectReason(event.target.value)}
+            placeholder="Reason for rejection"
+            rows={4}
+            className="bg-white"
+          />
+          {rejectError ? <p className="text-sm text-destructive">{rejectError}</p> : null}
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => setRejectOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" disabled={rejectPending} onClick={() => void rejectDealer()}>
+              {rejectPending ? "Rejecting…" : "Reject dealer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

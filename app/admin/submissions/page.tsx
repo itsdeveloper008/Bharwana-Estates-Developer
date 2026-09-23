@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate, formatPrice, listingBadge, statusLabel } from "@/lib/format";
+import { adminApiJson } from "@/lib/admin/admin-api";
 import { useMockStore } from "@/lib/mock-store";
 import { buildStatusChangePatch } from "@/lib/property-status";
 import type { Property } from "@/lib/types";
@@ -43,7 +44,7 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export default function AdminSubmissionsPage() {
-  const { admin } = useAdminAuth();
+  const { admin, getIdToken } = useAdminAuth();
   useMarkAdminModuleViewed("submissions");
   const { properties, developers, users, updateProperty, deleteProperty } = useMockStore();
   const [tab, setTab] = useState<Tab>("PENDING_APPROVAL");
@@ -51,6 +52,7 @@ export default function AdminSubmissionsPage() {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectError, setRejectError] = useState<string | null>(null);
+  const [rejectPending, setRejectPending] = useState(false);
 
   const filtered = useMemo(() => {
     const list =
@@ -75,7 +77,7 @@ export default function AdminSubmissionsPage() {
 
   function dealerBlocksApproval(property: Property) {
     const dealer = dealerForProperty(property);
-    return Boolean(dealer && dealer.status === "PENDING_REVIEW");
+    return Boolean(dealer && dealer.status !== "ACTIVE");
   }
 
   async function approve(property: Property) {
@@ -103,20 +105,22 @@ export default function AdminSubmissionsPage() {
       return;
     }
     setRejectError(null);
-    // TODO: email seller on rejection once Cloud Functions / Trigger Email are set up
-    // (Firestore trigger on status → REJECTED). Do not send email from the client.
-    await updateProperty(
-      property.id,
-      buildStatusChangePatch(property, {
-        status: "REJECTED",
-        reason,
-        by: admin?.fullName ?? admin?.email ?? "Admin",
-      }),
-    );
-    toast.message("Property rejected");
-    setRejectOpen(false);
-    setRejectReason("");
-    setSelectedId(null);
+    setRejectPending(true);
+    try {
+      await adminApiJson(getIdToken, `/api/admin/properties/${property.id}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      toast.message("Property rejected");
+      setRejectOpen(false);
+      setRejectReason("");
+      setSelectedId(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not reject property.";
+      toast.error(message);
+    } finally {
+      setRejectPending(false);
+    }
   }
 
   return (
@@ -265,7 +269,8 @@ export default function AdminSubmissionsPage() {
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl">Reject submission</DialogTitle>
             <DialogDescription>
-              Optionally leave a reason the seller will see on their listings page.
+              Leave a reason the seller will see on their listings page. If they have a real email on
+              file, we also notify them by email.
             </DialogDescription>
           </DialogHeader>
           <Textarea
@@ -289,10 +294,10 @@ export default function AdminSubmissionsPage() {
             </Button>
             <Button
               variant="destructive"
-              disabled={!selected}
+              disabled={!selected || rejectPending}
               onClick={() => selected && void reject(selected)}
             >
-              Confirm reject
+              {rejectPending ? "Rejecting…" : "Confirm reject"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -103,7 +103,7 @@ export async function loadAdminCaller(uid: string, emailFallback = ""): Promise<
  * users.role) via the service account — never trusts client-claimed permissions.
  * Do not log token contents; verifyIdToken failures stay in console.error only.
  */
-export async function requireSuperAdmin(
+export async function requireVerifiedAdmin(
   request: Request,
 ): Promise<{ ok: true; caller: VerifiedAdminCaller } | { ok: false; status: number; error: string }> {
   if (!isFirebaseAdminConfigured()) {
@@ -111,7 +111,7 @@ export async function requireSuperAdmin(
       ok: false,
       status: 503,
       error:
-        "Staff APIs need Firebase Admin credentials. Set FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY.",
+        "Admin APIs need Firebase Admin credentials. Set FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY.",
     };
   }
 
@@ -120,13 +120,11 @@ export async function requireSuperAdmin(
     return { ok: false, status: 401, error: "Missing Authorization bearer token." };
   }
 
-
-  // Step A - verify the end-user Firebase ID token (local JWT check; does not call Firestore).
   let decoded: { uid: string; email?: string };
   try {
     decoded = await getAdminAuth().verifyIdToken(token);
   } catch (error) {
-    console.error("[requireSuperAdmin] verifyIdToken failed", error);
+    console.error("[requireVerifiedAdmin] verifyIdToken failed", error);
     const message = errorMessage(error);
     const code = errorCode(error);
     if (isServiceAccountAuthFailure(error)) {
@@ -145,12 +143,11 @@ export async function requireSuperAdmin(
     };
   }
 
-  // Step B - load admin/staff role from Firestore via the service account.
   let caller: VerifiedAdminCaller | null;
   try {
     caller = await loadAdminCaller(decoded.uid, decoded.email ?? "");
   } catch (error) {
-    console.error("[requireSuperAdmin] loadAdminCaller / Firestore failed", error);
+    console.error("[requireVerifiedAdmin] loadAdminCaller / Firestore failed", error);
     const message = errorMessage(error);
     const code = errorCode(error);
     if (isServiceAccountAuthFailure(error)) {
@@ -174,10 +171,33 @@ export async function requireSuperAdmin(
   if (!caller) {
     return { ok: false, status: 403, error: "Not an admin account." };
   }
-  if (caller.adminRole !== "super_admin") {
+  return { ok: true, caller };
+}
+
+/** Super-admin only (staff management). */
+export async function requireSuperAdmin(
+  request: Request,
+): Promise<{ ok: true; caller: VerifiedAdminCaller } | { ok: false; status: number; error: string }> {
+  const authz = await requireVerifiedAdmin(request);
+  if (!authz.ok) return authz;
+  if (authz.caller.adminRole !== "super_admin") {
     return { ok: false, status: 403, error: "Only Super Admins can manage staff." };
   }
-  return { ok: true, caller };
+  return authz;
+}
+
+/** Super-admin or staff with the given module permission. */
+export async function requireAdminModule(
+  request: Request,
+  module: AdminModule,
+): Promise<{ ok: true; caller: VerifiedAdminCaller } | { ok: false; status: number; error: string }> {
+  const authz = await requireVerifiedAdmin(request);
+  if (!authz.ok) return authz;
+  if (authz.caller.adminRole === "super_admin") return authz;
+  if (!authz.caller.permissions.includes(module)) {
+    return { ok: false, status: 403, error: `Missing permission for module: ${module}.` };
+  }
+  return authz;
 }
 
 export function staffDocFromData(uid: string, data: Record<string, unknown>): AdminDoc & { uid: string } {

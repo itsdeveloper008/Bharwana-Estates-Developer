@@ -48,8 +48,20 @@ export function DealerDetailModal({
       title={display.companyName}
       badges={
         <>
-          <Badge variant={display.status === "PENDING_REVIEW" ? "pending" : "verified"}>
-            {display.status === "PENDING_REVIEW" ? "Pending review" : "Active"}
+          <Badge
+            variant={
+              display.status === "PENDING_REVIEW"
+                ? "pending"
+                : display.status === "REJECTED"
+                  ? "rejected"
+                  : "verified"
+            }
+          >
+            {display.status === "PENDING_REVIEW"
+              ? "Pending review"
+              : display.status === "REJECTED"
+                ? "Rejected"
+                : "Active"}
           </Badge>
           <Badge variant="outline">{originLabel[display.origin]}</Badge>
         </>
@@ -72,6 +84,11 @@ export function DealerDetailModal({
             <AdminDetailField label="Registered">
               {display.createdAt ? formatDate(display.createdAt) : <AdminDetailPlaceholder />}
             </AdminDetailField>
+            {display.status === "REJECTED" ? (
+              <AdminDetailField label="Rejection reason">
+                {display.rejectionReason || <AdminDetailPlaceholder />}
+              </AdminDetailField>
+            ) : null}
           </div>
         </AdminDetailSection>
 

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { listingBadge, statusLabel } from "@/lib/format";
+import { adminApiJson } from "@/lib/admin/admin-api";
 import { useAdminAuth } from "@/lib/admin-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { buildStatusChangePatch } from "@/lib/property-status";
@@ -28,11 +29,12 @@ export default function AdminPropertyDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = typeof params.id === "string" ? params.id : "";
-  const { admin } = useAdminAuth();
+  const { admin, getIdToken } = useAdminAuth();
   const { properties, developers, users, updateProperty, deleteProperty } = useMockStore();
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectError, setRejectError] = useState<string | null>(null);
+  const [rejectPending, setRejectPending] = useState(false);
 
   const property = useMemo(
     () => properties.find((item) => item.id === id) ?? null,
@@ -43,7 +45,7 @@ export default function AdminPropertyDetailPage() {
   const dealer = property?.developerId
     ? developers.find((item) => item.id === property.developerId)
     : undefined;
-  const dealerBlocksApproval = Boolean(dealer && dealer.status === "PENDING_REVIEW");
+  const dealerBlocksApproval = Boolean(dealer && dealer.status !== "ACTIVE");
 
   async function approve(target: Property) {
     if (dealerBlocksApproval) {
@@ -68,17 +70,21 @@ export default function AdminPropertyDetailPage() {
       return;
     }
     setRejectError(null);
-    await updateProperty(
-      target.id,
-      buildStatusChangePatch(target, {
-        status: "REJECTED",
-        reason,
-        by: admin?.fullName ?? admin?.email ?? "Admin",
-      }),
-    );
-    toast.message("Property rejected");
-    setRejectOpen(false);
-    setRejectReason("");
+    setRejectPending(true);
+    try {
+      await adminApiJson(getIdToken, `/api/admin/properties/${target.id}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      toast.message("Property rejected");
+      setRejectOpen(false);
+      setRejectReason("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not reject property.";
+      toast.error(message);
+    } finally {
+      setRejectPending(false);
+    }
   }
 
   if (!property) {
@@ -135,7 +141,7 @@ export default function AdminPropertyDetailPage() {
             <>
               {dealerBlocksApproval ? (
                 <p className="border border-amber-600/25 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                  Dealer account pending approval. Approve the dealer first.
+                  Dealer account is not active yet. Approve the dealer before publishing.
                 </p>
               ) : null}
               <Button disabled={dealerBlocksApproval} onClick={() => void approve(property)}>
@@ -177,7 +183,8 @@ export default function AdminPropertyDetailPage() {
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl">Reject submission</DialogTitle>
             <DialogDescription>
-              Optionally leave a reason the seller will see on their listings page.
+              Leave a reason the seller will see on their listings page. If they have a real email on
+              file, we also notify them by email.
             </DialogDescription>
           </DialogHeader>
           <Textarea
@@ -199,8 +206,12 @@ export default function AdminPropertyDetailPage() {
             <Button variant="outline" onClick={() => setRejectOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={() => void reject(property)}>
-              Confirm reject
+            <Button
+              variant="destructive"
+              disabled={rejectPending}
+              onClick={() => void reject(property)}
+            >
+              {rejectPending ? "Rejecting…" : "Confirm reject"}
             </Button>
           </DialogFooter>
         </DialogContent>

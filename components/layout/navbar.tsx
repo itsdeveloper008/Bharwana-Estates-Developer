@@ -23,6 +23,12 @@ import {
   getListingsLastViewedAt,
   propertyHasUnreadStatusChange,
 } from "@/lib/listings-notifications";
+import {
+  DEALER_ACCOUNT_VIEWED_EVENT,
+  dealerHasUnreadStatusChange,
+  ensureDealerAccountViewedBaseline,
+  getDealerAccountLastViewedAt,
+} from "@/lib/dealer-notifications";
 import { cn } from "@/lib/utils";
 import { displayUserEmail } from "@/lib/user-display";
 import { preloadGoogleMaps } from "@/lib/map";
@@ -89,14 +95,19 @@ export function Navbar() {
   useEffect(() => {
     const onViewed = () => setViewedTick((tick) => tick + 1);
     window.addEventListener(LISTINGS_VIEWED_EVENT, onViewed);
-    return () => window.removeEventListener(LISTINGS_VIEWED_EVENT, onViewed);
+    window.addEventListener(DEALER_ACCOUNT_VIEWED_EVENT, onViewed);
+    return () => {
+      window.removeEventListener(LISTINGS_VIEWED_EVENT, onViewed);
+      window.removeEventListener(DEALER_ACCOUNT_VIEWED_EVENT, onViewed);
+    };
   }, []);
 
   useEffect(() => {
     if (!user?.id) return;
     ensureListingsViewedBaseline(user.id);
+    if (user.role === "DEALER") ensureDealerAccountViewedBaseline(user.id);
     setViewedTick((tick) => tick + 1);
-  }, [user?.id]);
+  }, [user?.id, user?.role]);
 
   const hasListingUpdates = useMemo(() => {
     if (!user || user.role === "ADMIN") return false;
@@ -110,6 +121,16 @@ export function Navbar() {
     void viewedTick;
     return mine.some((property) => propertyHasUnreadStatusChange(property, lastViewed));
   }, [user, properties, getDeveloperForUser, viewedTick]);
+
+  const hasDealerAccountUpdates = useMemo(() => {
+    if (!user || user.role !== "DEALER") return false;
+    const developer = getDeveloperForUser(user.id);
+    const lastViewed = getDealerAccountLastViewedAt(user.id);
+    void viewedTick;
+    return dealerHasUnreadStatusChange(developer, lastViewed);
+  }, [user, getDeveloperForUser, viewedTick]);
+
+  const hasDeskUpdates = hasListingUpdates || hasDealerAccountUpdates;
 
   const isHome = pathname === "/";
   const overHero = isHome && !scrolled;
@@ -375,7 +396,7 @@ export function Navbar() {
                     )}
                   >
                     {initials}
-                    {hasListingUpdates ? (
+                    {hasDeskUpdates ? (
                       <span
                         className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-[#FBFAF6]"
                         aria-hidden
@@ -399,7 +420,7 @@ export function Navbar() {
                     <DropdownMenuItem key={link.href} asChild className="cursor-pointer rounded-lg focus:bg-cream focus:text-forest">
                       <Link href={link.href} className="flex w-full items-center justify-between gap-2">
                         <span>{link.label}</span>
-                        {hasListingUpdates && link.label === "My Listings" ? (
+                        {hasDeskUpdates && link.label === "My Listings" ? (
                           <span className="h-2 w-2 shrink-0 rounded-full bg-destructive" aria-label="Listing updates" />
                         ) : null}
                       </Link>
@@ -545,7 +566,7 @@ export function Navbar() {
                       className="flex items-center gap-3 py-2 font-serif text-[1.75rem] leading-tight tracking-tight text-[#F5F1E8]/80 transition-colors hover:text-[#B89545] sm:text-[2rem]"
                     >
                       {link.label}
-                      {hasListingUpdates && link.label === "My Listings" ? (
+                      {hasDeskUpdates && link.label === "My Listings" ? (
                         <span className="mt-1 h-2 w-2 rounded-full bg-destructive" aria-hidden />
                       ) : null}
                     </Link>

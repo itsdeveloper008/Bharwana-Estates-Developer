@@ -28,6 +28,7 @@ import {
 } from "@/lib/format";
 import { useMockAuth } from "@/lib/mock-auth";
 import { markListingsViewed } from "@/lib/listings-notifications";
+import { markDealerAccountViewed } from "@/lib/dealer-notifications";
 import { ensureSelfRegisteredDealer } from "@/lib/firestore/developers";
 import { getUserDoc } from "@/lib/firestore/users";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
@@ -74,6 +75,7 @@ function DealerDashboard() {
 
   useEffect(() => {
     if (user?.id && tab === "listings") markListingsViewed(user.id);
+    if (user?.id) markDealerAccountViewed(user.id);
   }, [user?.id, tab]);
 
   /** Backfill dealer docs that only exist as users/{uid} (pre-Firestore developers bug). */
@@ -121,6 +123,17 @@ function DealerDashboard() {
               Your dealer account is pending review. Listings will wait until Admin approves your
               agency.
             </p>
+          )}
+          {developer?.status === "REJECTED" && (
+            <div className="mt-3 max-w-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              <p className="font-medium">Your dealer account was not approved.</p>
+              {developer.rejectionReason ? (
+                <p className="mt-1.5 text-destructive/90">{developer.rejectionReason}</p>
+              ) : null}
+              <p className="mt-2 text-xs text-destructive/80">
+                Update your details if needed, then contact Bharwana so we can review again.
+              </p>
+            </div>
           )}
         </div>
         <Button asChild>

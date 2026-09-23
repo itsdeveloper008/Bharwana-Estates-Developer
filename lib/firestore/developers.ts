@@ -1,6 +1,7 @@
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   onSnapshot,
@@ -18,6 +19,7 @@ import {
   type Developer,
   type DeveloperOrigin,
   type DeveloperStatus,
+  type DeveloperStatusHistoryEntry,
 } from "@/lib/types";
 import { withTimeout } from "@/lib/utils";
 
@@ -38,7 +40,31 @@ function createdAtIso(value: unknown): string | undefined {
   return undefined;
 }
 
+function mapStatusHistory(raw: unknown): DeveloperStatusHistoryEntry[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const entries: DeveloperStatusHistoryEntry[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const status = String(row.status ?? "") as DeveloperStatus;
+    if (status !== "PENDING_REVIEW" && status !== "ACTIVE" && status !== "REJECTED") continue;
+    const at = typeof row.at === "string" ? row.at : "";
+    if (!at) continue;
+    const entry: DeveloperStatusHistoryEntry = { status, at };
+    if (typeof row.reason === "string" && row.reason.trim()) entry.reason = row.reason.trim();
+    if (typeof row.by === "string" && row.by.trim()) entry.by = row.by.trim();
+    entries.push(entry);
+  }
+  return entries.length ? entries : undefined;
+}
+
 function mapDeveloper(id: string, data: Record<string, unknown>): Developer {
+  const statusRaw = String(data.status ?? "PENDING_REVIEW");
+  const status: DeveloperStatus =
+    statusRaw === "ACTIVE" || statusRaw === "REJECTED" || statusRaw === "PENDING_REVIEW"
+      ? statusRaw
+      : "PENDING_REVIEW";
+
   return {
     id,
     companyName: String(data.companyName ?? ""),
@@ -46,11 +72,14 @@ function mapDeveloper(id: string, data: Record<string, unknown>): Developer {
     commissionRate:
       typeof data.commissionRate === "number" ? data.commissionRate : DEFAULT_DEALER_COMMISSION_RATE,
     dealerUserId: data.dealerUserId ? String(data.dealerUserId) : undefined,
-    status: (data.status as DeveloperStatus) ?? "PENDING_REVIEW",
+    status,
     origin: (data.origin as DeveloperOrigin) ?? "SELF_REGISTERED",
     registrationNumber: data.registrationNumber ? String(data.registrationNumber) : undefined,
     accountDeleted: data.accountDeleted === true ? true : undefined,
     createdAt: createdAtIso(data.createdAt),
+    rejectionReason: data.rejectionReason ? String(data.rejectionReason) : undefined,
+    statusUpdatedAt: typeof data.statusUpdatedAt === "string" ? data.statusUpdatedAt : undefined,
+    statusHistory: mapStatusHistory(data.statusHistory),
   };
 }
 
@@ -65,6 +94,16 @@ function toPayload(developer: Developer): Record<string, unknown> {
   if (developer.dealerUserId) payload.dealerUserId = developer.dealerUserId;
   if (developer.registrationNumber) payload.registrationNumber = developer.registrationNumber.trim();
   if (developer.accountDeleted === true) payload.accountDeleted = true;
+  if (developer.statusUpdatedAt) payload.statusUpdatedAt = developer.statusUpdatedAt;
+  if (developer.rejectionReason?.trim()) payload.rejectionReason = developer.rejectionReason.trim();
+  if (developer.statusHistory?.length) {
+    payload.statusHistory = developer.statusHistory.map((entry) => {
+      const item: Record<string, unknown> = { status: entry.status, at: entry.at };
+      if (entry.reason) item.reason = entry.reason;
+      if (entry.by) item.by = entry.by;
+      return item;
+    });
+  }
   return payload;
 }
 
@@ -116,9 +155,24 @@ export async function updateDeveloperDoc(id: string, patch: Partial<Developer>):
   const db = getDb();
   if (!db) throw new Error("Firebase is not configured");
 
-  const payload = Object.fromEntries(
-    Object.entries(patch).filter(([key, value]) => key !== "id" && value !== undefined),
-  );
+  const payload: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (key === "id") continue;
+    if (value === undefined) {
+      // Allow clearing rejectionReason on approve via deleteField from callers that set null sentinel —
+      // Partial<Developer> uses undefined; client approve should omit or we handle explicitly below.
+      continue;
+    }
+    payload[key] = value;
+  }
+
+  // Approving / leaving REJECTED clears the reason when patch explicitly sets undefined via helper.
+  if ("rejectionReason" in patch && patch.rejectionReason === undefined) {
+    payload.rejectionReason = deleteField();
+    payload.rejectionEmailSentAt = deleteField();
+    payload.rejectionEmailClaimedAt = deleteField();
+  }
+
   if (Object.keys(payload).length === 0) return;
 
   await withTimeout(
