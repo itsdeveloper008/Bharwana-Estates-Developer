@@ -354,18 +354,57 @@ export function PropertyForm({
   const [fetchedEdit, setFetchedEdit] = useState<Property | null>(null);
   const [editLoadError, setEditLoadError] = useState<string | null>(null);
 
+  /** Normalized `?edit=` id — empty string must not fall through to create. */
+  const editIdFromQuery = editId?.trim() || null;
+  /**
+   * Once edit mode is entered, lock the document id for the life of this mount.
+   * Guards against searchParams/prop blips and accidental create (`p-${Date.now()}`).
+   */
+  const lockedEditIdRef = useRef<string | null>(editIdFromQuery);
+  useEffect(() => {
+    if (editIdFromQuery) {
+      lockedEditIdRef.current = editIdFromQuery;
+      return;
+    }
+    // Left edit mode on the same route (Add Property without ?edit=).
+    // Do not clear if the URL still has edit (transient prop blip).
+    if (typeof window !== "undefined") {
+      const fromUrl = new URLSearchParams(window.location.search).get("edit")?.trim();
+      if (fromUrl) {
+        lockedEditIdRef.current = fromUrl;
+        return;
+      }
+    }
+    lockedEditIdRef.current = null;
+  }, [editIdFromQuery]);
+
+  function resolveEditTargetId(): string | null {
+    if (editIdFromQuery) return editIdFromQuery;
+    if (lockedEditIdRef.current) return lockedEditIdRef.current;
+    if (typeof window !== "undefined") {
+      const fromUrl = new URLSearchParams(window.location.search).get("edit")?.trim();
+      if (fromUrl) {
+        lockedEditIdRef.current = fromUrl;
+        return fromUrl;
+      }
+    }
+    return null;
+  }
+
+  const resolvedEditId = resolveEditTargetId();
+
   // Prefer store, then a one-shot Firestore fetch so edit never falls through to "create".
   const editingProperty =
-    (editId ? properties.find((item) => item.id === editId) : undefined) ??
-    (fetchedEdit?.id === editId ? fetchedEdit : undefined);
+    (resolvedEditId ? properties.find((item) => item.id === resolvedEditId) : undefined) ??
+    (fetchedEdit && resolvedEditId && fetchedEdit.id === resolvedEditId ? fetchedEdit : undefined);
 
   useEffect(() => {
-    if (!editId) {
+    if (!resolvedEditId) {
       setFetchedEdit(null);
       setEditLoadError(null);
       return;
     }
-    if (properties.some((item) => item.id === editId)) {
+    if (properties.some((item) => item.id === resolvedEditId)) {
       setFetchedEdit(null);
       setEditLoadError(null);
       return;
@@ -377,7 +416,7 @@ export function PropertyForm({
     }
     let cancelled = false;
     setEditLoadError(null);
-    void getPropertyDoc(editId)
+    void getPropertyDoc(resolvedEditId)
       .then((doc) => {
         if (cancelled) return;
         if (doc) setFetchedEdit(doc);
@@ -389,7 +428,7 @@ export function PropertyForm({
     return () => {
       cancelled = true;
     };
-  }, [editId, properties, propertiesLoading]);
+  }, [resolvedEditId, properties, propertiesLoading]);
 
   const isLiveEdit =
     Boolean(editingProperty) &&
@@ -412,6 +451,8 @@ export function PropertyForm({
     null,
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Only true while the Photographs CTA intentionally invokes submitListing(). */
+  const explicitSubmitRef = useRef(false);
   const [assignOwnerId, setAssignOwnerId] = useState("");
   const [assignDeveloperId, setAssignDeveloperId] = useState("");
   const [ownerQuery, setOwnerQuery] = useState("");
@@ -458,14 +499,21 @@ export function PropertyForm({
   );
   const filteredOwners = useMemo(() => {
     const q = ownerQuery.trim().toLowerCase();
-    if (!q) return houseOwners;
-    return houseOwners.filter(
-      (item) =>
-        item.fullName.toLowerCase().includes(q) ||
-        item.email.toLowerCase().includes(q) ||
-        item.phone.toLowerCase().includes(q),
-    );
-  }, [houseOwners, ownerQuery]);
+    let list = !q
+      ? houseOwners
+      : houseOwners.filter(
+          (item) =>
+            item.fullName.toLowerCase().includes(q) ||
+            item.email.toLowerCase().includes(q) ||
+            item.phone.toLowerCase().includes(q),
+        );
+    // Keep the currently assigned owner visible even if role/filter would hide them.
+    if (assignOwnerId && !list.some((item) => item.id === assignOwnerId)) {
+      const assigned = users.find((item) => item.id === assignOwnerId);
+      if (assigned) list = [assigned, ...list];
+    }
+    return list;
+  }, [houseOwners, ownerQuery, assignOwnerId, users]);
   const filteredDevelopers = useMemo(() => {
     const q = developerQuery.trim().toLowerCase();
     if (!q) return developers;
@@ -562,11 +610,20 @@ export function PropertyForm({
     if (editingProperty.listingType === "DIRECT_OWNER" && editingProperty.ownerUserId) {
       setAssignOwnerId(editingProperty.ownerUserId);
       setAssignDeveloperId("");
+      const owner = users.find((item) => item.id === editingProperty.ownerUserId);
+      if (owner) {
+        // Prefill search once; don't overwrite while Admin is typing a different query.
+        setOwnerQuery((prev) => (prev.trim() ? prev : owner.fullName));
+      }
     } else if (editingProperty.developerId) {
       setAssignDeveloperId(editingProperty.developerId);
       setAssignOwnerId("");
+      const dealer = developers.find((item) => item.id === editingProperty.developerId);
+      if (dealer) {
+        setDeveloperQuery((prev) => (prev.trim() ? prev : dealer.companyName));
+      }
     }
-  }, [isAdmin, editingProperty?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAdmin, editingProperty?.id, users, developers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isAdmin) return;
@@ -586,11 +643,13 @@ export function PropertyForm({
 
   useEffect(() => {
     if (!isAdmin) return;
+    // Don't clear assignment while listingType is still hydrating (undefined).
+    if (!listingType) return;
     setAssignError(null);
     if (listingType === "DIRECT_OWNER") {
       setAssignDeveloperId("");
       setDeveloperQuery("");
-    } else {
+    } else if (listingType === "BUSINESS") {
       setAssignOwnerId("");
       setOwnerQuery("");
       setShowNewOwner(false);
@@ -736,6 +795,7 @@ export function PropertyForm({
       }
     }
     if (valid) {
+      // Caller (submitListing) already armed explicitSubmitRef for intentional CTA submits.
       await publish(form.getValues());
       return;
     }
@@ -1018,10 +1078,20 @@ export function PropertyForm({
         ...bedsBaths,
       };
 
-      // When ?edit= is present, ALWAYS update that document — never mint a new id.
-      if (editId) {
+      // When editing, ALWAYS update that document — never mint a new id.
+      // Use locked/query id so a shared Add/Edit form cannot fall through to create.
+      const targetId = resolveEditTargetId() || editingProperty?.id || null;
+      if (targetId) {
         if (!editingProperty) {
           toast.error("Still loading this listing. Wait a moment and try again.");
+          return;
+        }
+        if (editingProperty.id !== targetId) {
+          console.error("[property-form] edit id mismatch — refusing to create", {
+            targetId,
+            editingPropertyId: editingProperty.id,
+          });
+          toast.error("Edit session mismatch. Reload the page and try again.");
           return;
         }
         const statusChanged = status !== editingProperty.status;
@@ -1035,7 +1105,7 @@ export function PropertyForm({
             })
           : {};
         await updateProperty(
-          editId,
+          targetId,
           {
             title: values.title,
             description: values.description,
@@ -1063,8 +1133,18 @@ export function PropertyForm({
           },
           photoOptions,
         );
-        setSubmittedId(editId);
+        setSubmittedId(targetId);
       } else {
+        // Final safety: never create if the URL still says we are editing.
+        const urlEdit =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("edit")?.trim()
+            : null;
+        if (urlEdit) {
+          console.error("[property-form] refusing create while ?edit= is present", { urlEdit });
+          toast.error("Edit session lost focus. Reload the page and try again.");
+          return;
+        }
         const id = `p-${Date.now()}`;
         const listing: Property = {
           id,
@@ -1119,6 +1199,11 @@ export function PropertyForm({
   }
 
   async function publish(values: PropertyFormValues) {
+    // Block any non-CTA submit path (native Enter / file-picker quirks / accidental handleSubmit).
+    if (!explicitSubmitRef.current) {
+      console.warn("[property-form] blocked non-explicit publish");
+      return;
+    }
     const normalized: PropertyFormValues = {
       ...values,
       contactPhone: formatPakistanMobileE164(values.contactPhone),
@@ -1150,7 +1235,30 @@ export function PropertyForm({
     await commitPublish(values, user.id);
   }
 
-  if (editId && !editingProperty && !editLoadError && (propertiesLoading || isFirebaseConfigured())) {
+  /** Explicit submit only — never rely on native form submit (photo Enter regression). */
+  function submitListing() {
+    explicitSubmitRef.current = true;
+    void form.handleSubmit(
+      async (values) => {
+        try {
+          await publish(values);
+        } finally {
+          explicitSubmitRef.current = false;
+        }
+      },
+      () => {
+        void (async () => {
+          try {
+            await revealFirstIssue();
+          } finally {
+            explicitSubmitRef.current = false;
+          }
+        })();
+      },
+    )();
+  }
+
+  if (resolvedEditId && !editingProperty && !editLoadError && (propertiesLoading || isFirebaseConfigured())) {
     return (
       <div className="border border-forest/10 bg-cream/40 px-8 py-16 text-center">
         <p className="text-sm text-muted-foreground">Loading listing for edit…</p>
@@ -1158,7 +1266,7 @@ export function PropertyForm({
     );
   }
 
-  if (editId && editLoadError && !editingProperty) {
+  if (resolvedEditId && editLoadError && !editingProperty) {
     return (
       <div className="border border-forest/10 bg-cream/40 px-8 py-16 text-center">
         <p className="text-sm text-destructive">{editLoadError}</p>
@@ -1239,9 +1347,21 @@ export function PropertyForm({
 
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit(publish, () => {
-            void revealFirstIssue();
-          })}
+          noValidate
+          onSubmit={(event) => {
+            // Block native / implicit submit (Enter in inputs, file-picker quirks).
+            // The Photographs CTA calls submitListing() explicitly via type="button".
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            const target = event.target as HTMLElement;
+            if (target.tagName === "TEXTAREA") return;
+            // Prevent HTML implicit submission when focus is on inputs / the file control.
+            event.preventDefault();
+            event.stopPropagation();
+          }}
           className="flex flex-col"
         >
           {currentStep === 0 && (
@@ -1574,6 +1694,8 @@ export function PropertyForm({
                       setAssignOwnerId(value);
                       setAssignError(null);
                       setShowNewOwner(false);
+                      const owner = users.find((item) => item.id === value);
+                      if (owner) setOwnerQuery(owner.fullName);
                     }}
                   >
                     <SelectTrigger className={fieldFocus}>
@@ -2031,8 +2153,10 @@ export function PropertyForm({
                   remaining. First photo is the cover. JPG, PNG, or HEIC.
                 </p>
                 {/*
-                  Transparent file input covers the dropzone. Native activation only —
-                  preventDefault + input.click() was blocking the picker after the edit fix.
+                  Transparent file input covers the dropzone for native picker activation
+                  (preventDefault+click blocked the dialog — see 24e5b6c).
+                  Must NOT be able to implicitly submit the parent form: block Enter and
+                  keep the final CTA as type="button" that calls submitListing().
                 */}
                 <input
                   id="property-photo-input"
@@ -2042,6 +2166,15 @@ export function PropertyForm({
                   multiple
                   disabled={compressingPhotos}
                   className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-wait"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }
+                  }}
                   onDragEnter={() => {
                     if (!compressingPhotos) setDragOver(true);
                   }}
@@ -2143,9 +2276,10 @@ export function PropertyForm({
               </Button>
             ) : (
               <Button
-                type="submit"
+                type="button"
                 disabled={isSubmitting || compressingPhotos}
                 className="min-w-[180px] sm:min-w-[220px]"
+                onClick={() => submitListing()}
               >
                 {compressingPhotos
                   ? "Compressing photos…"

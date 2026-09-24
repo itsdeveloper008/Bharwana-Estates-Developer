@@ -228,7 +228,7 @@ export async function sendDealerRejectionEmail(input: {
     "",
     `Reason: ${reason}`,
     "",
-    `Review the details and next steps here: ${href}`,
+    `Edit your agency details and resubmit for review here: ${href}`,
     "",
     "— Bharwana Estates",
   ].join("\n");
@@ -239,8 +239,8 @@ export async function sendDealerRejectionEmail(input: {
       <p style="margin:0 0 14px;">Hello ${escapeHtml(name)},</p>
       <p style="margin:0 0 18px;">Your dealer account for <strong>${escapeHtml(company)}</strong> was not approved.</p>
       ${reasonBlock(reason)}
-      <p style="margin:0 0 22px;">Open your dealer desk to review the feedback and prepare a resubmission.</p>
-      ${ctaButton(href, "Open dealer desk")}
+      <p style="margin:0 0 22px;">You can edit your agency details and resubmit for review from your dealer desk.</p>
+      ${ctaButton(href, "Edit & Resubmit")}
     `,
   });
 

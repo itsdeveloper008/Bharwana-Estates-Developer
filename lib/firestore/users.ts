@@ -179,6 +179,29 @@ export async function updateUserEmail(uid: string, email: string): Promise<void>
   );
 }
 
+/** Dealer Edit & Resubmit — sync agency fields on users/{uid}. */
+export async function updateUserDealerProfile(
+  uid: string,
+  input: {
+    fullName: string;
+    agencyName: string;
+    registrationNumber: string;
+  },
+): Promise<void> {
+  const db = getDb();
+  if (!db) throw new Error("Firebase is not configured");
+  await withTimeout(
+    updateDoc(doc(db, COLLECTION, uid), {
+      fullName: input.fullName.trim(),
+      agencyName: input.agencyName.trim(),
+      registrationNumber: input.registrationNumber.trim(),
+      updatedAt: serverTimestamp(),
+    }),
+    FIRESTORE_WRITE_TIMEOUT_MS,
+    "User dealer profile update",
+  );
+}
+
 /** Removes the Firestore profile only. Prefer purgeUserOwnedData + Auth user.delete() for self-service. */
 export async function deleteUserDoc(uid: string): Promise<void> {
   const db = getDb();

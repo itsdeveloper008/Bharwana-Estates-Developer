@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DealerResubmitDialog } from "@/components/dealers/dealer-resubmit-dialog";
 import {
   SellerListingActions,
   SellerRejectionNotice,
@@ -35,6 +36,7 @@ import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { sumCommission, useMockStore } from "@/lib/mock-store";
 import type { CommissionStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type Tab = "listings" | "leads" | "commission";
 
@@ -48,8 +50,10 @@ function DealerDashboard() {
   const { user } = useMockAuth();
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") === "commission" ? "commission" : "listings";
-  const { properties, inquiries, transactions, getDeveloperForUser } = useMockStore();
+  const { properties, inquiries, transactions, getDeveloperForUser, updateDeveloper } =
+    useMockStore();
   const [tab, setTab] = useState<Tab>(initialTab);
+  const [resubmitOpen, setResubmitOpen] = useState(false);
 
   const developer = user ? getDeveloperForUser(user.id) : undefined;
   const mine = useMemo(
@@ -125,14 +129,23 @@ function DealerDashboard() {
             </p>
           )}
           {developer?.status === "REJECTED" && (
-            <div className="mt-3 max-w-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              <p className="font-medium">Your dealer account was not approved.</p>
-              {developer.rejectionReason ? (
-                <p className="mt-1.5 text-destructive/90">{developer.rejectionReason}</p>
-              ) : null}
-              <p className="mt-2 text-xs text-destructive/80">
-                Update your details if needed, then contact Bharwana so we can review again.
-              </p>
+            <div className="mt-3 max-w-xl space-y-3">
+              <div className="border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                <p className="font-medium">Your dealer account was not approved.</p>
+                {developer.rejectionReason ? (
+                  <p className="mt-1.5 text-destructive/90">{developer.rejectionReason}</p>
+                ) : null}
+                <p className="mt-2 text-xs text-destructive/80">
+                  Fix the details below, then resubmit for review.
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="border-transparent bg-forest text-ivory hover:bg-forest-800 hover:text-ivory"
+                onClick={() => setResubmitOpen(true)}
+              >
+                Edit &amp; Resubmit
+              </Button>
             </div>
           )}
         </div>
@@ -140,6 +153,20 @@ function DealerDashboard() {
           <Link href="/dealer/add-property">Add property</Link>
         </Button>
       </section>
+
+      {developer?.status === "REJECTED" ? (
+        <DealerResubmitDialog
+          open={resubmitOpen}
+          onOpenChange={setResubmitOpen}
+          developer={developer}
+          userId={user.id}
+          onResubmit={async (developerId, patch) => {
+            await updateDeveloper(developerId, patch);
+            markDealerAccountViewed(user.id);
+            toast.success("Resubmitted for review. We'll notify you when Admin decides.");
+          }}
+        />
+      ) : null}
 
       <div className="flex flex-wrap gap-2 border-b border-forest/10 pb-0">
         {tabs.map((item) => (

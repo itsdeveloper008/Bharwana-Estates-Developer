@@ -1,13 +1,44 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { requireAdminModule } from "@/lib/admin/require-super-admin";
-import { sendDealerRejectionEmail, type SendResult } from "@/lib/email/resend";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { isDeliverableUserEmail, sendDealerRejectionEmail, type SendResult } from "@/lib/email/resend";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import type { DeveloperStatus, DeveloperStatusHistoryEntry } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 type RouteContext = { params: { id: string } };
+
+async function resolveDealerRecipient(input: {
+  dealerUserId: string;
+  firestoreEmail: string;
+  firestoreName: string;
+}): Promise<{ to: string; recipientName: string }> {
+  let to = input.firestoreEmail;
+  let recipientName = input.firestoreName;
+
+  if (isDeliverableUserEmail(to)) {
+    return { to, recipientName };
+  }
+
+  // Firestore may hold a synthetic phone email or be empty; Auth often has the real address.
+  try {
+    const authUser = await getAdminAuth().getUser(input.dealerUserId);
+    if (isDeliverableUserEmail(authUser.email)) {
+      to = authUser.email!;
+    }
+    if (!recipientName.trim() && authUser.displayName?.trim()) {
+      recipientName = authUser.displayName.trim();
+    }
+  } catch (error) {
+    console.warn("[api/admin/developers/reject] Auth email lookup failed", {
+      dealerUserId: input.dealerUserId,
+      error,
+    });
+  }
+
+  return { to, recipientName };
+}
 
 export async function POST(request: Request, context: RouteContext) {
   try {
@@ -45,6 +76,9 @@ export async function POST(request: Request, context: RouteContext) {
 
       const data = snap.data() as Record<string, unknown>;
       const at = new Date().toISOString();
+      const previousStatus = String(data.status ?? "");
+      // Leaving REJECTED (approve/resubmit) should start a new email cycle. Defensive if stamps linger.
+      const isFreshRejectionCycle = previousStatus !== "REJECTED";
       const previousHistory = Array.isArray(data.statusHistory)
         ? (data.statusHistory as DeveloperStatusHistoryEntry[])
         : [];
@@ -60,7 +94,12 @@ export async function POST(request: Request, context: RouteContext) {
         typeof data.rejectionEmailSentAt === "string" && Boolean(data.rejectionEmailSentAt);
       const existingClaim =
         typeof data.rejectionEmailClaimedAt === "string" ? data.rejectionEmailClaimedAt : "";
-      const emailClaimAt = alreadySent ? existingClaim : existingClaim || at;
+      const shouldEmail = isFreshRejectionCycle || !alreadySent;
+      const emailClaimAt = shouldEmail
+        ? isFreshRejectionCycle || !existingClaim
+          ? at
+          : existingClaim
+        : existingClaim || at;
 
       const update: Record<string, unknown> = {
         status: "REJECTED" satisfies DeveloperStatus,
@@ -69,8 +108,11 @@ export async function POST(request: Request, context: RouteContext) {
         statusHistory,
         updatedAt: FieldValue.serverTimestamp(),
       };
-      if (!alreadySent) {
+      if (shouldEmail) {
         update.rejectionEmailClaimedAt = emailClaimAt;
+        if (isFreshRejectionCycle && alreadySent) {
+          update.rejectionEmailSentAt = FieldValue.delete();
+        }
       }
 
       tx.update(ref, update);
@@ -78,8 +120,9 @@ export async function POST(request: Request, context: RouteContext) {
       return {
         ok: true as const,
         data,
-        shouldEmail: !alreadySent,
+        shouldEmail,
         emailClaimAt,
+        isFreshRejectionCycle,
       };
     });
 
@@ -87,6 +130,7 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: claim.error }, { status: claim.status });
     }
 
+    // Email is best-effort — never fail the reject action if Resend is down.
     let emailStatus: "sent" | "skipped" | "failed" | "duplicate" = "skipped";
     if (!claim.shouldEmail) {
       emailStatus = "duplicate";
@@ -98,6 +142,7 @@ export async function POST(request: Request, context: RouteContext) {
         const dealerUserId = claim.data.dealerUserId ? String(claim.data.dealerUserId) : "";
         let to = "";
         let recipientName = "";
+
         if (dealerUserId) {
           const userSnap = await db.collection("users").doc(dealerUserId).get();
           if (userSnap.exists) {
@@ -105,6 +150,17 @@ export async function POST(request: Request, context: RouteContext) {
             to = String(userData.email ?? "");
             recipientName = String(userData.fullName ?? "");
           }
+          const resolved = await resolveDealerRecipient({
+            dealerUserId,
+            firestoreEmail: to,
+            firestoreName: recipientName,
+          });
+          to = resolved.to;
+          recipientName = resolved.recipientName;
+        } else {
+          console.warn("[api/admin/developers/reject] no dealerUserId on developer doc", {
+            developerId,
+          });
         }
 
         const emailResult: SendResult = await sendDealerRejectionEmail({
@@ -128,12 +184,16 @@ export async function POST(request: Request, context: RouteContext) {
           emailStatus = "skipped";
           console.warn("[api/admin/developers/reject] email skipped", {
             developerId,
+            dealerUserId: dealerUserId || null,
+            to: to || null,
             reason: emailResult.reason,
           });
         } else {
           emailStatus = "failed";
           console.error("[api/admin/developers/reject] email failed (reject still committed)", {
             developerId,
+            dealerUserId: dealerUserId || null,
+            to: to || null,
             error: "error" in emailResult ? emailResult.error : "unknown",
           });
         }

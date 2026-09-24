@@ -28,6 +28,7 @@ import {
   PhoneAuthProvider,
   RecaptchaVerifier,
   createUserWithEmailAndPassword,
+  getAdditionalUserInfo,
   getRedirectResult,
   linkWithCredential,
   onAuthStateChanged,
@@ -42,6 +43,7 @@ import {
   updateProfile,
   type ConfirmationResult,
   type User as FirebaseUser,
+  type UserCredential,
 } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
 import { resolveAdminAuthorization } from "@/lib/firestore/admin-access";
@@ -399,11 +401,54 @@ function draftFromFirebaseUser(firebaseUser: FirebaseUser): GoogleSignupDraft {
     email || (phone ? `${phone.replace(/\D/g, "")}@phone.bharwana.local` : `${firebaseUser.uid}@phone.bharwana.local`);
   return {
     id: firebaseUser.uid,
-    fullName: firebaseUser.displayName?.trim() || "Member",
+    fullName: resolveOAuthDisplayName(firebaseUser) || "Member",
     email: placeholderEmail,
     phone,
     avatarUrl: firebaseUser.photoURL ?? undefined,
   };
+}
+
+/** Prefer Auth displayName, then provider profile name (Facebook often only fills providerData). */
+function resolveOAuthDisplayName(firebaseUser: FirebaseUser, preferred?: string | null): string {
+  const candidates = [
+    preferred?.trim(),
+    firebaseUser.displayName?.trim(),
+    ...firebaseUser.providerData.map((provider) => provider.displayName?.trim()),
+  ];
+  for (const value of candidates) {
+    if (value) return value;
+  }
+  return "";
+}
+
+function nameFromAuthCredential(credential: UserCredential): string {
+  try {
+    const extra = getAdditionalUserInfo(credential);
+    const profile = extra?.profile;
+    if (profile && typeof profile === "object") {
+      const row = profile as Record<string, unknown>;
+      const name = row.name ?? row.full_name ?? row.fullName;
+      if (typeof name === "string" && name.trim()) return name.trim();
+    }
+  } catch {
+    // ignore
+  }
+  return "";
+}
+
+/** Keep Firebase Console Identifier / displayName in sync with provider + Firestore names. */
+async function ensureFirebaseDisplayName(
+  firebaseUser: FirebaseUser,
+  preferred?: string | null,
+): Promise<void> {
+  const name = resolveOAuthDisplayName(firebaseUser, preferred);
+  if (!name) return;
+  if (firebaseUser.displayName?.trim() === name) return;
+  try {
+    await updateProfile(firebaseUser, { displayName: name });
+  } catch (error) {
+    console.warn("[auth] displayName update skipped", error);
+  }
 }
 
 export function MockAuthProvider({ children }: { children: ReactNode }) {
@@ -570,8 +615,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
               return;
             }
 
-            // Google user with no profile yet - role completion, not a logged-in session.
+            // Google/Facebook user with no profile yet - role completion, not a logged-in session.
             const draft = draftFromFirebaseUser(firebaseUser);
+            void ensureFirebaseDisplayName(firebaseUser, draft.fullName);
             const pending = readPendingGoogle();
             const samePending =
               pending?.id === firebaseUser.uid ||
@@ -605,13 +651,25 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             }),
           ]);
           if (!cancelled && redirected?.user) {
+            const preferredName = nameFromAuthCredential(redirected);
+            await ensureFirebaseDisplayName(redirected.user, preferredName);
             const profile = await loadFirestoreUser(redirected.user);
             if (profile) {
+              await ensureFirebaseDisplayName(redirected.user, profile.fullName);
               persist(profile);
               setPendingGoogle(null);
             } else {
-              setPendingGoogle(draftFromFirebaseUser(redirected.user));
+              const draft = draftFromFirebaseUser(redirected.user);
+              if (preferredName && (!draft.fullName || draft.fullName === "Member")) {
+                draft.fullName = preferredName;
+              }
+              setPendingGoogle(draft);
             }
+            markReady();
+          } else if (!cancelled && !redirected) {
+            console.error(
+              "OAuth redirect returned without a credential (Identity Toolkit blocked, timed out, or Facebook app misconfigured).",
+            );
             markReady();
           }
         } catch (error) {
@@ -731,11 +789,15 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       return { ok: false as const, error: "Google sign-in is unavailable right now." };
     }
 
-    async function finishGoogleUser(firebaseUser: FirebaseUser): Promise<GoogleLoginResult> {
+    async function finishGoogleUser(
+      firebaseUser: FirebaseUser,
+      preferredName?: string,
+    ): Promise<GoogleLoginResult> {
       const email = (firebaseUser.email ?? "").trim().toLowerCase();
       if (!email) return { ok: false as const, error: "Google account did not return an email." };
 
       authSyncGenerationRef.current += 1;
+      await ensureFirebaseDisplayName(firebaseUser, preferredName);
 
       try {
         const raw = localStorage.getItem(SESSION_KEY);
@@ -755,11 +817,16 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
       const profile = await loadFirestoreUser(firebaseUser);
       if (profile) {
+        // Keep Auth displayName aligned with our Firestore profile name.
+        await ensureFirebaseDisplayName(firebaseUser, profile.fullName);
         commitSession(profile);
         return { ok: true as const, isNewUser: false as const, user: profile };
       }
 
       const draft = draftFromFirebaseUser(firebaseUser);
+      if (preferredName && (!draft.fullName || draft.fullName === "Member")) {
+        draft.fullName = preferredName;
+      }
       setPendingGoogle(draft);
       return { ok: true as const, isNewUser: true as const, draft };
     }
@@ -767,7 +834,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     // Popup only - stay on this page; no same-tab / new-tab redirect.
     try {
       const result = await signInWithPopup(auth, new GoogleAuthProvider());
-      return await finishGoogleUser(result.user);
+      return await finishGoogleUser(result.user, nameFromAuthCredential(result));
     } catch (error) {
       const code =
         error && typeof error === "object" && "code" in error
@@ -791,24 +858,26 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     }
     const firebaseAuth = auth;
 
-    async function finishFacebookUser(firebaseUser: FirebaseUser): Promise<GoogleLoginResult> {
-      const email = (firebaseUser.email ?? "").trim().toLowerCase();
-      if (!email) {
-        return {
-          ok: false as const,
-          error: "Facebook did not share an email. Allow email access, or use Google / email sign-in.",
-        };
-      }
-
+    async function finishFacebookUser(
+      firebaseUser: FirebaseUser,
+      preferredName?: string,
+    ): Promise<GoogleLoginResult> {
       authSyncGenerationRef.current += 1;
+      // Facebook often leaves Auth.displayName blank; fill from provider / graph profile.
+      await ensureFirebaseDisplayName(firebaseUser, preferredName);
 
       const profile = await loadFirestoreUser(firebaseUser);
       if (profile) {
+        await ensureFirebaseDisplayName(firebaseUser, profile.fullName);
         commitSession(profile);
         return { ok: true as const, isNewUser: false as const, user: profile };
       }
 
+      // Missing email is OK — Choose your role collects email/phone/name as needed.
       const draft = draftFromFirebaseUser(firebaseUser);
+      if (preferredName && (!draft.fullName || draft.fullName === "Member")) {
+        draft.fullName = preferredName;
+      }
       setPendingGoogle(draft);
       return { ok: true as const, isNewUser: true as const, draft };
     }
@@ -842,7 +911,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         OAUTH_TIMEOUT_MS,
         "Facebook popup",
       );
-      return await finishFacebookUser(result.user);
+      return await finishFacebookUser(result.user, nameFromAuthCredential(result));
     }
 
     // Mobile: redirect (more reliable than popups in in-app browsers).
@@ -1259,6 +1328,12 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             agencyName: input.agencyName,
             registrationNumber: input.registrationNumber,
           });
+          // Facebook often has blank Auth displayName until we set it from the completed profile.
+          const auth = getFirebaseAuth();
+          const firebaseUser = auth?.currentUser;
+          if (firebaseUser?.uid === input.draft.id && input.draft.fullName.trim()) {
+            void ensureFirebaseDisplayName(firebaseUser, input.draft.fullName).catch(() => undefined);
+          }
           if (input.skipCommit) {
             setPendingGoogle(null);
           } else {

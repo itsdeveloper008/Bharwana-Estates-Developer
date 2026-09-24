@@ -21,7 +21,16 @@ import { pathAfterAuth } from "@/lib/auth-redirect";
 import { useMockAuth } from "@/lib/mock-auth";
 import type { GoogleSignupDraft } from "@/lib/mock-auth";
 import { formatPakistanMobileE164 } from "@/lib/phone-format";
-import { FULL_NAME_MAX_LENGTH, normalizePersonName } from "@/lib/person-name";
+import {
+  FULL_NAME_MAX_LENGTH,
+  isLettersAndSpacesOnly,
+  normalizePersonName,
+} from "@/lib/person-name";
+import {
+  AGENCY_NAME_MAX_LENGTH,
+  normalizeAgencyName,
+  sanitizeAgencyName,
+} from "@/lib/agency-name";
 import { useMockStore } from "@/lib/mock-store";
 import {
   formatPakistanCnic,
@@ -113,6 +122,13 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
     }
   }, [isReady, pendingGoogleSignup, user, consumeGoogleReturn]);
 
+  // Incomplete Google/Facebook signup → open Choose your role immediately (no Continue Setup step).
+  useEffect(() => {
+    if (!pendingGoogleSignup || roleOpen || user) return;
+    setDraft(pendingGoogleSignup);
+    setRoleOpen(true);
+  }, [pendingGoogleSignup, roleOpen, user]);
+
   async function handleOAuth(provider: "google" | "facebook") {
     if (pendingProvider) return;
     setError(null);
@@ -126,12 +142,26 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
       const result = await loginPromise;
       if (!result.ok) {
         setError(result.error);
+        toast.error(result.error);
         return;
       }
       if ("redirecting" in result && result.redirecting) {
         redirecting = true;
+        toast.message(
+          provider === "facebook"
+            ? "Continuing with Facebook…"
+            : "Continuing with Google…",
+        );
         // Keep spinner briefly while navigation starts; clear if we somehow stay put.
-        window.setTimeout(() => setPendingProvider(null), 20_000);
+        window.setTimeout(() => {
+          setPendingProvider(null);
+          // Still on this page after redirect attempt → Identity Toolkit likely blocked.
+          setError(
+            provider === "facebook"
+              ? "Facebook sign-in could not finish (connection to Google Auth blocked or timed out). Disable ad blockers, try another network, or use email/phone."
+              : "Google sign-in could not finish. Disable ad blockers, try another network, or use email/phone.",
+          );
+        }, 20_000);
         return;
       }
       if ("isNewUser" in result && result.isNewUser) {
@@ -145,38 +175,27 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
       }
     } catch (err) {
       console.error(`${provider} continue failed`, err);
-      setError(
+      const message =
         provider === "google"
           ? "Could not sign in with Google. Try again."
-          : "Could not connect to Facebook. Please check your connection and try again, or use another sign-in method.",
-      );
+          : "Could not connect to Facebook. Please check your connection and try again, or use another sign-in method.";
+      setError(message);
+      toast.error(message);
     } finally {
       if (!redirecting) setPendingProvider(null);
     }
   }
 
   const busy = pendingProvider !== null;
+  const needsFullName =
+    Boolean(draft) &&
+    (!draft!.fullName.trim() ||
+      draft!.fullName.trim() === "Member" ||
+      !isLettersAndSpacesOnly(draft!.fullName.trim()));
 
   return (
     <>
       <div className="space-y-2">
-        {pendingGoogleSignup && !roleOpen ? (
-          <div className="rounded-xl border border-gold/30 bg-gold/10 px-3 py-2.5 text-sm text-forest">
-            <p className="text-[13px] leading-snug">
-              Finish setting up your Google/Facebook account, or continue with email/phone below.
-            </p>
-            <button
-              type="button"
-              className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-gold-700 underline-offset-2 hover:underline"
-              onClick={() => {
-                setDraft(pendingGoogleSignup);
-                setRoleOpen(true);
-              }}
-            >
-              Continue setup
-            </button>
-          </div>
-        ) : null}
         <Button
           type="button"
           variant="outline"
@@ -222,6 +241,7 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
           }
         }}
         draft={draft}
+        requireFullName={needsFullName}
         onComplete={(completed) => {
           signupCompletedRef.current = true;
           setRoleOpen(false);
@@ -531,7 +551,7 @@ export function RegisterForm() {
         phone: formatPakistanMobileE164(values.phone),
         password: values.password,
         role: values.role,
-        agencyName: values.role === "DEALER" ? values.agencyName : undefined,
+        agencyName: values.role === "DEALER" ? normalizeAgencyName(values.agencyName ?? "") : undefined,
         registrationNumber: values.role === "DEALER" ? values.registrationNumber : undefined,
       });
       if (!result.ok) {
@@ -544,7 +564,7 @@ export function RegisterForm() {
         try {
           await addDeveloper({
             id: `d-${result.user.id}`,
-            companyName: values.agencyName!.trim(),
+            companyName: normalizeAgencyName(values.agencyName ?? ""),
             contactPerson: normalizePersonName(values.fullName),
             commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
             dealerUserId: result.user.id,
@@ -682,7 +702,17 @@ export function RegisterForm() {
                           fieldState.error && "border-destructive focus-visible:ring-destructive",
                         )}
                         placeholder="e.g. Ali Realty"
-                        {...field}
+                        maxLength={AGENCY_NAME_MAX_LENGTH}
+                        autoComplete="organization"
+                        value={field.value ?? ""}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        onChange={(event) =>
+                          field.onChange(
+                            sanitizeAgencyName(event.target.value).slice(0, AGENCY_NAME_MAX_LENGTH),
+                          )
+                        }
                       />
                     </FormControl>
                     <FormMessage />

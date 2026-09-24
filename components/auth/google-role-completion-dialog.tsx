@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
 import { FullNameInput } from "@/components/auth/full-name-input";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { RoleSelector } from "@/components/auth/role-selector";
@@ -24,6 +24,13 @@ import {
   toPakistanMobileLocal,
 } from "@/lib/phone-format";
 import {
+  AGENCY_NAME_MAX_LENGTH,
+  AGENCY_NAME_MESSAGE,
+  isValidAgencyName,
+  normalizeAgencyName,
+  sanitizeAgencyName,
+} from "@/lib/agency-name";
+import {
   FULL_NAME_MAX_LENGTH,
   isLettersAndSpacesOnly,
   normalizePersonName,
@@ -35,6 +42,14 @@ import {
   PK_CNIC_FORMATTED_LENGTH,
 } from "@/lib/schemas";
 import { DEFAULT_DEALER_COMMISSION_RATE, type User } from "@/lib/types";
+import { isSyntheticPhoneEmail } from "@/lib/user-display";
+import { cn } from "@/lib/utils";
+
+function draftNeedsEmail(draft: GoogleSignupDraft | null): boolean {
+  if (!draft) return false;
+  const email = draft.email.trim().toLowerCase();
+  return !email || !email.includes("@") || isSyntheticPhoneEmail(email);
+}
 
 export function GoogleRoleCompletionDialog({
   open,
@@ -59,6 +74,7 @@ export function GoogleRoleCompletionDialog({
   const { addDeveloper } = useMockStore();
   const [role, setRole] = useState<"INDIVIDUAL" | "DEALER">("INDIVIDUAL");
   const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [agencyName, setAgencyName] = useState("");
   const [registrationNumber, setRegistrationNumber] = useState("");
@@ -67,16 +83,20 @@ export function GoogleRoleCompletionDialog({
 
   const hidePhoneField =
     phoneVerified || isValidPakistanMobileLocal(toPakistanMobileLocal(draft?.phone ?? ""));
+  const needsEmail = draftNeedsEmail(draft);
 
   useEffect(() => {
     if (!open || !draft) return;
     setPhone(toPakistanMobileLocal(draft.phone || ""));
-    setFullName("");
+    setFullName(
+      requireFullName && draft.fullName && draft.fullName !== "Member" ? draft.fullName : "",
+    );
+    setEmail(needsEmail ? "" : draft.email);
     setAgencyName("");
     setRegistrationNumber("");
     setError(null);
     setRole("INDIVIDUAL");
-  }, [open, draft]);
+  }, [open, draft, requireFullName, needsEmail]);
 
   async function handleSubmit() {
     if (!draft) return;
@@ -97,6 +117,16 @@ export function GoogleRoleCompletionDialog({
         return;
       }
     }
+
+    let resolvedEmail = draft.email.trim().toLowerCase();
+    if (needsEmail) {
+      resolvedEmail = email.trim().toLowerCase();
+      if (!resolvedEmail || !resolvedEmail.includes("@") || resolvedEmail.length > 50) {
+        setError("Enter a valid email address.");
+        return;
+      }
+    }
+
     const localPhone = toPakistanMobileLocal(phone || draft.phone || "");
     if (!isValidPakistanMobileLocal(localPhone)) {
       setError("Enter a valid 10-digit mobile number");
@@ -106,6 +136,10 @@ export function GoogleRoleCompletionDialog({
       setError("Agency name is required for dealer accounts.");
       return;
     }
+    if (role === "DEALER" && !isValidAgencyName(agencyName)) {
+      setError(AGENCY_NAME_MESSAGE);
+      return;
+    }
     if (role === "DEALER" && !isValidPakistanCnic(registrationNumber)) {
       setError("Enter a valid 13-digit CNIC (e.g. 34201-1234567-1).");
       return;
@@ -113,14 +147,16 @@ export function GoogleRoleCompletionDialog({
     setError(null);
     setPending(true);
     try {
+      const normalizedAgency = normalizeAgencyName(agencyName);
       const result = await completeGoogleSignup({
         draft: {
           ...draft,
           fullName: resolvedName || draft.fullName,
+          email: resolvedEmail,
           phone: formatPakistanMobileE164(localPhone),
         },
         role,
-        agencyName: agencyName.trim() || undefined,
+        agencyName: normalizedAgency || undefined,
         registrationNumber: registrationNumber.trim() || undefined,
         skipCommit,
       });
@@ -132,7 +168,7 @@ export function GoogleRoleCompletionDialog({
         try {
           await addDeveloper({
             id: `d-${result.user.id}`,
-            companyName: agencyName.trim(),
+            companyName: normalizedAgency,
             contactPerson: resolvedName || draft.fullName,
             commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
             dealerUserId: result.user.id,
@@ -154,14 +190,21 @@ export function GoogleRoleCompletionDialog({
     }
   }
 
+  const welcomeName =
+    requireFullName && fullName.trim()
+      ? normalizePersonName(fullName).split(" ")[0]
+      : draft?.fullName && draft.fullName !== "Member"
+        ? draft.fullName.split(" ")[0]
+        : "";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto border-forest/10 bg-ivory sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl text-forest">Choose your role</DialogTitle>
           <DialogDescription className="text-forest/70">
-            Welcome{draft?.fullName ? `, ${draft.fullName.split(" ")[0]}` : ""}. Tell us how you&apos;ll use
-            Bharwana before we finish setting up your account.
+            Welcome{welcomeName ? `, ${welcomeName}` : ""}. Tell us how you&apos;ll use Bharwana
+            before we finish setting up your account.
           </DialogDescription>
         </DialogHeader>
 
@@ -186,6 +229,32 @@ export function GoogleRoleCompletionDialog({
               ) : null}
             </div>
           )}
+
+          {needsEmail ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="signup-email">Email</Label>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="signup-email"
+                  type="email"
+                  autoComplete="email"
+                  maxLength={50}
+                  className={cn(
+                    "bg-white pl-9",
+                    error?.toLowerCase().includes("email") &&
+                      "border-destructive focus-visible:ring-destructive",
+                  )}
+                  placeholder="Email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Facebook did not share an email — add one so we can reach you.
+              </p>
+            </div>
+          ) : null}
 
           {!hidePhoneField ? (
             <div className="space-y-1.5">
@@ -217,8 +286,14 @@ export function GoogleRoleCompletionDialog({
                   id="google-agency"
                   className="bg-white"
                   placeholder="e.g. Ali Realty"
+                  maxLength={AGENCY_NAME_MAX_LENGTH}
+                  autoComplete="organization"
                   value={agencyName}
-                  onChange={(event) => setAgencyName(event.target.value)}
+                  onChange={(event) =>
+                    setAgencyName(
+                      sanitizeAgencyName(event.target.value).slice(0, AGENCY_NAME_MAX_LENGTH),
+                    )
+                  }
                 />
               </div>
               <div className="space-y-1.5">
@@ -237,17 +312,18 @@ export function GoogleRoleCompletionDialog({
             </div>
           )}
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error &&
+          !(
+            error === PERSON_NAME_LETTERS_MESSAGE ||
+            error.toLowerCase().includes("name")
+          ) ? (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
 
-          <Button className="w-full" disabled={pending || !draft} onClick={() => void handleSubmit()}>
-            {pending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Creating account…
-              </>
-            ) : (
-              "Continue"
-            )}
+          <Button type="button" className="w-full" disabled={pending} onClick={() => void handleSubmit()}>
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue"}
           </Button>
         </div>
       </DialogContent>

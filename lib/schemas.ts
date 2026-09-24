@@ -1,4 +1,11 @@
 import { z } from "zod";
+import {
+  AGENCY_NAME_MAX_LENGTH,
+  AGENCY_NAME_MESSAGE,
+  AGENCY_NAME_MIN_LENGTH,
+  isValidAgencyName,
+  normalizeAgencyName,
+} from "@/lib/agency-name";
 import { digitsOnly, isValidPakistanMobileLocal } from "@/lib/phone-format";
 import { passwordMeetsPolicy } from "@/lib/password-policy";
 import {
@@ -20,6 +27,18 @@ export const personNameSchema = z
   })
   .refine((value) => isLettersAndSpacesOnly(normalizePersonName(value)), {
     message: PERSON_NAME_LETTERS_MESSAGE,
+  });
+
+/** Agency / company: letters + numbers + spaces + & - . ', max 80. */
+export const agencyNameSchema = z
+  .string()
+  .max(AGENCY_NAME_MAX_LENGTH, `Agency name must be ${AGENCY_NAME_MAX_LENGTH} characters or fewer`)
+  .refine((value) => /^[A-Za-z0-9\s&.'-]*$/.test(value), AGENCY_NAME_MESSAGE)
+  .refine((value) => normalizeAgencyName(value).length >= AGENCY_NAME_MIN_LENGTH, {
+    message: "Enter your agency or company name",
+  })
+  .refine((value) => isValidAgencyName(value), {
+    message: AGENCY_NAME_MESSAGE,
   });
 
 /** Pakistani CNIC: 13 digits, displayed as XXXXX-XXXXXXX-X (15 chars). */
@@ -165,12 +184,23 @@ export const registerSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.role !== "DEALER") return;
-    if (!data.agencyName || data.agencyName.trim().length < 2) {
+    const agency = data.agencyName?.trim() ?? "";
+    if (!agency) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Enter your agency or company name",
         path: ["agencyName"],
       });
+    } else {
+      const parsed = agencyNameSchema.safeParse(data.agencyName ?? "");
+      if (!parsed.success) {
+        const message = parsed.error.issues[0]?.message ?? AGENCY_NAME_MESSAGE;
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message,
+          path: ["agencyName"],
+        });
+      }
     }
     const cnic = data.registrationNumber?.trim() ?? "";
     if (!isValidPakistanCnic(cnic)) {
