@@ -1315,7 +1315,13 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       registrationNumber?: string;
       skipCommit?: boolean;
     }) => {
-      const email = input.draft.email.trim().toLowerCase();
+      const rawEmail = input.draft.email.trim().toLowerCase();
+      // Keep a real provider email; otherwise use phone-only synthetic (same as OTP signup).
+      let email = rawEmail;
+      if (!email.includes("@") || isSyntheticPhoneEmail(email)) {
+        const fromPhone = authEmailFromLoginIdentifier(input.draft.phone || "");
+        email = fromPhone.includes("@") ? fromPhone : `${input.draft.id}@phone.bharwana.local`;
+      }
 
       if (isFirebaseConfigured()) {
         try {
@@ -1350,7 +1356,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
 
       const registered = readRegistered();
-      if (registered.some((item) => item.email.toLowerCase() === email)) {
+      if (
+        !isSyntheticPhoneEmail(email) &&
+        registered.some((item) => item.email.toLowerCase() === email)
+      ) {
         return { ok: false as const, error: "An account with this email already exists." };
       }
       const account: StoredAccount = {

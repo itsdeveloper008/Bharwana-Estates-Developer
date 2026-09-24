@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Mail } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { FullNameInput } from "@/components/auth/full-name-input";
 import { PakistanPhoneInput } from "@/components/auth/pakistan-phone-field";
 import { RoleSelector } from "@/components/auth/role-selector";
@@ -42,13 +42,17 @@ import {
   PK_CNIC_FORMATTED_LENGTH,
 } from "@/lib/schemas";
 import { DEFAULT_DEALER_COMMISSION_RATE, type User } from "@/lib/types";
-import { isSyntheticPhoneEmail } from "@/lib/user-display";
-import { cn } from "@/lib/utils";
+import { authEmailFromLoginIdentifier, isSyntheticPhoneEmail } from "@/lib/user-display";
 
-function draftNeedsEmail(draft: GoogleSignupDraft | null): boolean {
-  if (!draft) return false;
-  const email = draft.email.trim().toLowerCase();
-  return !email || !email.includes("@") || isSyntheticPhoneEmail(email);
+/** Prefer a real provider email; otherwise use the phone-only synthetic pattern. */
+function resolveProfileEmail(draft: GoogleSignupDraft, localPhone: string): string {
+  const existing = draft.email.trim().toLowerCase();
+  if (existing.includes("@") && !isSyntheticPhoneEmail(existing)) {
+    return existing;
+  }
+  const fromPhone = authEmailFromLoginIdentifier(localPhone);
+  if (fromPhone.includes("@")) return fromPhone;
+  return `${draft.id}@phone.bharwana.local`;
 }
 
 export function GoogleRoleCompletionDialog({
@@ -74,7 +78,6 @@ export function GoogleRoleCompletionDialog({
   const { addDeveloper } = useMockStore();
   const [role, setRole] = useState<"INDIVIDUAL" | "DEALER">("INDIVIDUAL");
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [agencyName, setAgencyName] = useState("");
   const [registrationNumber, setRegistrationNumber] = useState("");
@@ -83,7 +86,6 @@ export function GoogleRoleCompletionDialog({
 
   const hidePhoneField =
     phoneVerified || isValidPakistanMobileLocal(toPakistanMobileLocal(draft?.phone ?? ""));
-  const needsEmail = draftNeedsEmail(draft);
 
   useEffect(() => {
     if (!open || !draft) return;
@@ -91,12 +93,11 @@ export function GoogleRoleCompletionDialog({
     setFullName(
       requireFullName && draft.fullName && draft.fullName !== "Member" ? draft.fullName : "",
     );
-    setEmail(needsEmail ? "" : draft.email);
     setAgencyName("");
     setRegistrationNumber("");
     setError(null);
     setRole("INDIVIDUAL");
-  }, [open, draft, requireFullName, needsEmail]);
+  }, [open, draft, requireFullName]);
 
   async function handleSubmit() {
     if (!draft) return;
@@ -114,15 +115,6 @@ export function GoogleRoleCompletionDialog({
       }
       if (!isLettersAndSpacesOnly(resolvedName)) {
         setError(PERSON_NAME_LETTERS_MESSAGE);
-        return;
-      }
-    }
-
-    let resolvedEmail = draft.email.trim().toLowerCase();
-    if (needsEmail) {
-      resolvedEmail = email.trim().toLowerCase();
-      if (!resolvedEmail || !resolvedEmail.includes("@") || resolvedEmail.length > 50) {
-        setError("Enter a valid email address.");
         return;
       }
     }
@@ -152,7 +144,7 @@ export function GoogleRoleCompletionDialog({
         draft: {
           ...draft,
           fullName: resolvedName || draft.fullName,
-          email: resolvedEmail,
+          email: resolveProfileEmail(draft, localPhone),
           phone: formatPakistanMobileE164(localPhone),
         },
         role,
@@ -229,32 +221,6 @@ export function GoogleRoleCompletionDialog({
               ) : null}
             </div>
           )}
-
-          {needsEmail ? (
-            <div className="space-y-1.5">
-              <Label htmlFor="signup-email">Email</Label>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="signup-email"
-                  type="email"
-                  autoComplete="email"
-                  maxLength={50}
-                  className={cn(
-                    "bg-white pl-9",
-                    error?.toLowerCase().includes("email") &&
-                      "border-destructive focus-visible:ring-destructive",
-                  )}
-                  placeholder="Email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Facebook did not share an email — add one so we can reach you.
-              </p>
-            </div>
-          ) : null}
 
           {!hidePhoneField ? (
             <div className="space-y-1.5">
