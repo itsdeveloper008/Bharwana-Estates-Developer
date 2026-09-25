@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { Autocomplete } from "@react-google-maps/api";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -39,12 +39,15 @@ function coordsFromPlace(place: google.maps.places.PlaceResult | null): PlaceSea
  */
 export function PlaceSearchInput({
   onPlaceSelected,
+  onQueryChange,
   placeholder = "Search address or place (e.g. DHA Multan)",
   className,
   inputClassName,
   disabled = false,
 }: {
   onPlaceSelected: (result: PlaceSearchResult) => void;
+  /** Fires whenever the typed query changes (e.g. clear search → empty string). */
+  onQueryChange?: (query: string) => void;
   placeholder?: string;
   className?: string;
   inputClassName?: string;
@@ -55,6 +58,14 @@ export function PlaceSearchInput({
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  const updateQuery = useCallback(
+    (next: string) => {
+      setQuery(next);
+      onQueryChange?.(next);
+    },
+    [onQueryChange],
+  );
 
   const applyResult = useCallback(
     (result: PlaceSearchResult) => {
@@ -108,7 +119,7 @@ export function PlaceSearchInput({
     const result = coordsFromPlace(place);
     if (!result) return;
     handledByAutocomplete.current = true;
-    if (result.label) setQuery(result.label);
+    if (result.label) updateQuery(result.label);
     applyResult(result);
   }
 
@@ -121,6 +132,11 @@ export function PlaceSearchInput({
       }
       void geocodeQuery(q);
     }, 180);
+  }
+
+  function clearQuery() {
+    updateQuery("");
+    setError(null);
   }
 
   return (
@@ -143,7 +159,7 @@ export function PlaceSearchInput({
             placeholder={placeholder}
             autoComplete="off"
             onChange={(event) => {
-              setQuery(event.target.value);
+              updateQuery(event.target.value);
               if (error) setError(null);
             }}
             onKeyDown={(event) => {
@@ -151,21 +167,34 @@ export function PlaceSearchInput({
               event.preventDefault();
               onEnterOrSearch();
             }}
-            className={cn(fieldClass, "pl-9 pr-10", inputClassName)}
+            className={cn(fieldClass, "pl-9 pr-16", inputClassName)}
           />
-          <button
-            type="button"
-            aria-label="Search place"
-            disabled={disabled || pending}
-            onClick={() => onEnterOrSearch()}
-            className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-forest/50 transition hover:bg-forest/5 hover:text-forest disabled:opacity-50"
-          >
-            {pending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
-            )}
-          </button>
+          <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+            {query.trim() ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                disabled={disabled || pending}
+                onClick={clearQuery}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-forest/45 transition hover:bg-forest/5 hover:text-forest disabled:opacity-50"
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              aria-label="Search place"
+              disabled={disabled || pending}
+              onClick={() => onEnterOrSearch()}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-forest/50 transition hover:bg-forest/5 hover:text-forest disabled:opacity-50"
+            >
+              {pending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
+              )}
+            </button>
+          </div>
         </div>
       </Autocomplete>
       {error ? (

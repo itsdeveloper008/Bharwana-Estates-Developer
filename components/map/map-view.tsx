@@ -8,7 +8,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PropertyPin } from "@/components/map/property-pin";
 import { MapPreviewCard } from "@/components/map/map-fallback";
 import { Button } from "@/components/ui/button";
-import { PlaceSearchInput } from "@/components/map/place-search-input";
+import { PlaceSearchInput, type PlaceSearchResult } from "@/components/map/place-search-input";
+import { SearchLocationPin } from "@/components/map/search-location-pin";
 import {
   CITY_COORDS,
   DEFAULT_MAP_VIEW,
@@ -114,6 +115,7 @@ export function MapView({
   const [styleLoaded, setStyleLoaded] = useState(false);
   const [mapTypeId, setMapTypeId] = useState<MapModeId>("roadmap");
   const [authFailed, setAuthFailed] = useState(false);
+  const [searchMarker, setSearchMarker] = useState<PlaceSearchResult | null>(null);
   const suppressMapClick = useRef(false);
 
   const { isLoaded, loadError } = useJsApiLoader({
@@ -394,6 +396,18 @@ export function MapView({
             </OverlayViewF>
           );
         })}
+        {searchMarker ? (
+          <OverlayViewF
+            position={{ lat: searchMarker.latitude, lng: searchMarker.longitude }}
+            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+            getPixelPositionOffset={(width, height) => ({
+              x: -(width / 2),
+              y: -height,
+            })}
+          >
+            <SearchLocationPin label={searchMarker.label} />
+          </OverlayViewF>
+        ) : null}
       </GoogleMap>
 
       <div className="pointer-events-none absolute left-3 right-3 top-3 z-30 flex items-start justify-between gap-2 sm:left-4 sm:right-4 sm:top-4">
@@ -401,11 +415,15 @@ export function MapView({
           <PlaceSearchInput
             inputClassName="bg-ivory/95 shadow-lift"
             onPlaceSelected={(result) => {
+              setSearchMarker(result);
               const map = mapRef.current;
               if (!map) return;
               userMoved.current = true;
               map.panTo({ lat: result.latitude, lng: result.longitude });
               map.setZoom(PLACE_SEARCH_ZOOM);
+            }}
+            onQueryChange={(query) => {
+              if (!query.trim()) setSearchMarker(null);
             }}
           />
         </div>
@@ -499,6 +517,10 @@ export function MapView({
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full border border-forest bg-gold" />
           Dealer
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full border border-ivory bg-[#C45C26] ring-1 ring-[#C45C26]/40" />
+          Search
         </span>
       </div>
 
