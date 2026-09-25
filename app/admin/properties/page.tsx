@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { AdminSearchInput } from "@/components/admin/admin-search-input";
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,11 +21,38 @@ import { useMockStore } from "@/lib/mock-store";
 
 export default function AdminPropertiesPage() {
   const router = useRouter();
-  const { properties, deleteProperty } = useMockStore();
+  const { properties, users, deleteProperty } = useMockStore();
+  const [query, setQuery] = useState("");
+
+  const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return properties;
+    return properties.filter((property) => {
+      const owner = userById.get(property.ownerUserId ?? "");
+      const haystack = [
+        property.title,
+        property.city,
+        property.address,
+        String(property.price),
+        formatPrice(property.price),
+        property.listingType === "DIRECT_OWNER" ? "Owner" : "Dealer",
+        statusLabel(property.status),
+        owner?.fullName,
+        owner?.email,
+        owner?.phone,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [properties, query, userById]);
 
   return (
     <div>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="type-eyebrow">Inventory</p>
           <h1 className="font-serif text-3xl">Properties</h1>
@@ -32,6 +61,13 @@ export default function AdminPropertiesPage() {
           <Link href="/admin/properties/add">Add Property</Link>
         </Button>
       </div>
+
+      <AdminSearchInput
+        value={query}
+        onChange={setQuery}
+        placeholder="Search by title, city, owner, price…"
+      />
+
       <div className="overflow-x-auto border border-forest/10">
         <Table>
           <TableHeader>
@@ -45,13 +81,15 @@ export default function AdminPropertiesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {properties.map((property) => (
+            {filtered.map((property) => (
               <TableRow
                 key={property.id}
                 className="cursor-pointer hover:bg-forest/[0.04]"
                 onClick={() => router.push(`/admin/properties/${property.id}`)}
               >
-                <TableCell className="font-medium">{property.title}</TableCell>
+                <TableCell className="max-w-[14rem] truncate font-medium" title={property.title}>
+                  {property.title}
+                </TableCell>
                 <TableCell>{property.city}</TableCell>
                 <TableCell>
                   {property.listingType === "DIRECT_OWNER" ? "Owner" : "Dealer"}
@@ -61,21 +99,28 @@ export default function AdminPropertiesPage() {
                 </TableCell>
                 <TableCell className="text-right">{formatPrice(property.price)}</TableCell>
                 <TableCell onClick={(event) => event.stopPropagation()}>
-                <div className="flex items-center justify-end gap-2">
-                  <Button asChild variant="outline" size="sm" className="rounded-xl">
-                    <Link href={`/admin/properties/add?edit=${property.id}`}>Edit</Link>
-                  </Button>
-                  <ConfirmDeleteButton
-                    label={property.title}
-                    onConfirm={async () => {
-                      await deleteProperty(property.id);
-                      toast.success(`Deleted “${property.title}”.`);
-                    }}
-                  />
-                </div>
-              </TableCell>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button asChild variant="outline" size="sm" className="rounded-xl">
+                      <Link href={`/admin/properties/add?edit=${property.id}`}>Edit</Link>
+                    </Button>
+                    <ConfirmDeleteButton
+                      label={property.title}
+                      onConfirm={async () => {
+                        await deleteProperty(property.id);
+                        toast.success(`Deleted “${property.title}”.`);
+                      }}
+                    />
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
+            {filtered.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                  No properties match this search.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>

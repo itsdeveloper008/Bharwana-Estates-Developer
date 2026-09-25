@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
+import { AdminSearchInput } from "@/components/admin/admin-search-input";
 import { DealerDetailModal } from "@/components/admin/dealer-detail-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,8 @@ import { ensureSelfRegisteredDealer } from "@/lib/firestore/developers";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { formatCommissionRate } from "@/lib/format";
 import { sumCommission, useMockStore } from "@/lib/mock-store";
+import { truncateText } from "@/lib/truncate";
+import { displayUserEmail } from "@/lib/user-display";
 import type { Developer, DeveloperOrigin } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +53,7 @@ export default function AdminDevelopersPage() {
     deleteDeveloper,
   } = useMockStore();
   const [filter, setFilter] = useState<Filter>("ALL");
+  const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [rateDraft, setRateDraft] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -92,9 +96,26 @@ export default function AdminDevelopersPage() {
   }, [users, developers, usingFirestoreDevelopers]);
 
   const filtered = useMemo(() => {
-    if (filter === "ALL") return developers;
-    return developers.filter((developer) => developer.origin === filter);
-  }, [developers, filter]);
+    const byOrigin =
+      filter === "ALL" ? developers : developers.filter((developer) => developer.origin === filter);
+    const q = query.trim().toLowerCase();
+    if (!q) return byOrigin;
+    return byOrigin.filter((developer) => {
+      const linked = users.find((user) => user.id === developer.dealerUserId);
+      const haystack = [
+        developer.companyName,
+        developer.contactPerson,
+        developer.registrationNumber,
+        linked?.fullName,
+        displayUserEmail(linked?.email) ?? linked?.email,
+        linked?.phone,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [developers, filter, query, users]);
 
   const selected = developers.find((developer) => developer.id === selectedId) ?? null;
   const selectedUser = selected?.dealerUserId
@@ -185,23 +206,29 @@ export default function AdminDevelopersPage() {
       <p className="type-eyebrow">Partners</p>
       <h1 className="mb-6 font-serif text-3xl">Dealers</h1>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         {filters.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => setFilter(item.id)}
             className={cn(
-              "border px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition-colors",
+              "border px-3 py-1.5 text-xs font-medium uppercase tracking-[0.14em] transition-colors",
               filter === item.id
                 ? "border-gold bg-gold/15 text-forest"
-                : "border-forest/15 text-forest/60 hover:border-forest/30",
+                : "border-forest/15 text-forest/80 hover:border-forest/30 hover:text-forest",
             )}
           >
             {item.label}
           </button>
         ))}
       </div>
+
+      <AdminSearchInput
+        value={query}
+        onChange={setQuery}
+        placeholder="Search by company, contact, email, phone…"
+      />
 
       <div className="overflow-x-auto border border-forest/10">
         <Table>
@@ -233,7 +260,12 @@ export default function AdminDevelopersPage() {
                   className="cursor-pointer hover:bg-forest/[0.04]"
                   onClick={() => setSelectedId(developer.id)}
                 >
-                  <TableCell className="font-medium">{developer.companyName}</TableCell>
+                  <TableCell
+                    className="max-w-[14rem] truncate font-medium"
+                    title={developer.companyName}
+                  >
+                    {truncateText(developer.companyName, 48)}
+                  </TableCell>
                   <TableCell>
                     <div>{developer.contactPerson}</div>
                     {developer.registrationNumber ? (
@@ -311,7 +343,7 @@ export default function AdminDevelopersPage() {
                         onConfirm={async () => {
                           await deleteDeveloper(developer.id);
                           if (selectedId === developer.id) setSelectedId(null);
-                          toast.success(`Deleted “${developer.companyName}”.`);
+                          toast.success(`Deleted “${truncateText(developer.companyName, 48)}”.`);
                         }}
                       />
                     </div>
@@ -322,7 +354,7 @@ export default function AdminDevelopersPage() {
             {filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
-                  No dealers in this view.
+                  {query.trim() ? "No dealers match this search." : "No dealers in this view."}
                 </TableCell>
               </TableRow>
             )}
@@ -363,10 +395,10 @@ export default function AdminDevelopersPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject dealer</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="font-serif text-2xl">Reject dealer</DialogTitle>
+            <DialogDescription className="break-all" title={rejectTarget?.companyName}>
               {rejectTarget
-                ? `Provide a reason for rejecting ${rejectTarget.companyName}. They will see it on their dealer desk${
+                ? `Provide a reason for rejecting ${truncateText(rejectTarget.companyName, 64)}. They will see it on their dealer desk${
                     selectedUser?.email ? " and receive an email if they have a real address on file" : ""
                   }.`
                 : "Provide a reason for rejection."}

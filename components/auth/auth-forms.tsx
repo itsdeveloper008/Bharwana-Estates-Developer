@@ -133,13 +133,27 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
     if (pendingProvider) return;
     setError(null);
     let redirecting = false;
+    let safetyTimer: number | null = null;
     try {
       // Start immediately so the popup opens in the same click turn
       // (setting state first can cost the user-gesture and Chrome blocks the popup).
       const loginPromise =
         provider === "google" ? loginWithGoogle() : loginWithFacebook();
       setPendingProvider(provider);
+      // UI safety: never leave Connecting forever if the auth promise stalls.
+      safetyTimer = window.setTimeout(() => {
+        setPendingProvider(null);
+        setError(
+          provider === "facebook"
+            ? "Facebook sign-in timed out. Check your connection or use email/phone."
+            : "Google sign-in timed out. Check your connection (ad blocker/VPN) or use email/phone.",
+        );
+      }, 22_000);
       const result = await loginPromise;
+      if (safetyTimer) {
+        window.clearTimeout(safetyTimer);
+        safetyTimer = null;
+      }
       if (!result.ok) {
         setError(result.error);
         toast.error(result.error);
@@ -182,6 +196,7 @@ function SocialAuthButtons({ onSuccess }: { onSuccess: (user: User) => void }) {
       setError(message);
       toast.error(message);
     } finally {
+      if (safetyTimer) window.clearTimeout(safetyTimer);
       if (!redirecting) setPendingProvider(null);
     }
   }

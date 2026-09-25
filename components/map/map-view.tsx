@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { GoogleMap, OverlayViewF, OverlayView, useJsApiLoader } from "@react-google-maps/api";
 import Supercluster from "supercluster";
 import { AnimatePresence, motion } from "framer-motion";
@@ -543,7 +543,6 @@ export function MapView({
 
 
 export function MiniMap({ property }: { property: Property }) {
-  const router = useRouter();
   const { isLoaded } = useJsApiLoader({
     id: "bharwana-google-maps",
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -554,6 +553,8 @@ export function MiniMap({ property }: { property: Property }) {
   if (!hasGoogleMapsKey() || !isLoaded) {
     return <div className="flex h-64 items-center justify-center bg-cream/50 text-xs text-muted-foreground">Map</div>;
   }
+
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${property.latitude},${property.longitude}`;
 
   return (
     <div className="relative h-64 overflow-hidden rounded-2xl">
@@ -577,12 +578,10 @@ export function MiniMap({ property }: { property: Property }) {
           <PropertyPin listingType={property.listingType} />
         </OverlayViewF>
       </GoogleMap>
-      <Button
-        variant="secondary"
-        className="absolute bottom-3 right-3"
-        onClick={() => router.push(`/map?q=${encodeURIComponent(property.city)}`)}
-      >
-        View larger map
+      <Button variant="secondary" className="absolute bottom-3 right-3" asChild>
+        <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
+          View larger map
+        </a>
       </Button>
     </div>
   );

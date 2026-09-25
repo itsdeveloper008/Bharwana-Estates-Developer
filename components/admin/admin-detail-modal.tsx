@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { truncateText } from "@/lib/truncate";
 import { cn } from "@/lib/utils";
 
 export function AdminDetailSection({
@@ -39,7 +40,7 @@ export function AdminDetailField({
   return (
     <div className={cn("space-y-1", className)}>
       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-      <div className="text-sm text-forest">{children}</div>
+      <div className="break-all text-sm text-forest">{children}</div>
     </div>
   );
 }
@@ -76,8 +77,11 @@ export function AdminDetailModal({
         <header className="shrink-0 border-b border-forest/10 bg-ivory px-4 py-4 sm:px-6">
           <div className="flex items-start justify-between gap-4 pr-8">
             <div className="min-w-0 space-y-2">
-              <DialogTitle className="font-serif text-2xl leading-tight text-forest sm:text-3xl">
-                {title}
+              <DialogTitle
+                className="break-all font-serif text-2xl leading-tight text-forest sm:text-3xl"
+                title={typeof title === "string" ? title : undefined}
+              >
+                {typeof title === "string" ? truncateText(title, 80) : title}
               </DialogTitle>
               {badges ? <div className="flex flex-wrap items-center gap-2">{badges}</div> : null}
             </div>

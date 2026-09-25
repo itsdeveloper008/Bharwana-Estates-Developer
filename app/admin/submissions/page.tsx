@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { AdminSearchInput } from "@/components/admin/admin-search-input";
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
 import { SubmissionDetailModal } from "@/components/admin/submission-detail-modal";
 import { Badge } from "@/components/ui/badge";
@@ -48,11 +49,14 @@ export default function AdminSubmissionsPage() {
   useMarkAdminModuleViewed("submissions");
   const { properties, developers, users, updateProperty, deleteProperty } = useMockStore();
   const [tab, setTab] = useState<Tab>("PENDING_APPROVAL");
+  const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectError, setRejectError] = useState<string | null>(null);
   const [rejectPending, setRejectPending] = useState(false);
+
+  const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
 
   const filtered = useMemo(() => {
     const list =
@@ -61,10 +65,32 @@ export default function AdminSubmissionsPage() {
             ["PENDING_APPROVAL", "PUBLISHED", "REJECTED"].includes(property.status),
           )
         : properties.filter((property) => property.status === tab);
-    return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  }, [properties, tab]);
 
-  const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
+    const q = query.trim().toLowerCase();
+    const searched = !q
+      ? list
+      : list.filter((property) => {
+          const owner = userById.get(property.ownerUserId ?? "");
+          const haystack = [
+            property.title,
+            property.city,
+            property.address,
+            property.contactPhone,
+            String(property.price),
+            owner?.fullName,
+            owner?.email,
+            owner?.phone,
+            listingBadge(property.listingType),
+            statusLabel(property.status),
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          return haystack.includes(q);
+        });
+
+    return [...searched].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }, [properties, tab, query, userById]);
 
   const selected = properties.find((property) => property.id === selectedId) ?? null;
   const pendingCount = properties.filter((property) => property.status === "PENDING_APPROVAL").length;
@@ -128,17 +154,17 @@ export default function AdminSubmissionsPage() {
       <p className="type-eyebrow">Verification</p>
       <h1 className="mb-6 font-serif text-2xl sm:text-3xl">Submissions</h1>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         {TABS.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => setTab(item.id)}
             className={cn(
-              "border px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition-colors",
+              "border px-3 py-1.5 text-xs font-medium uppercase tracking-[0.14em] transition-colors",
               tab === item.id
                 ? "border-gold bg-gold/15 text-forest"
-                : "border-forest/15 text-forest/60 hover:border-forest/30",
+                : "border-forest/15 text-forest/80 hover:border-forest/30 hover:text-forest",
             )}
           >
             {item.label}
@@ -146,6 +172,12 @@ export default function AdminSubmissionsPage() {
           </button>
         ))}
       </div>
+
+      <AdminSearchInput
+        value={query}
+        onChange={setQuery}
+        placeholder="Search by title, submitter, city…"
+      />
 
       <div className="overflow-x-auto border border-forest/10">
         <Table>
@@ -235,7 +267,7 @@ export default function AdminSubmissionsPage() {
             {filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
-                  No submissions in this view.
+                  {query.trim() ? "No submissions match this search." : "No submissions in this view."}
                 </TableCell>
               </TableRow>
             )}

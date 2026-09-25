@@ -305,7 +305,8 @@ function googleAuthErrorMessage(code: string) {
     case "auth/account-exists-with-different-credential":
       return "An account already exists with this email using a different sign-in method.";
     case "auth/network-request-failed":
-      return "Could not reach Google/Firebase Auth. Check your internet, disable ad blockers, or try another browser/network.";
+    case "auth/timeout":
+      return "Could not reach Google/Firebase Auth (connection blocked or timed out). Disable ad blockers/VPN, try another network, or sign in with email/phone.";
     case "auth/invalid-continue-uri":
     case "auth/unauthorized-continue-uri":
       return "Google sign-in cannot return to this domain yet. Check Firebase Hosting / authorized domains for this project.";
@@ -832,16 +833,32 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Popup only - stay on this page; no same-tab / new-tab redirect.
+    // Timeout: identitytoolkit hang (ERR_CONNECTION_CLOSED) or COOP can leave Connecting forever.
+    const OAUTH_TIMEOUT_MS = 18_000;
     try {
-      const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      const result = await withAuthTimeout(
+        signInWithPopup(auth, new GoogleAuthProvider()),
+        OAUTH_TIMEOUT_MS,
+        "Google popup",
+      );
       return await finishGoogleUser(result.user, nameFromAuthCredential(result));
     } catch (error) {
       const code =
         error && typeof error === "object" && "code" in error
           ? String((error as { code?: string }).code)
           : "";
-      console.error("Google popup sign-in failed", { code, error });
-      return { ok: false as const, error: googleAuthErrorMessage(code) };
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message?: string }).message)
+          : "";
+      // Network/COOP hangs often surface as empty code or generic Error from our timeout.
+      const normalized =
+        code ||
+        ( /network|timeout|CONNECTION_CLOSED|Failed to fetch/i.test(message)
+          ? "auth/network-request-failed"
+          : "");
+      console.error("Google popup sign-in failed", { code: normalized || code, error });
+      return { ok: false as const, error: googleAuthErrorMessage(normalized || code) };
     }
   }, [commitSession, setPendingGoogle]);
 

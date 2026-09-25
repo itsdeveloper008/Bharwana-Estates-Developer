@@ -200,13 +200,13 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             href={item.href}
             onClick={onNavigate}
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 text-sm transition-colors",
+              "flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors",
               active
-                ? "border-l-2 border-gold bg-gold/10 font-medium text-forest"
-                : "border-l-2 border-transparent text-forest/70 hover:bg-cream hover:text-forest",
+                ? "border-l-2 border-gold bg-gold/10 text-forest"
+                : "border-l-2 border-transparent text-forest/85 hover:bg-cream hover:text-forest",
             )}
           >
-            <item.icon className={cn("h-4 w-4", active ? "text-gold" : "text-forest/50")} />
+            <item.icon className={cn("h-4 w-4", active ? "text-gold" : "text-forest/70")} />
             <span className="flex-1">{item.label}</span>
             {count > 0 ? (
               <Badge variant="pending" className="ml-auto text-[10px]">
@@ -217,7 +217,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         );
       })}
       {admin?.adminRole === "staff" && visible.length === 0 ? (
-        <p className="px-3 py-2 text-xs text-muted-foreground">No modules assigned.</p>
+        <p className="px-3 py-2 text-xs text-forest/65">No modules assigned.</p>
       ) : null}
     </nav>
   );
@@ -239,7 +239,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F3EA]">
+    <div className="min-h-screen bg-[#F7F3EA] font-normal text-forest antialiased [font-synthesis:none]">
       <FirebaseConfigBanner />
       <div className="flex min-h-screen">
         <aside className="hidden w-60 shrink-0 border-r border-forest/10 bg-[#FBFAF6] lg:block">
@@ -258,7 +258,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 </Avatar>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-forest">{admin?.fullName}</p>
-                  <p className="truncate text-xs text-muted-foreground">{admin?.email}</p>
+                  <p className="truncate text-xs text-forest/65">{admin?.email}</p>
                 </div>
               </div>
               <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleViewWebsite}>
@@ -274,7 +274,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between border-b border-forest/10 bg-[#FBFAF6]/90 px-4 py-3 backdrop-blur lg:hidden">
+          <header className="flex items-center justify-between border-b border-forest/10 bg-[#FBFAF6] px-4 py-3 lg:hidden">
             <AdminBrand />
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
@@ -319,7 +319,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </SheetContent>
             </Sheet>
           </header>
-          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+          <main className="flex-1 px-4 py-6 text-forest sm:px-6 lg:px-8 [&_th]:text-forest/75 [&_.text-muted-foreground]:text-forest/65">
+            {children}
+          </main>
         </div>
       </div>
     </div>
