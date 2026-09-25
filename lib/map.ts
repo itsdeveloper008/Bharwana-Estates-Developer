@@ -1,14 +1,13 @@
 import type { Property } from "@/lib/types";
 
-/** Optional. Used only for Mapbox Geocoding in the listing pin picker. */
-export const MAPBOX_TOKEN = (process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "").trim();
-
 /** Google Maps JavaScript API - /map view + map type modes (roadmap / satellite / hybrid / terrain). */
 export const GOOGLE_MAPS_API_KEY = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "").trim();
 
-export function hasMapboxToken() {
-  return MAPBOX_TOKEN.length > 0;
-}
+/** Must match every useJsApiLoader / Loader call that shares GOOGLE_MAPS_LOADER_ID. */
+export const GOOGLE_MAPS_LIBRARIES: ("places")[] = ["places"];
+
+/** Neighborhood / street zoom after a place search result. */
+export const PLACE_SEARCH_ZOOM = 15;
 
 export function hasGoogleMapsKey() {
   return GOOGLE_MAPS_API_KEY.length > 0;
@@ -18,12 +17,7 @@ export function warnMissingMapKeys() {
   if (process.env.NODE_ENV !== "development") return;
   if (!hasGoogleMapsKey()) {
     console.warn(
-      "[Bharwana] Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY - enable Maps JavaScript API and add the key to .env.local.",
-    );
-  }
-  if (!hasMapboxToken()) {
-    console.warn(
-      "[Bharwana] Optional NEXT_PUBLIC_MAPBOX_TOKEN enables address geocoding in the property form.",
+      "[Bharwana] Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY - enable Maps JavaScript API, Places API, and Geocoding API, then add the key to .env.local.",
     );
   }
 }
@@ -46,6 +40,7 @@ export function preloadGoogleMaps() {
       new Loader({
         apiKey: GOOGLE_MAPS_API_KEY,
         id: GOOGLE_MAPS_LOADER_ID,
+        libraries: [...GOOGLE_MAPS_LIBRARIES],
       }).load(),
     )
     .catch((error) => {

@@ -2094,7 +2094,6 @@ export function PropertyForm({
               <MapPicker
                 latitude={form.watch("latitude")}
                 longitude={form.watch("longitude")}
-                showSearch={false}
                 onChange={(coords) => {
                   // Avoid shouldValidate here — full-schema revalidation mid-edit can leave
                   // stale errors that make Continue appear to do nothing.
@@ -2105,7 +2104,7 @@ export function PropertyForm({
               />
               {(errors.latitude || errors.longitude) && (
                 <p className="text-sm text-destructive" role="alert">
-                  Pin the property on the map (or select a city above).
+                  Pin the property on the map (search a place, select a city, or click the map).
                 </p>
               )}
             </div>

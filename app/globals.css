@@ -109,3 +109,12 @@
     );
   }
 }
+
+/* Google Places Autocomplete dropdown above map chrome / dialogs */
+.pac-container {
+  z-index: 10000 !important;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(15, 46, 29, 0.12);
+  box-shadow: 0 12px 32px -12px rgba(15, 46, 29, 0.28);
+  font-family: inherit;
+}

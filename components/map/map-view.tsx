@@ -8,10 +8,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PropertyPin } from "@/components/map/property-pin";
 import { MapPreviewCard } from "@/components/map/map-fallback";
 import { Button } from "@/components/ui/button";
+import { PlaceSearchInput } from "@/components/map/place-search-input";
 import {
   CITY_COORDS,
   DEFAULT_MAP_VIEW,
   GOOGLE_MAPS_API_KEY,
+  GOOGLE_MAPS_LIBRARIES,
+  PLACE_SEARCH_ZOOM,
   boundsFromProperties,
   googleBoundsTuple,
   hasGoogleMapsKey,
@@ -66,7 +69,8 @@ function MapKeyMissing() {
       <div>
         <p className="font-serif text-2xl text-forest">Google Maps key needed</p>
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-          Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to .env.local and enable the Maps JavaScript API.
+          Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to .env.local and enable the Maps JavaScript API,
+          Places API, and Geocoding API.
         </p>
       </div>
     </div>
@@ -115,6 +119,7 @@ export function MapView({
   const { isLoaded, loadError } = useJsApiLoader({
     id: "bharwana-google-maps",
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
     // Skip Roboto / Google fonts fetch - meaningful win on slow networks.
     preventGoogleFontsLoading: true,
   });
@@ -293,7 +298,10 @@ export function MapView({
             </li>
           </ul>
           <p className="mt-3 text-xs text-muted-foreground">
-            Also enable <span className="text-forest">Maps JavaScript API</span> and billing. Changes can take a few minutes.
+            Also enable <span className="text-forest">Maps JavaScript API</span>,{" "}
+            <span className="text-forest">Places API</span>,{" "}
+            <span className="text-forest">Geocoding API</span>, and billing. Changes can take a few
+            minutes.
           </p>
         </div>
       </div>
@@ -388,8 +396,20 @@ export function MapView({
         })}
       </GoogleMap>
 
-      <div className="pointer-events-none absolute right-3 top-3 z-30 flex flex-wrap justify-end gap-1 sm:right-4 sm:top-4">
-        <div className="pointer-events-auto flex overflow-hidden rounded-xl border border-forest/15 bg-ivory/95 shadow-lift">
+      <div className="pointer-events-none absolute left-3 right-3 top-3 z-30 flex items-start justify-between gap-2 sm:left-4 sm:right-4 sm:top-4">
+        <div className="pointer-events-auto w-full max-w-sm">
+          <PlaceSearchInput
+            inputClassName="bg-ivory/95 shadow-lift"
+            onPlaceSelected={(result) => {
+              const map = mapRef.current;
+              if (!map) return;
+              userMoved.current = true;
+              map.panTo({ lat: result.latitude, lng: result.longitude });
+              map.setZoom(PLACE_SEARCH_ZOOM);
+            }}
+          />
+        </div>
+        <div className="pointer-events-auto flex shrink-0 overflow-hidden rounded-xl border border-forest/15 bg-ivory/95 shadow-lift">
           {MAP_MODES.map((mode) => (
             <button
               key={mode.id}
@@ -434,7 +454,7 @@ export function MapView({
       )}
 
       {showSearchArea && onBoundsSearch && (
-        <div className="pointer-events-none absolute inset-x-0 top-4 z-20 flex justify-center">
+        <div className="pointer-events-none absolute inset-x-0 top-[4.25rem] z-20 flex justify-center sm:top-[4.5rem]">
           <Button
             className="pointer-events-auto shadow-lift"
             onClick={() => {
@@ -505,6 +525,7 @@ export function MiniMap({ property }: { property: Property }) {
   const { isLoaded } = useJsApiLoader({
     id: "bharwana-google-maps",
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
     preventGoogleFontsLoading: true,
   });
 

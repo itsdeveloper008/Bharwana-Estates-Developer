@@ -9,7 +9,7 @@ backed by Firebase Auth, Firestore, and Storage.
 - **Next.js 14** (App Router) + React 18 + TypeScript
 - **Firebase** Auth, Firestore, Storage (`firebase` client + `firebase-admin` for staff APIs)
 - **Tailwind CSS** + Radix UI + Framer Motion
-- **Maps:** Google Maps JS (`@react-google-maps/api`); optional Mapbox token for address geocoding only
+- **Maps:** Google Maps JS (`@react-google-maps/api`) with Places Autocomplete + Geocoding for address search
 - Forms: react-hook-form + Zod; images: browser-image-compression + Next `<Image>`
 
 ## Folder structure
@@ -38,8 +38,7 @@ Fill `.env.local`:
 | Variable | Purpose |
 |----------|---------|
 | `NEXT_PUBLIC_FIREBASE_*` | Required for live Auth / Firestore / Storage |
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | `/map` and map pickers |
-| `NEXT_PUBLIC_MAPBOX_TOKEN` | Optional — address geocoding in the listing form |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | `/map` and map pickers — enable Maps JavaScript, Places, and Geocoding APIs |
 | `NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID` | Google sign-in web client |
 | `FIREBASE_ADMIN_*` | Server-only staff Admin SDK APIs |
 
