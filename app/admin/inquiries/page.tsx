@@ -24,6 +24,7 @@ export default function AdminInquiriesPage() {
     users,
     inquiriesLoading,
     inquiriesError,
+    inquiriesReady,
     removeInquiry,
     updateInquiryStatus,
   } = useMockStore();
@@ -45,18 +46,23 @@ export default function AdminInquiriesPage() {
       <p className="type-eyebrow">Pipeline</p>
       <h1 className="mb-8 font-serif text-2xl sm:text-3xl">Inquiries</h1>
 
-      {inquiriesError && inquiries.length === 0 && (
+      {/* Only show the banner for a real failed load — never alongside a successful empty snapshot. */}
+      {inquiriesError && !inquiriesReady && !inquiriesLoading && (
         <p className="mb-4 border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           {inquiriesError}
         </p>
       )}
 
-      {inquiriesLoading ? (
+      {inquiriesLoading || (!inquiriesReady && !inquiriesError) ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, index) => (
             <div key={index} className="h-12 animate-pulse border border-forest/10 bg-cream/60" />
           ))}
         </div>
+      ) : inquiriesError && !inquiriesReady ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">
+          Could not load inquiries. Refresh the page after confirming you are signed in.
+        </p>
       ) : (
         <div className="overflow-x-auto border border-forest/10">
           <Table>
@@ -96,7 +102,7 @@ export default function AdminInquiriesPage() {
                   </TableRow>
                 );
               })}
-              {inquiries.length === 0 && (
+              {inquiriesReady && inquiries.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
                     No inquiries yet.

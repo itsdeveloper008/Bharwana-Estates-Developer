@@ -81,6 +81,8 @@ interface MockStoreContextValue {
   users: User[];
   inquiriesLoading: boolean;
   inquiriesError: string | null;
+  /** True after a successful admin inquiries snapshot (empty list is still "ready"). */
+  inquiriesReady: boolean;
   usingFirestoreInquiries: boolean;
   usingFirestoreProperties: boolean;
   usingFirestoreUsers: boolean;
@@ -164,6 +166,8 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const [inquiryState, setInquiryState] = useState<Inquiry[]>(seedInquiries);
   const [inquiriesLoading, setInquiriesLoading] = useState(false);
   const [inquiriesError, setInquiriesError] = useState<string | null>(null);
+  /** True only after a successful Firestore snapshot for the current admin session. */
+  const [inquiriesReady, setInquiriesReady] = useState(false);
   const [usingFirestoreInquiries, setUsingFirestoreInquiries] = useState(false);
   const [usingFirestoreProperties, setUsingFirestoreProperties] = useState(false);
   const [usingFirestoreUsers, setUsingFirestoreUsers] = useState(false);
@@ -225,6 +229,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     if (!isFirebaseConfigured()) {
       setUsingFirestoreInquiries(false);
       setInquiriesLoading(false);
+      setInquiriesReady(false);
       return;
     }
 
@@ -233,6 +238,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     if (!adminAuthReady) {
       setInquiriesLoading(true);
       setInquiriesError(null);
+      setInquiriesReady(false);
       return;
     }
 
@@ -241,60 +247,75 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       setInquiriesLoading(false);
       setInquiryState(seedInquiries);
       setInquiriesError(null);
+      setInquiriesReady(false);
       return;
     }
 
     let cancelled = false;
-    let receivedSnapshot = false;
 
     setInquiriesLoading(true);
     setInquiriesError(null);
+    setInquiriesReady(false);
+    setInquiryState([]);
 
     const stop = whenFirebaseUserReady(
       () => {
         if (cancelled) return;
-        receivedSnapshot = false;
+
+        // Per-subscription latch: when Auth re-emits, whenFirebaseUserReady tears
+        // down this cleanup first. Superseded onSnapshot error callbacks must not
+        // overwrite a later successful empty snapshot (stale permission-denied).
+        let active = true;
+        let receivedSnapshot = false;
+
         setInquiriesLoading(true);
         setUsingFirestoreInquiries(true);
 
         const unsub =
           subscribeInquiries(
             (next) => {
-              if (cancelled) return;
+              if (cancelled || !active) return;
               receivedSnapshot = true;
               setInquiryState(next);
               setInquiriesLoading(false);
               setInquiriesError(null);
+              setInquiriesReady(true);
             },
             (error) => {
-              if (cancelled) return;
+              if (cancelled || !active) return;
               const code =
                 error && typeof error === "object" && "code" in error
                   ? String((error as { code?: string }).code)
                   : "";
               console.error("Firestore inquiries subscription failed", { code, error });
-              // Ignore late/stale listener errors after a successful snapshot (Strict Mode
-              // remounts, token races). Only surface a banner when we never got data.
+              // Ignore late/stale listener errors after a successful snapshot.
               if (receivedSnapshot) return;
               setInquiriesError(
                 firestoreErrorMessage(error, "Could not load inquiries from Firestore."),
               );
               setInquiriesLoading(false);
               setUsingFirestoreInquiries(false);
+              setInquiriesReady(false);
             },
           ) ?? undefined;
 
         if (!unsub) {
           setInquiriesLoading(false);
           setUsingFirestoreInquiries(false);
+          setInquiriesReady(false);
           setInquiriesError("Could not load inquiries from Firestore.");
         }
-        return unsub;
+
+        return () => {
+          active = false;
+          unsub?.();
+        };
       },
       () => {
         if (cancelled) return;
         setUsingFirestoreInquiries(false);
         setInquiriesLoading(false);
+        setInquiriesReady(false);
       },
     );
 
@@ -346,8 +367,10 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
 
       const stop = whenFirebaseUserReady(
         () => {
+          let active = true;
           const unsub = subscribeAllProperties(
             (next) => {
+              if (!active) return;
               window.clearTimeout(timeout);
               adminPropertiesRef.current = next;
               setUsingFirestoreProperties(true);
@@ -355,7 +378,10 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
               setPropertiesLoading(false);
               setPropertiesError(null);
             },
-            onError,
+            (error) => {
+              if (!active) return;
+              onError(error);
+            },
           );
 
           if (!unsub) {
@@ -363,7 +389,10 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
             setPropertiesLoading(false);
             setPropertiesError("Properties are unavailable right now.");
           }
-          return unsub ?? undefined;
+          return () => {
+            active = false;
+            unsub?.();
+          };
         },
         () => {
           window.clearTimeout(timeout);
@@ -455,17 +484,26 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     }
 
     const stop = whenFirebaseUserReady(
-      () =>
-        subscribeUsers(
-          (next) => {
-            setUsingFirestoreUsers(true);
-            setUsers(next);
-          },
-          (error) => {
-            console.error("Firestore users subscription failed", error);
-            setUsingFirestoreUsers(false);
-          },
-        ) ?? undefined,
+      () => {
+        let active = true;
+        const unsub =
+          subscribeUsers(
+            (next) => {
+              if (!active) return;
+              setUsingFirestoreUsers(true);
+              setUsers(next);
+            },
+            (error) => {
+              if (!active) return;
+              console.error("Firestore users subscription failed", error);
+              setUsingFirestoreUsers(false);
+            },
+          ) ?? undefined;
+        return () => {
+          active = false;
+          unsub?.();
+        };
+      },
       () => setUsingFirestoreUsers(false),
     );
 
@@ -801,6 +839,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       users,
       inquiriesLoading,
       inquiriesError,
+      inquiriesReady,
       usingFirestoreInquiries,
       usingFirestoreProperties,
       usingFirestoreUsers,
@@ -829,6 +868,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       users,
       inquiriesLoading,
       inquiriesError,
+      inquiriesReady,
       usingFirestoreInquiries,
       usingFirestoreProperties,
       usingFirestoreUsers,
