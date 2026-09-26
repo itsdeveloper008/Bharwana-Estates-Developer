@@ -3,6 +3,13 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdminSearchInput } from "@/components/admin/admin-search-input";
+import {
+  AdminPageHeader,
+  AdminTableShell,
+  adminEmptyCellClass,
+  adminTabClass,
+  adminTableHeadClass,
+} from "@/components/admin/admin-ui";
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
 import { SubmissionDetailModal } from "@/components/admin/submission-detail-modal";
 import { Badge } from "@/components/ui/badge";
@@ -151,8 +158,7 @@ export default function AdminSubmissionsPage() {
 
   return (
     <div>
-      <p className="type-eyebrow">Verification</p>
-      <h1 className="mb-6 font-serif text-2xl sm:text-3xl">Submissions</h1>
+      <AdminPageHeader eyebrow="Verification" title="Submissions" />
 
       <div className="mb-4 flex flex-wrap gap-2">
         {TABS.map((item) => (
@@ -160,12 +166,7 @@ export default function AdminSubmissionsPage() {
             key={item.id}
             type="button"
             onClick={() => setTab(item.id)}
-            className={cn(
-              "border px-3 py-1.5 text-xs font-medium uppercase tracking-[0.14em] transition-colors",
-              tab === item.id
-                ? "border-gold bg-gold/15 text-forest"
-                : "border-forest/15 text-forest/80 hover:border-forest/30 hover:text-forest",
-            )}
+            className={adminTabClass(tab === item.id)}
           >
             {item.label}
             {item.id === "PENDING_APPROVAL" ? ` (${pendingCount})` : ""}
@@ -179,18 +180,18 @@ export default function AdminSubmissionsPage() {
         placeholder="Search by title, submitter, city…"
       />
 
-      <div className="overflow-x-auto border border-forest/10">
+      <AdminTableShell>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Property</TableHead>
-              <TableHead>Submitted by</TableHead>
-              <TableHead>City</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Submitted</TableHead>
-              <TableHead className="w-12" />
+            <TableRow className="border-forest/10 hover:bg-transparent">
+              <TableHead className={adminTableHeadClass}>Property</TableHead>
+              <TableHead className={adminTableHeadClass}>Submitted by</TableHead>
+              <TableHead className={adminTableHeadClass}>City</TableHead>
+              <TableHead className={adminTableHeadClass}>Price</TableHead>
+              <TableHead className={adminTableHeadClass}>Type</TableHead>
+              <TableHead className={adminTableHeadClass}>Status</TableHead>
+              <TableHead className={adminTableHeadClass}>Submitted</TableHead>
+              <TableHead className={cn(adminTableHeadClass, "w-12")} />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -199,10 +200,10 @@ export default function AdminSubmissionsPage() {
               return (
                 <TableRow
                   key={property.id}
-                  className="cursor-pointer"
+                  className="cursor-pointer border-forest/8 hover:bg-forest/[0.03]"
                   onClick={() => setSelectedId(property.id)}
                 >
-                  <TableCell>
+                  <TableCell className="px-3 py-3.5">
                     <div className="flex items-center gap-3">
                       <Link
                         href={`/admin/properties/${property.id}`}
@@ -228,15 +229,15 @@ export default function AdminSubmissionsPage() {
                       </Link>
                     </div>
                   </TableCell>
-                  <TableCell>{owner?.fullName ?? "Unknown"}</TableCell>
-                  <TableCell>{property.city}</TableCell>
-                  <TableCell>{formatPrice(property.price)}</TableCell>
-                  <TableCell>
+                  <TableCell className="px-3 py-3.5">{owner?.fullName ?? "Unknown"}</TableCell>
+                  <TableCell className="px-3 py-3.5">{property.city}</TableCell>
+                  <TableCell className="px-3 py-3.5">{formatPrice(property.price)}</TableCell>
+                  <TableCell className="px-3 py-3.5">
                     <Badge variant={property.listingType === "DIRECT_OWNER" ? "owner" : "verified"}>
                       {listingBadge(property.listingType)}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-3 py-3.5">
                     <Badge
                       variant={
                         property.status === "PENDING_APPROVAL"
@@ -249,8 +250,8 @@ export default function AdminSubmissionsPage() {
                       {statusLabel(property.status)}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatDate(property.createdAt)}</TableCell>
-                  <TableCell onClick={(event) => event.stopPropagation()}>
+                  <TableCell className="px-3 py-3.5">{formatDate(property.createdAt)}</TableCell>
+                  <TableCell className="px-3 py-3.5" onClick={(event) => event.stopPropagation()}>
                     <ConfirmDeleteButton
                       label={property.title}
                       description="Permanently removes this listing (unlike Reject, which keeps a record for the seller)."
@@ -265,15 +266,15 @@ export default function AdminSubmissionsPage() {
               );
             })}
             {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={8} className={adminEmptyCellClass}>
                   {query.trim() ? "No submissions match this search." : "No submissions in this view."}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-      </div>
+      </AdminTableShell>
 
       <SubmissionDetailModal
         property={selected}

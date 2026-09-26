@@ -55,36 +55,6 @@ const STORAGE_KEY = "bharwana_admin_session_v2";
 let cachedAdminSession: AdminSession | null = null;
 let cachedAdminReady = false;
 
-function readStoredAdmin(): AdminSession | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<AdminSession>;
-    if (
-      typeof parsed.uid === "string" &&
-      typeof parsed.email === "string" &&
-      parsed.role === "ADMIN" &&
-      typeof parsed.fullName === "string" &&
-      (parsed.adminRole === "super_admin" || parsed.adminRole === "staff") &&
-      Array.isArray(parsed.permissions)
-    ) {
-      return {
-        uid: parsed.uid,
-        email: parsed.email,
-        fullName: parsed.fullName,
-        role: "ADMIN",
-        adminRole: parsed.adminRole,
-        permissions: parsed.permissions as AdminModule[],
-        avatarUrl: typeof parsed.avatarUrl === "string" ? parsed.avatarUrl : undefined,
-      };
-    }
-  } catch {
-    // ignore corrupt cache
-  }
-  return null;
-}
-
 function writeStoredAdmin(session: AdminSession | null) {
   if (typeof window === "undefined") return;
   try {
