@@ -15,41 +15,56 @@ import {
 import { useAdminAuth } from "@/lib/admin-auth";
 import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 import { isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
+import { whenFirebaseUserReady } from "@/lib/firebase/when-auth-ready";
 import { deleteUserDoc, subscribeUsers } from "@/lib/firestore/users";
 import { displayUserEmail, isSyntheticPhoneEmail } from "@/lib/user-display";
 import { formatUserRole } from "@/lib/user-role";
 import type { User } from "@/lib/types";
 
 export default function AdminUsersPage() {
-  const { admin } = useAdminAuth();
+  const { admin, isReady } = useAdminAuth();
   useMarkAdminModuleViewed("users");
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isReady) {
+      setLoading(true);
+      return;
+    }
+
     if (!isFirebaseConfigured()) {
       logFirebaseConfigDiagnostics("admin/users");
       setLoading(false);
       return;
     }
 
+    if (!admin) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const unsub = subscribeUsers(
-      (next) => {
-        setUsers(next);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error(err);
-        setError("Could not load users from Firestore.");
-        setLoading(false);
-      },
+    const stop = whenFirebaseUserReady(
+      () =>
+        subscribeUsers(
+          (next) => {
+            setUsers(next);
+            setLoading(false);
+            setError(null);
+          },
+          (err) => {
+            console.error(err);
+            setError("Could not load users from Firestore.");
+            setLoading(false);
+          },
+        ) ?? undefined,
+      () => setLoading(false),
     );
 
-    return () => unsub?.();
-  }, []);
+    return () => stop();
+  }, [isReady, admin]);
 
   return (
     <div>

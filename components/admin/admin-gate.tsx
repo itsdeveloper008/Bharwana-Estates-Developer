@@ -57,19 +57,22 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  if (isAuthenticated) {
-    return (
-      <AdminShell>
-        <RequirePathModule>{children}</RequirePathModule>
-      </AdminShell>
-    );
-  }
-
+  // Wait for Firebase Auth to resolve before mounting AdminShell / Firestore listeners.
+  // Checking isAuthenticated first caused hydration mismatches and permission-denied races
+  // when a localStorage session painted the shell before Auth was ready.
   if (!isReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-ivory text-sm text-muted-foreground">
         Loading…
       </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return (
+      <AdminShell>
+        <RequirePathModule>{children}</RequirePathModule>
+      </AdminShell>
     );
   }
 

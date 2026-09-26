@@ -13,7 +13,7 @@ export function firestoreErrorMessage(error: unknown, fallback: string) {
         ? (error as { message: string }).message
         : "";
     if (code === "permission-denied" || code === "unauthorized") {
-      return "Permission denied. Check that you are signed in and Storage/Firestore rules allow this upload.";
+      return "Permission denied. Check that you are signed in and Firestore rules allow this action.";
     }
     if (code === "unavailable") {
       return "Firebase is temporarily unavailable. Try again in a moment.";

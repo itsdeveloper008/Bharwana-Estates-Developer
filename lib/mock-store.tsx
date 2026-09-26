@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { useAdminAuth } from "@/lib/admin-auth";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
+import { whenFirebaseUserReady } from "@/lib/firebase/when-auth-ready";
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import {
   createDeveloperDoc,
@@ -148,7 +149,7 @@ function isPublicMarketplaceStatus(status: Property["status"]) {
  * Mixing these incorrectly will hide pending listings from owners or leak drafts to the public.
  */
 export function MockStoreProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated: isAdminSession } = useAdminAuth();
+  const { isAuthenticated: isAdminSession, isReady: adminAuthReady } = useAdminAuth();
   const { user } = useMockAuth();
   // While an admin panel session is active, do not also pull the marketplace user's owned query.
   const marketplaceUserId = isAdminSession ? null : (user?.id ?? null);
@@ -221,37 +222,100 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, [properties, developers, transactions, users, hydrated, usingFirestoreProperties, usingFirestoreUsers, usingFirestoreDevelopers]);
 
   useEffect(() => {
-    if (!isFirebaseConfigured() || !isAdminSession) {
+    if (!isFirebaseConfigured()) {
       setUsingFirestoreInquiries(false);
       setInquiriesLoading(false);
-      if (!isAdminSession) setInquiryState(seedInquiries);
       return;
     }
 
+    // Wait for AdminAuth to finish resolving — MockStore sits above AdminGate, so
+    // isAdminSession can flip only after isReady; still hold loading until then.
+    if (!adminAuthReady) {
+      setInquiriesLoading(true);
+      setInquiriesError(null);
+      return;
+    }
+
+    if (!isAdminSession) {
+      setUsingFirestoreInquiries(false);
+      setInquiriesLoading(false);
+      setInquiryState(seedInquiries);
+      setInquiriesError(null);
+      return;
+    }
+
+    let cancelled = false;
+    let receivedSnapshot = false;
+
     setInquiriesLoading(true);
-    setUsingFirestoreInquiries(true);
-    const unsub = subscribeInquiries(
-      (next) => {
-        setInquiryState(next);
-        setInquiriesLoading(false);
-        setInquiriesError(null);
+    setInquiriesError(null);
+
+    const stop = whenFirebaseUserReady(
+      () => {
+        if (cancelled) return;
+        receivedSnapshot = false;
+        setInquiriesLoading(true);
+        setUsingFirestoreInquiries(true);
+
+        const unsub =
+          subscribeInquiries(
+            (next) => {
+              if (cancelled) return;
+              receivedSnapshot = true;
+              setInquiryState(next);
+              setInquiriesLoading(false);
+              setInquiriesError(null);
+            },
+            (error) => {
+              if (cancelled) return;
+              const code =
+                error && typeof error === "object" && "code" in error
+                  ? String((error as { code?: string }).code)
+                  : "";
+              console.error("Firestore inquiries subscription failed", { code, error });
+              // Ignore late/stale listener errors after a successful snapshot (Strict Mode
+              // remounts, token races). Only surface a banner when we never got data.
+              if (receivedSnapshot) return;
+              setInquiriesError(
+                firestoreErrorMessage(error, "Could not load inquiries from Firestore."),
+              );
+              setInquiriesLoading(false);
+              setUsingFirestoreInquiries(false);
+            },
+          ) ?? undefined;
+
+        if (!unsub) {
+          setInquiriesLoading(false);
+          setUsingFirestoreInquiries(false);
+          setInquiriesError("Could not load inquiries from Firestore.");
+        }
+        return unsub;
       },
-      (error) => {
-        console.error("Firestore inquiries subscription failed", error);
-        setInquiriesError("Could not load inquiries from Firestore.");
-        setInquiriesLoading(false);
+      () => {
+        if (cancelled) return;
         setUsingFirestoreInquiries(false);
+        setInquiriesLoading(false);
       },
     );
 
-    return () => unsub?.();
-  }, [isAdminSession]);
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [isAdminSession, adminAuthReady]);
 
   // Admin: full inventory. Public: PUBLISHED/RESERVED only (capped).
   useEffect(() => {
     if (!isFirebaseConfigured()) {
       setUsingFirestoreProperties(false);
       setPropertiesLoading(false);
+      setPropertiesError(null);
+      return;
+    }
+
+    // Avoid briefly attaching the public listener before admin session resolves.
+    if (!adminAuthReady) {
+      setPropertiesLoading(true);
       setPropertiesError(null);
       return;
     }
@@ -279,27 +343,38 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     if (isAdminSession) {
       ownedPropertiesRef.current = [];
       publicPropertiesRef.current = [];
-      const unsub = subscribeAllProperties(
-        (next) => {
-          window.clearTimeout(timeout);
-          adminPropertiesRef.current = next;
-          setUsingFirestoreProperties(true);
-          setProperties(next);
-          setPropertiesLoading(false);
-          setPropertiesError(null);
-        },
-        onError,
-      );
 
-      if (!unsub) {
-        window.clearTimeout(timeout);
-        setPropertiesLoading(false);
-        setPropertiesError("Properties are unavailable right now.");
-      }
+      const stop = whenFirebaseUserReady(
+        () => {
+          const unsub = subscribeAllProperties(
+            (next) => {
+              window.clearTimeout(timeout);
+              adminPropertiesRef.current = next;
+              setUsingFirestoreProperties(true);
+              setProperties(next);
+              setPropertiesLoading(false);
+              setPropertiesError(null);
+            },
+            onError,
+          );
+
+          if (!unsub) {
+            window.clearTimeout(timeout);
+            setPropertiesLoading(false);
+            setPropertiesError("Properties are unavailable right now.");
+          }
+          return unsub ?? undefined;
+        },
+        () => {
+          window.clearTimeout(timeout);
+          setPropertiesLoading(false);
+          setUsingFirestoreProperties(false);
+        },
+      );
 
       return () => {
         window.clearTimeout(timeout);
-        unsub?.();
+        stop();
       };
     }
 
@@ -326,13 +401,13 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       window.clearTimeout(timeout);
       unsub?.();
     };
-  }, [isAdminSession, rebuildProperties]);
+  }, [isAdminSession, adminAuthReady, rebuildProperties]);
 
   // Sellers: merge their listings (all statuses) into the public marketplace set.
   useEffect(() => {
-    if (!isFirebaseConfigured() || isAdminSession || !marketplaceUserId) {
+    if (!isFirebaseConfigured() || !adminAuthReady || isAdminSession || !marketplaceUserId) {
       ownedPropertiesRef.current = [];
-      if (!isAdminSession && isFirebaseConfigured()) rebuildProperties();
+      if (adminAuthReady && !isAdminSession && isFirebaseConfigured()) rebuildProperties();
       return;
     }
 
@@ -350,7 +425,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     );
 
     return () => unsub?.();
-  }, [isAdminSession, marketplaceUserId, rebuildProperties]);
+  }, [isAdminSession, adminAuthReady, marketplaceUserId, rebuildProperties]);
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
@@ -374,24 +449,28 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!isFirebaseConfigured() || !isAdminSession) {
-      setUsingFirestoreUsers(false);
+    if (!isFirebaseConfigured() || !adminAuthReady || !isAdminSession) {
+      if (!isAdminSession) setUsingFirestoreUsers(false);
       return;
     }
 
-    const unsub = subscribeUsers(
-      (next) => {
-        setUsingFirestoreUsers(true);
-        setUsers(next);
-      },
-      (error) => {
-        console.error("Firestore users subscription failed", error);
-        setUsingFirestoreUsers(false);
-      },
+    const stop = whenFirebaseUserReady(
+      () =>
+        subscribeUsers(
+          (next) => {
+            setUsingFirestoreUsers(true);
+            setUsers(next);
+          },
+          (error) => {
+            console.error("Firestore users subscription failed", error);
+            setUsingFirestoreUsers(false);
+          },
+        ) ?? undefined,
+      () => setUsingFirestoreUsers(false),
     );
 
-    return () => unsub?.();
-  }, [isAdminSession]);
+    return () => stop();
+  }, [isAdminSession, adminAuthReady]);
 
   const addProperty = useCallback(async (property: Property, options?: UpsertPropertyOptions) => {
     if (isAdminSessionRef.current) {

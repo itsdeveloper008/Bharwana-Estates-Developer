@@ -12,21 +12,29 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
+import { whenFirebaseUserReady } from "@/lib/firebase/when-auth-ready";
 import {
   deleteNewsletterSignup,
   subscribeNewsletterSignups,
   type NewsletterSignup,
 } from "@/lib/firestore/inquiries";
 import { formatDate } from "@/lib/format";
+import { useAdminAuth } from "@/lib/admin-auth";
 import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 
 export default function AdminNewsletterPage() {
   useMarkAdminModuleViewed("newsletter");
+  const { isReady, isAuthenticated } = useAdminAuth();
   const [signups, setSignups] = useState<NewsletterSignup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isReady) {
+      setLoading(true);
+      return;
+    }
+
     if (!isFirebaseConfigured()) {
       logFirebaseConfigDiagnostics("admin/newsletter");
       setLoading(false);
@@ -34,22 +42,31 @@ export default function AdminNewsletterPage() {
       return;
     }
 
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const unsub = subscribeNewsletterSignups(
-      (next) => {
-        setSignups(next);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error(err);
-        setError("Could not load newsletter signups from Firestore.");
-        setLoading(false);
-      },
+    const stop = whenFirebaseUserReady(
+      () =>
+        subscribeNewsletterSignups(
+          (next) => {
+            setSignups(next);
+            setLoading(false);
+            setError(null);
+          },
+          (err) => {
+            console.error(err);
+            setError("Could not load newsletter signups from Firestore.");
+            setLoading(false);
+          },
+        ) ?? undefined,
+      () => setLoading(false),
     );
 
-    return () => unsub?.();
-  }, []);
+    return () => stop();
+  }, [isReady, isAuthenticated]);
 
   async function handleDelete(signup: NewsletterSignup) {
     try {

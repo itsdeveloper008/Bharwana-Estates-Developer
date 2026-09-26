@@ -1,4 +1,4 @@
-import { Montserrat } from "next/font/google";
+import { Montserrat, Playfair_Display } from "next/font/google";
 import type { Metadata } from "next";
 import { Providers } from "@/components/providers";
 import "./globals.css";
@@ -7,6 +7,13 @@ const montserrat = Montserrat({
   subsets: ["latin"],
   weight: ["200", "300", "400", "500", "600"],
   variable: "--font-sans",
+  display: "swap",
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-serif",
   display: "swap",
 });
 
@@ -47,7 +54,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://www.facebook.com" />
         <link rel="dns-prefetch" href="https://connect.facebook.net" />
       </head>
-      <body className={`${montserrat.variable} font-sans font-light`}>
+      <body className={`${montserrat.variable} ${playfair.variable} font-sans font-light`}>
         <Providers>{children}</Providers>
       </body>
     </html>

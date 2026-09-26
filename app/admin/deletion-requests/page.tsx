@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
+import { whenFirebaseUserReady } from "@/lib/firebase/when-auth-ready";
 import {
   type CleanupPreview,
   type DeletionRequest,
@@ -26,12 +27,14 @@ import {
   updateDeletionRequestStatus,
 } from "@/lib/firestore/deletion";
 import { useMockStore } from "@/lib/mock-store";
+import { useAdminAuth } from "@/lib/admin-auth";
 import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 import { displayUserEmail, isSyntheticPhoneEmail } from "@/lib/user-display";
 import { formatUserRole } from "@/lib/user-role";
 
 export default function AdminDeletionRequestsPage() {
   useMarkAdminModuleViewed("deletion");
+  const { isReady, isAuthenticated } = useAdminAuth();
   const { properties, inquiries, developers, deleteProperty, removeInquiry } = useMockStore();
   const [requests, setRequests] = useState<DeletionRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,28 +45,42 @@ export default function AdminDeletionRequestsPage() {
   const [cleanupBusy, setCleanupBusy] = useState(false);
 
   useEffect(() => {
+    if (!isReady) {
+      setLoading(true);
+      return;
+    }
+
     if (!isFirebaseConfigured()) {
       logFirebaseConfigDiagnostics("admin/deletion-requests");
       setLoading(false);
       return;
     }
 
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const unsub = subscribeDeletionRequests(
-      (next) => {
-        setRequests(next);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error(err);
-        setError("Could not load deletion requests from Firestore.");
-        setLoading(false);
-      },
+    const stop = whenFirebaseUserReady(
+      () =>
+        subscribeDeletionRequests(
+          (next) => {
+            setRequests(next);
+            setLoading(false);
+            setError(null);
+          },
+          (err) => {
+            console.error(err);
+            setError("Could not load deletion requests from Firestore.");
+            setLoading(false);
+          },
+        ) ?? undefined,
+      () => setLoading(false),
     );
 
-    return () => unsub?.();
-  }, []);
+    return () => stop();
+  }, [isReady, isAuthenticated]);
 
   const pending = useMemo(() => requests.filter((item) => item.status === "PENDING"), [requests]);
 

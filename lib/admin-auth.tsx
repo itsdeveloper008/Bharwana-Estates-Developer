@@ -148,19 +148,12 @@ async function resolveAdminSession(firebaseUser: FirebaseUser): Promise<
   };
 }
 
-function initialAdminSession(): AdminSession | null {
-  if (cachedAdminSession) return cachedAdminSession;
-  const stored = readStoredAdmin();
-  if (stored) {
-    cachedAdminSession = stored;
-    cachedAdminReady = true;
-  }
-  return stored;
-}
-
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
-  const [admin, setAdmin] = useState<AdminSession | null>(initialAdminSession);
-  const [isReady, setIsReady] = useState(() => cachedAdminReady || Boolean(initialAdminSession()));
+  // Always start null/false so SSR and the first client render match (no localStorage in useState).
+  // Session is restored in useEffect below — avoids AdminGate hydration mismatches
+  // (server: Loading… vs client: AdminShell from cached localStorage).
+  const [admin, setAdmin] = useState<AdminSession | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
@@ -178,6 +171,14 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Never mark ready from localStorage alone — that opens AdminShell / Firestore
+    // queries before request.auth exists (permission-denied + hydration races).
+    // Soft remount: restore in-memory session only when Auth already has the same user.
+    if (cachedAdminSession && cachedAdminReady && auth.currentUser?.uid === cachedAdminSession.uid) {
+      setAdmin(cachedAdminSession);
+      // Keep isReady false until getIdToken + resolve finish below.
+    }
+
     let cancelled = false;
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -188,6 +189,9 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
             if (!cancelled) setAdmin(null);
             return;
           }
+
+          // Ensure Auth token is attached before any Firestore listeners start.
+          await firebaseUser.getIdToken();
 
           const resolved = await resolveAdminSession(firebaseUser);
           const session = resolved.ok ? resolved.session : null;

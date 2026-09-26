@@ -45,7 +45,7 @@ export default function AdminInquiriesPage() {
       <p className="type-eyebrow">Pipeline</p>
       <h1 className="mb-8 font-serif text-2xl sm:text-3xl">Inquiries</h1>
 
-      {inquiriesError && (
+      {inquiriesError && inquiries.length === 0 && (
         <p className="mb-4 border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           {inquiriesError}
         </p>
