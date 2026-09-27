@@ -140,15 +140,23 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       return;
     }
     const stop = whenFirebaseUserReady(() => {
+      let active = true;
       const unsubNewsletter = subscribeNewsletterSignups(
-        (next) => setNewsletterSignups(next),
+        (next) => {
+          if (!active) return;
+          setNewsletterSignups(next);
+        },
         (error) => console.error("Newsletter badge subscription failed", error),
       );
       const unsubDeletion = subscribeDeletionRequests(
-        (next) => setDeletionRequests(next),
+        (next) => {
+          if (!active) return;
+          setDeletionRequests(next);
+        },
         (error) => console.error("Deletion badge subscription failed", error),
       );
       return () => {
+        active = false;
         unsubNewsletter?.();
         unsubDeletion?.();
       };

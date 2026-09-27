@@ -1,3 +1,8 @@
+import {
+  AUTH_NETWORK_CONNECTION_MESSAGE,
+  recentAuthNetworkFailure,
+} from "@/lib/firebase/auth-network";
+
 /** Shared timeout for client-side Firestore / Storage writes (avoids infinite "Sending…"). */
 export const FIRESTORE_WRITE_TIMEOUT_MS = 20_000;
 
@@ -13,6 +18,11 @@ export function firestoreErrorMessage(error: unknown, fallback: string) {
         ? (error as { message: string }).message
         : "";
     if (code === "permission-denied" || code === "unauthorized") {
+      // Stale/unrefreshable Auth token (blocked identitytoolkit) often surfaces as
+      // permission-denied even for Super Admin — prefer the connection message.
+      if (recentAuthNetworkFailure()) {
+        return AUTH_NETWORK_CONNECTION_MESSAGE;
+      }
       return "Permission denied. Check that you are signed in and Firestore rules allow this action.";
     }
     if (code === "unavailable") {

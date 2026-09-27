@@ -61,7 +61,9 @@ export default function AdminInquiriesPage() {
         </div>
       ) : inquiriesError && !inquiriesReady ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
-          Could not load inquiries. Refresh the page after confirming you are signed in.
+          {inquiriesError.includes("Connection issue")
+            ? "Session could not be refreshed. Fix the network/ad-blocker issue above, then refresh."
+            : "Could not load inquiries. Refresh the page after confirming you are signed in."}
         </p>
       ) : (
         <div className="overflow-x-auto border border-forest/10">

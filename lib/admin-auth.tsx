@@ -19,6 +19,7 @@ import {
 } from "react";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User as FirebaseUser } from "firebase/auth";
 import { ALL_ADMIN_MODULES, type AdminModule, type AdminPanelRole } from "@/lib/admin/modules";
+import { forceRefreshIdToken, noteAuthNetworkFailure } from "@/lib/firebase/auth-network";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { resolveAdminAuthorization } from "@/lib/firestore/admin-access";
 
@@ -160,8 +161,19 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
             return;
           }
 
-          // Ensure Auth token is attached before any Firestore listeners start.
-          await firebaseUser.getIdToken();
+          // Prefer a force-refreshed token; if identitytoolkit is blocked, fall back to
+          // the cached token so the panel can still load until expiry.
+          const refreshed = await forceRefreshIdToken(firebaseUser);
+          if (!refreshed.ok) {
+            try {
+              await firebaseUser.getIdToken(false);
+            } catch (tokenError) {
+              noteAuthNetworkFailure(
+                tokenError instanceof Error ? tokenError.message : "Cached ID token unavailable",
+              );
+              throw tokenError;
+            }
+          }
 
           const resolved = await resolveAdminSession(firebaseUser);
           const session = resolved.ok ? resolved.session : null;

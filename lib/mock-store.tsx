@@ -317,6 +317,19 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
         setInquiriesLoading(false);
         setInquiriesReady(false);
       },
+      (tokenError) => {
+        if (cancelled) return;
+        console.error("Admin inquiries: ID token refresh failed", tokenError);
+        setInquiriesError(
+          firestoreErrorMessage(
+            { code: "permission-denied" },
+            "Could not load inquiries from Firestore.",
+          ),
+        );
+        setInquiriesLoading(false);
+        setUsingFirestoreInquiries(false);
+        setInquiriesReady(false);
+      },
     );
 
     return () => {
