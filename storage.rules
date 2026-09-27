@@ -12,7 +12,10 @@ service firebase.storage {
             firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
             && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
           )
-          || firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
+          || (
+            firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
+            && firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.active != false
+          )
         );
     }
 
@@ -22,11 +25,12 @@ service firebase.storage {
     }
 
     // Listing photos — path includes uploader uid (set by client).
+    // Admins may also write under another user's prefix when creating on their behalf.
     match /listings/{userId}/{propertyId}/{fileName} {
       allow read: if true;
       allow write: if isSignedIn()
-        && request.auth.uid == userId
-        && isImage();
+        && isImage()
+        && (request.auth.uid == userId || isAdmin());
       allow delete: if isSignedIn()
         && (request.auth.uid == userId || isAdmin());
     }

@@ -66,7 +66,15 @@ service cloud.firestore {
     }
 
     function canManageProperties() {
-      return hasPerm('properties') || hasPerm('submissions') || hasPerm('reports');
+      return isSuperAdmin()
+        || hasPerm('properties')
+        || hasPerm('submissions')
+        || hasPerm('reports');
+    }
+
+    /** Staff who process account deletion / retention cleanup. */
+    function canPurgeData() {
+      return isSuperAdmin() || hasPerm('deletion');
     }
 
     function isPublicRole(role) {
@@ -79,7 +87,14 @@ service cloud.firestore {
 
     // —— User profiles (Firebase Auth UID) ——
     match /users/{userId} {
-      allow read: if isOwner(userId) || hasPerm('users') || hasPerm('reports') || isSuperAdmin();
+      // Owner picker (properties/dealers) + reports + deletion purge need list/read.
+      allow read: if isOwner(userId)
+        || hasPerm('users')
+        || hasPerm('reports')
+        || hasPerm('dealers')
+        || canManageProperties()
+        || canPurgeData()
+        || isSuperAdmin();
 
       allow create: if isSignedIn()
         && (
@@ -92,6 +107,11 @@ service cloud.firestore {
             && isValidUserRole(request.resource.data.role)
             && !(request.resource.data.role == 'ADMIN' && !isSuperAdmin())
           )
+          // Admin Add Property → create owner/dealer profile on behalf of listing.
+          || (
+            canManageProperties()
+            && isPublicRole(request.resource.data.role)
+          )
         );
 
       allow update: if isSuperAdmin()
@@ -102,9 +122,15 @@ service cloud.firestore {
         || (
           isOwner(userId)
           && request.resource.data.role == resource.data.role
+        )
+        // Dealers module: demote DEALER → marketplace role after deleting agency.
+        || (
+          hasPerm('dealers')
+          && resource.data.role == 'DEALER'
+          && request.resource.data.role in ['INDIVIDUAL', 'BUYER', 'HOUSE_OWNER']
         );
 
-      allow delete: if isOwner(userId) || hasPerm('users') || isSuperAdmin();
+      allow delete: if isOwner(userId) || hasPerm('users') || canPurgeData() || isSuperAdmin();
     }
 
     // Admin allow-list — own read for session; Super Admin may list/read for Staff UI via Admin SDK (writes client-blocked).
@@ -120,6 +146,7 @@ service cloud.firestore {
     match /properties/{propertyId} {
       allow read: if true;
 
+      // Owners: own draft/pending. Admins: any ownerUserId + any status (Publish Immediately).
       allow create: if canManageProperties()
         || (
           isSignedIn()
@@ -133,9 +160,7 @@ service cloud.firestore {
           && resource.data.ownerUserId == request.auth.uid
           && request.resource.data.ownerUserId == resource.data.ownerUserId
           && (
-            // New / resubmitted listings
             request.resource.data.status in ['DRAFT', 'PENDING_APPROVAL']
-            // Live edit of an already-published listing (status must stay the same)
             || (
               resource.data.status in ['PUBLISHED', 'RESERVED']
               && request.resource.data.status == resource.data.status
@@ -144,6 +169,7 @@ service cloud.firestore {
         );
 
       allow delete: if canManageProperties()
+        || canPurgeData()
         || (
           isSignedIn()
           && resource.data.ownerUserId == request.auth.uid
@@ -155,12 +181,12 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.buyerId == request.auth.uid;
 
-      allow read: if hasPerm('inquiries') || hasPerm('reports') || isSuperAdmin()
+      allow read: if hasPerm('inquiries') || hasPerm('reports') || canPurgeData() || isSuperAdmin()
         || (isSignedIn() && resource.data.buyerId == request.auth.uid);
 
       allow update: if hasPerm('inquiries') || isSuperAdmin();
 
-      allow delete: if hasPerm('inquiries') || isSuperAdmin()
+      allow delete: if hasPerm('inquiries') || canPurgeData() || isSuperAdmin()
         || (isSignedIn() && resource.data.buyerId == request.auth.uid);
     }
 
@@ -205,7 +231,7 @@ service cloud.firestore {
           isSignedIn()
           && request.resource.data.dealerUserId == request.auth.uid
         );
-      allow update: if hasPerm('dealers') || isSuperAdmin()
+      allow update: if hasPerm('dealers') || canPurgeData() || isSuperAdmin()
         || (
           isSignedIn()
           && resource.data.dealerUserId == request.auth.uid
@@ -215,7 +241,7 @@ service cloud.firestore {
     }
 
     match /transactions/{id} {
-      allow read: if hasPerm('commissions') || hasPerm('reports') || isSuperAdmin()
+      allow read: if hasPerm('commissions') || hasPerm('reports') || canPurgeData() || isSuperAdmin()
         || (
           isSignedIn()
           && resource.data.developerId is string
@@ -224,7 +250,7 @@ service cloud.firestore {
             == request.auth.uid
         );
       allow create, delete: if hasPerm('commissions') || isSuperAdmin();
-      allow update: if hasPerm('commissions') || isSuperAdmin()
+      allow update: if hasPerm('commissions') || canPurgeData() || isSuperAdmin()
         || (
           isSignedIn()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dealerDeleted'])

@@ -442,6 +442,13 @@ export type UpsertPropertyOptions = {
   imageFiles?: (File | Blob | null | undefined)[];
   /** Called as each photo upload starts (1-based index). */
   onPhotoProgress?: (current: number, total: number) => void;
+  /**
+   * Admin panel: after Storage uploads, persist via Admin SDK API so
+   * on-behalf ownerUserId writes never hit client security-rule gaps.
+   */
+  adminWrite?: {
+    getIdToken: () => Promise<string | null>;
+  };
 };
 
 export async function upsertProperty(
@@ -485,6 +492,31 @@ export async function upsertProperty(
   }
 
   const next = { ...property, images };
+
+  // Admin panel: persist via Admin SDK so on-behalf ownerUserId never hits rules gaps.
+  if (options?.adminWrite) {
+    const { adminApiJson } = await import("@/lib/admin/admin-api");
+    try {
+      const result = await withTimeout(
+        adminApiJson<{ property?: Property }>(options.adminWrite.getIdToken, "/api/admin/properties", {
+          method: "PUT",
+          body: JSON.stringify({ property: next }),
+        }),
+        FIRESTORE_WRITE_TIMEOUT_MS,
+        "Property save",
+      );
+      return result.property ? { ...next, ...result.property, images: result.property.images ?? next.images } : next;
+    } catch (error) {
+      const err = error as { code?: string; message?: string };
+      console.error(`[upsertProperty:${property.id}] Admin API write failed`, {
+        code: err?.code,
+        message: err?.message,
+        imageCount: images.length,
+      });
+      throw error;
+    }
+  }
+
   const ref = doc(db, COLLECTION, property.id);
   const existing = await getDoc(ref);
   const payload = toFirestorePayload(next);

@@ -151,7 +151,8 @@ function isPublicMarketplaceStatus(status: Property["status"]) {
  * Mixing these incorrectly will hide pending listings from owners or leak drafts to the public.
  */
 export function MockStoreProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated: isAdminSession, isReady: adminAuthReady } = useAdminAuth();
+  const { isAuthenticated: isAdminSession, isReady: adminAuthReady, getIdToken, hasModule, isSuperAdmin } =
+    useAdminAuth();
   const { user } = useMockAuth();
   // While an admin panel session is active, do not also pull the marketplace user's owned query.
   const marketplaceUserId = isAdminSession ? null : (user?.id ?? null);
@@ -251,6 +252,17 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const canReadInquiries =
+      isSuperAdmin || hasModule("inquiries") || hasModule("reports") || hasModule("deletion");
+    if (!canReadInquiries) {
+      setUsingFirestoreInquiries(false);
+      setInquiriesLoading(false);
+      setInquiryState([]);
+      setInquiriesError(null);
+      setInquiriesReady(true);
+      return;
+    }
+
     let cancelled = false;
 
     setInquiriesLoading(true);
@@ -336,7 +348,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       stop();
     };
-  }, [isAdminSession, adminAuthReady]);
+  }, [isAdminSession, adminAuthReady, hasModule, isSuperAdmin]);
 
   // Admin: full inventory. Public: PUBLISHED/RESERVED only (capped).
   useEffect(() => {
@@ -496,6 +508,20 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const canReadUsers =
+      isSuperAdmin ||
+      hasModule("users") ||
+      hasModule("reports") ||
+      hasModule("dealers") ||
+      hasModule("properties") ||
+      hasModule("submissions") ||
+      hasModule("deletion");
+    if (!canReadUsers) {
+      setUsingFirestoreUsers(false);
+      setUsers([]);
+      return;
+    }
+
     const stop = whenFirebaseUserReady(
       () => {
         let active = true;
@@ -521,7 +547,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     );
 
     return () => stop();
-  }, [isAdminSession, adminAuthReady]);
+  }, [isAdminSession, adminAuthReady, hasModule, isSuperAdmin]);
 
   const addProperty = useCallback(async (property: Property, options?: UpsertPropertyOptions) => {
     if (isAdminSessionRef.current) {
@@ -544,8 +570,13 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
 
     if (!isFirebaseConfigured()) return;
 
+    const writeOpts: UpsertPropertyOptions = {
+      ...options,
+      ...(isAdminSessionRef.current ? { adminWrite: { getIdToken } } : {}),
+    };
+
     try {
-      const saved = await upsertProperty(property, options);
+      const saved = await upsertProperty(property, writeOpts);
       if (isAdminSessionRef.current) {
         adminPropertiesRef.current = adminPropertiesRef.current.map((item) =>
           item.id === property.id ? saved : item,
@@ -574,7 +605,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       setProperties((current) => current.filter((item) => item.id !== property.id));
       throw error;
     }
-  }, []);
+  }, [getIdToken]);
 
   const updateProperty = useCallback(async (id: string, patch: Partial<Property>, options?: UpsertPropertyOptions) => {
     let merged: Property | undefined;
@@ -637,8 +668,13 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
 
     if (!isFirebaseConfigured()) return;
 
+    const writeOpts: UpsertPropertyOptions = {
+      ...options,
+      ...(isAdminSessionRef.current ? { adminWrite: { getIdToken } } : {}),
+    };
+
     try {
-      const saved = await upsertProperty(merged, options);
+      const saved = await upsertProperty(merged, writeOpts);
       if (isAdminSessionRef.current) {
         adminPropertiesRef.current = adminPropertiesRef.current.map((item) =>
           item.id === id ? saved : item,
@@ -670,7 +706,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       toast.error(firestoreErrorMessage(error, "Could not update property in Firestore."));
       throw error;
     }
-  }, []);
+  }, [getIdToken]);
 
   const deleteProperty = useCallback(async (id: string) => {
     adminPropertiesRef.current = adminPropertiesRef.current.filter((item) => item.id !== id);
@@ -829,19 +865,35 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     });
     if (isFirebaseConfigured()) {
       try {
-        await createUserDoc(user.id, {
-          fullName: user.fullName,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          avatarUrl: user.avatarUrl,
-        });
+        if (isAdminSessionRef.current) {
+          const { adminApiJson } = await import("@/lib/admin/admin-api");
+          await adminApiJson(getIdToken, "/api/admin/users", {
+            method: "POST",
+            body: JSON.stringify({
+              id: user.id,
+              fullName: user.fullName,
+              email: user.email,
+              phone: user.phone,
+              role: user.role,
+              avatarUrl: user.avatarUrl,
+            }),
+          });
+        } else {
+          await createUserDoc(user.id, {
+            fullName: user.fullName,
+            email: user.email,
+            phone: user.phone,
+            role: user.role,
+            avatarUrl: user.avatarUrl,
+          });
+        }
       } catch (error) {
         console.error(error);
         toast.error("Could not save user profile to Firestore.");
+        throw error;
       }
     }
-  }, []);
+  }, [getIdToken]);
 
   const value = useMemo(
     () => ({

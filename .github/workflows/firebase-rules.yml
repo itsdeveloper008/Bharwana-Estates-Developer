@@ -1,0 +1,43 @@
+name: Deploy Firebase Rules
+
+# Vercel only ships the Next.js app — Firestore/Storage rules do NOT auto-deploy
+# with git push. This workflow publishes firestore.rules + storage.rules whenever
+# they change on main (or when run manually).
+#
+# One-time setup:
+#   firebase login:ci
+#   → add the token as GitHub secret FIREBASE_TOKEN
+#   → Settings → Secrets and variables → Actions
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "firestore.rules"
+      - "storage.rules"
+      - "firebase.json"
+      - ".github/workflows/firebase-rules.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools@13
+
+      - name: Deploy Firestore + Storage rules
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "::error::FIREBASE_TOKEN secret is missing. Run firebase login:ci and add the token as a repo secret."
+            exit 1
+          fi
+          firebase deploy --only firestore:rules,storage --project bharwana-estate-developer --non-interactive --token "$FIREBASE_TOKEN"

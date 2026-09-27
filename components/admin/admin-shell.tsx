@@ -141,28 +141,43 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
     }
     const stop = whenFirebaseUserReady(() => {
       let active = true;
-      const unsubNewsletter = subscribeNewsletterSignups(
-        (next) => {
-          if (!active) return;
-          setNewsletterSignups(next);
-        },
-        (error) => console.error("Newsletter badge subscription failed", error),
-      );
-      const unsubDeletion = subscribeDeletionRequests(
-        (next) => {
-          if (!active) return;
-          setDeletionRequests(next);
-        },
-        (error) => console.error("Deletion badge subscription failed", error),
-      );
+      const unsubs: Array<(() => void) | undefined> = [];
+
+      if (isSuperAdmin || hasModule("newsletter")) {
+        unsubs.push(
+          subscribeNewsletterSignups(
+            (next) => {
+              if (!active) return;
+              setNewsletterSignups(next);
+            },
+            (error) => console.error("Newsletter badge subscription failed", error),
+          ) ?? undefined,
+        );
+      } else {
+        setNewsletterSignups([]);
+      }
+
+      if (isSuperAdmin || hasModule("deletion")) {
+        unsubs.push(
+          subscribeDeletionRequests(
+            (next) => {
+              if (!active) return;
+              setDeletionRequests(next);
+            },
+            (error) => console.error("Deletion badge subscription failed", error),
+          ) ?? undefined,
+        );
+      } else {
+        setDeletionRequests([]);
+      }
+
       return () => {
         active = false;
-        unsubNewsletter?.();
-        unsubDeletion?.();
+        unsubs.forEach((u) => u?.());
       };
     });
     return () => stop();
-  }, [admin?.uid]);
+  }, [admin?.uid, hasModule, isSuperAdmin]);
 
   const badgeCounts = useMemo(() => {
     void viewTick;

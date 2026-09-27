@@ -51,12 +51,16 @@ npm run admin:grant          # grant panel access
 npm run phone-auth:diagnose
 ```
 
-Deploy rules from the repo when they change:
+Deploy rules from the repo when they change (**Vercel does not publish Firebase rules**):
 
 ```bash
-firebase deploy --only firestore:rules,storage
+npm run deploy:rules
+# or: firebase deploy --only firestore:rules,storage
 ```
 
+On `main`, `.github/workflows/firebase-rules.yml` also deploys rules when
+`firestore.rules` / `storage.rules` change — requires a `FIREBASE_TOKEN`
+GitHub secret from `firebase login:ci`.
 ## Architecture
 
 ### Auth (two systems on purpose)

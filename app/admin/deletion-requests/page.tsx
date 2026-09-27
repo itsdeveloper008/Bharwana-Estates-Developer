@@ -34,7 +34,7 @@ import { formatUserRole } from "@/lib/user-role";
 
 export default function AdminDeletionRequestsPage() {
   useMarkAdminModuleViewed("deletion");
-  const { isReady, isAuthenticated } = useAdminAuth();
+  const { isReady, isAuthenticated, getIdToken } = useAdminAuth();
   const { properties, inquiries, developers, deleteProperty, removeInquiry } = useMockStore();
   const [requests, setRequests] = useState<DeletionRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,7 +92,15 @@ export default function AdminDeletionRequestsPage() {
   async function processRequest(request: DeletionRequest) {
     setProcessingId(request.id);
     try {
-      await purgeUserOwnedData(request.uid);
+      if (isFirebaseConfigured()) {
+        const { adminApiJson } = await import("@/lib/admin/admin-api");
+        await adminApiJson(getIdToken, "/api/admin/deletion/purge", {
+          method: "POST",
+          body: JSON.stringify({ uid: request.uid }),
+        });
+      } else {
+        await purgeUserOwnedData(request.uid);
+      }
       await updateDeletionRequestStatus(request.id, "PROCESSED");
       toast.success(
         `Firestore data for ${request.email} removed. Auth account removal still needs Admin SDK / Cloud Function - finish in Firebase Console or the next backend pass within the 30-day window.`,
