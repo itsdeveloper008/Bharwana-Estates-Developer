@@ -28,7 +28,13 @@ service cloud.firestore {
     }
 
     function adminActive() {
-      return adminDocExists() && adminDoc().active != false;
+      // Missing `active` must default to true — accessing .active when undefined
+      // aborts the whole rule with "Property active is undefined" (DENY).
+      return adminDocExists()
+        && (
+          !('active' in adminDoc())
+          || adminDoc().active != false
+        );
     }
 
     /** Legacy marketplace ADMIN users (users.role) are treated as Super Admin. */
@@ -41,6 +47,7 @@ service cloud.firestore {
         isLegacySuperAdmin()
         || (
           adminActive()
+          // Anything other than explicit staff is Super Admin (super_admin, ADMIN, missing).
           && adminDoc().role != 'staff'
         )
       );
