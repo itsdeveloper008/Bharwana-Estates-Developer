@@ -175,7 +175,8 @@ export default function AdminReportsPage() {
         <p className="type-eyebrow">Analytics</p>
         <h1 className="font-serif text-3xl text-forest">Reports</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Download PDF summaries by category and date range. Sales and Commissions will appear here
+          Download PDF summaries by category and date range. Sales reports will appear here
+          when transaction close-out is wired.
           once deal transactions are stored in Firestore.
         </p>
       </div>

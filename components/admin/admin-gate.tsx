@@ -16,7 +16,6 @@ function firstAllowedPath(
     { module: "submissions", href: "/admin/submissions" },
     { module: "properties", href: "/admin/properties" },
     { module: "dealers", href: "/admin/developers" },
-    { module: "commissions", href: "/admin/commissions" },
     { module: "inquiries", href: "/admin/inquiries" },
     { module: "newsletter", href: "/admin/newsletter" },
     { module: "team", href: "/admin/team" },

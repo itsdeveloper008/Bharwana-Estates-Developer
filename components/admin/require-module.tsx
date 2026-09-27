@@ -16,7 +16,6 @@ export function moduleForAdminPath(pathname: string): AdminModule | "staff" | nu
   if (pathname.startsWith("/admin/submissions")) return "submissions";
   if (pathname.startsWith("/admin/properties")) return "properties";
   if (pathname.startsWith("/admin/developers")) return "dealers";
-  if (pathname.startsWith("/admin/commissions")) return "commissions";
   if (pathname.startsWith("/admin/inquiries")) return "inquiries";
   if (pathname.startsWith("/admin/newsletter")) return "newsletter";
   if (pathname.startsWith("/admin/team")) return "team";
@@ -32,7 +31,6 @@ function firstAllowedHref(hasModule: (m: AdminModule) => boolean, isSuperAdmin: 
     "submissions",
     "properties",
     "dealers",
-    "commissions",
     "inquiries",
     "newsletter",
     "team",

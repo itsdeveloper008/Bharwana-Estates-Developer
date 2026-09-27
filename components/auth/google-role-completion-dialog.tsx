@@ -81,6 +81,7 @@ export function GoogleRoleCompletionDialog({
   const [phone, setPhone] = useState("");
   const [agencyName, setAgencyName] = useState("");
   const [registrationNumber, setRegistrationNumber] = useState("");
+  const [commissionRatePercent, setCommissionRatePercent] = useState("2.5");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -95,6 +96,7 @@ export function GoogleRoleCompletionDialog({
     );
     setAgencyName("");
     setRegistrationNumber("");
+    setCommissionRatePercent("2.5");
     setError(null);
     setRole("INDIVIDUAL");
   }, [open, draft, requireFullName]);
@@ -136,6 +138,13 @@ export function GoogleRoleCompletionDialog({
       setError("Enter a valid 13-digit CNIC (e.g. 34201-1234567-1).");
       return;
     }
+    if (role === "DEALER") {
+      const pct = Number.parseFloat(commissionRatePercent);
+      if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+        setError("Enter a commission rate between 0 and 100%.");
+        return;
+      }
+    }
     setError(null);
     setPending(true);
     try {
@@ -158,11 +167,16 @@ export function GoogleRoleCompletionDialog({
       }
       if (role === "DEALER") {
         try {
+          const pct = Number.parseFloat(commissionRatePercent);
+          const commissionRate =
+            Number.isFinite(pct) && pct >= 0 && pct <= 100
+              ? pct / 100
+              : DEFAULT_DEALER_COMMISSION_RATE;
           await addDeveloper({
             id: `d-${result.user.id}`,
             companyName: normalizedAgency,
             contactPerson: resolvedName || draft.fullName,
-            commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
+            commissionRate,
             dealerUserId: result.user.id,
             status: "PENDING_REVIEW",
             origin: "SELF_REGISTERED",
@@ -273,6 +287,21 @@ export function GoogleRoleCompletionDialog({
                   placeholder="e.g. 34201-1234567-1"
                   value={registrationNumber}
                   onChange={(event) => setRegistrationNumber(formatPakistanCnic(event.target.value))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="google-commission">Commission rate (%)</Label>
+                <Input
+                  id="google-commission"
+                  className="bg-white"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  placeholder="e.g. 2.5"
+                  value={commissionRatePercent}
+                  onChange={(event) => setCommissionRatePercent(event.target.value)}
                 />
               </div>
             </div>

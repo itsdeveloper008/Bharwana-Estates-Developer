@@ -83,7 +83,7 @@ export function AdminLoginForm() {
                       autoCorrect="off"
                       autoCapitalize="none"
                       spellCheck={false}
-                      placeholder=""
+                      placeholder="Email"
                       readOnly={!emailUnlocked}
                       onFocus={() => setEmailUnlocked(true)}
                       value={field.value ?? ""}

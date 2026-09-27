@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
 import { AdminSearchInput } from "@/components/admin/admin-search-input";
 import { DealerDetailModal } from "@/components/admin/dealer-detail-modal";
+import { CommissionRateEditor } from "@/components/commission/commission-rate-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
@@ -31,8 +31,7 @@ import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 import { buildDeveloperStatusChangePatch } from "@/lib/developer-status";
 import { ensureSelfRegisteredDealer } from "@/lib/firestore/developers";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
-import { formatCommissionRate } from "@/lib/format";
-import { sumCommission, useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store";
 import { truncateText } from "@/lib/truncate";
 import { displayUserEmail } from "@/lib/user-display";
 import type { Developer, DeveloperOrigin } from "@/lib/types";
@@ -46,7 +45,6 @@ export default function AdminDevelopersPage() {
   const {
     properties,
     developers,
-    transactions,
     users,
     usingFirestoreDevelopers,
     updateDeveloper,
@@ -54,8 +52,6 @@ export default function AdminDevelopersPage() {
   } = useMockStore();
   const [filter, setFilter] = useState<Filter>("ALL");
   const [query, setQuery] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [rateDraft, setRateDraft] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectTargetId, setRejectTargetId] = useState<string | null>(null);
@@ -122,22 +118,6 @@ export default function AdminDevelopersPage() {
     ? users.find((user) => user.id === selected.dealerUserId)
     : undefined;
   const rejectTarget = developers.find((developer) => developer.id === rejectTargetId) ?? null;
-
-  function startEdit(developer: Developer) {
-    setEditingId(developer.id);
-    setRateDraft((developer.commissionRate * 100).toFixed(1));
-  }
-
-  async function saveRate(developer: Developer) {
-    const pct = Number.parseFloat(rateDraft);
-    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
-      toast.error("Enter a rate between 0 and 100%");
-      return;
-    }
-    await updateDeveloper(developer.id, { commissionRate: pct / 100 });
-    toast.success(`Commission rate updated for ${developer.companyName} (future closes only).`);
-    setEditingId(null);
-  }
 
   async function approveDealer(developer: Developer) {
     await updateDeveloper(
@@ -238,7 +218,7 @@ export default function AdminDevelopersPage() {
               <TableHead>Contact</TableHead>
               <TableHead>Origin</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Commission</TableHead>
+              <TableHead className="text-right">Commission rate</TableHead>
               <TableHead className="w-40" />
             </TableRow>
           </TableHeader>
@@ -246,10 +226,6 @@ export default function AdminDevelopersPage() {
             {filtered.map((developer) => {
               const linked = properties.filter((property) => property.developerId === developer.id)
                 .length;
-              const pendingCommission = sumCommission(
-                transactions.filter((tx) => tx.developerId === developer.id),
-                ["PENDING", "INVOICED"],
-              );
               const originLabel: Record<DeveloperOrigin, string> = {
                 ADMIN: "Admin-added",
                 SELF_REGISTERED: "Self-registered",
@@ -280,36 +256,13 @@ export default function AdminDevelopersPage() {
                     className="text-right"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    {editingId === developer.id ? (
-                      <div className="flex items-center justify-end gap-2">
-                        <Input
-                          className="h-8 w-20 bg-white text-right"
-                          value={rateDraft}
-                          onChange={(event) => setRateDraft(event.target.value)}
-                          aria-label="Commission percent"
-                        />
-                        <span className="text-xs text-muted-foreground">%</span>
-                        <Button size="sm" type="button" onClick={() => void saveRate(developer)}>
-                          Save
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          type="button"
-                          onClick={() => setEditingId(null)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="text-sm text-forest underline-offset-4 hover:underline"
-                        onClick={() => startEdit(developer)}
-                      >
-                        {formatCommissionRate(developer.commissionRate)}
-                      </button>
-                    )}
+                    <CommissionRateEditor
+                      compact
+                      rate={developer.commissionRate}
+                      onSave={async (nextRate) => {
+                        await updateDeveloper(developer.id, { commissionRate: nextRate });
+                      }}
+                    />
                   </TableCell>
                   <TableCell onClick={(event) => event.stopPropagation()}>
                     <div className="flex flex-wrap items-center justify-end gap-2">
@@ -332,12 +285,8 @@ export default function AdminDevelopersPage() {
                       <ConfirmDeleteButton
                         label={developer.companyName}
                         description={
-                          linked > 0 || pendingCommission > 0
-                            ? `This dealer has ${linked} linked ${linked === 1 ? "property" : "properties"}${
-                                pendingCommission > 0
-                                  ? " and outstanding commission"
-                                  : ""
-                              }. Deleting removes the dealer profile and demotes their login so they cannot reappear. Are you sure?`
+                          linked > 0
+                            ? `This dealer has ${linked} linked ${linked === 1 ? "property" : "properties"}. Deleting removes the dealer profile and demotes their login so they cannot reappear. Are you sure?`
                             : "Deletes the dealer profile and demotes their login account. This cannot be undone."
                         }
                         onConfirm={async () => {
@@ -370,16 +319,12 @@ export default function AdminDevelopersPage() {
             ? properties.filter((property) => property.developerId === selected.id).length
             : 0
         }
-        pendingCommission={
-          selected
-            ? sumCommission(
-                transactions.filter((tx) => tx.developerId === selected.id),
-                ["PENDING", "INVOICED"],
-              )
-            : 0
-        }
         open={Boolean(selected)}
         onOpenChange={(open) => !open && setSelectedId(null)}
+        onSaveCommissionRate={async (nextRate) => {
+          if (!selected) return;
+          await updateDeveloper(selected.id, { commissionRate: nextRate });
+        }}
       />
 
       <Dialog

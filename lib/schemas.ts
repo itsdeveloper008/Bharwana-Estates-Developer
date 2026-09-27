@@ -181,6 +181,8 @@ export const registerSchema = z
     role: z.enum(["INDIVIDUAL", "DEALER"]),
     agencyName: z.string().optional(),
     registrationNumber: z.string().optional(),
+    /** Percent 0–100; converted to fraction when saving the dealer doc. */
+    commissionRatePercent: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.role !== "DEALER") return;
@@ -208,6 +210,15 @@ export const registerSchema = z
         code: z.ZodIssueCode.custom,
         message: "Enter a valid 13-digit CNIC (e.g. 34201-1234567-1)",
         path: ["registrationNumber"],
+      });
+    }
+    const pctRaw = data.commissionRatePercent?.trim() ?? "";
+    const pct = Number.parseFloat(pctRaw);
+    if (!pctRaw || !Number.isFinite(pct) || pct < 0 || pct > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter a commission rate between 0 and 100%",
+        path: ["commissionRatePercent"],
       });
     }
   });

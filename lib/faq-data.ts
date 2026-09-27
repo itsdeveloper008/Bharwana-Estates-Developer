@@ -73,19 +73,19 @@ export const faqCategories: FaqCategory[] = [
         id: "dealer-commission",
         question: "How does commission work?",
         answer:
-          "Registered dealers carry an agreed commission rate on verified inventory. When a transaction closes through a Bharwana-tracked inquiry, the rate snapshotted at close applies. Your dealer dashboard shows pending and settled commission entries.",
+          "Registered dealers set a commission rate when they create their account. Admin and the dealer can both view and update that same rate on the dealer profile. It is the shared rate for your agency relationship with Bharwana.",
       },
       {
         id: "dealer-register",
         question: "How do I register as a Dealer?",
         answer:
-          "Choose Dealer during account registration and provide your agency details. New dealer accounts enter a pending review state until Bharwana approves the profile. You can prepare listings while pending, but publication may wait on account approval.",
+          "Choose Dealer during account registration and provide your agency details and commission rate. New dealer accounts enter a pending review state until Bharwana approves the profile. You can prepare listings while pending, but publication may wait on account approval.",
       },
       {
         id: "dealer-payment",
-        question: "When do I get paid?",
+        question: "Where do I see my commission rate?",
         answer:
-          "Commission moves through pending, invoiced, and paid states in the admin commissions panel. Payout timing follows the agreement recorded when your dealer profile was activated.",
+          "Open Dealer Desk → Settings to view or update your commission rate. The same value appears on the Admin Dealers page and stays in sync when either side saves a change.",
       },
     ],
   },

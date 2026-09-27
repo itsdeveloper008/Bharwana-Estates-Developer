@@ -547,6 +547,7 @@ export function RegisterForm() {
       role: "INDIVIDUAL",
       agencyName: "",
       registrationNumber: "",
+      commissionRatePercent: "2.5",
     },
   });
 
@@ -577,11 +578,16 @@ export function RegisterForm() {
 
       if (values.role === "DEALER") {
         try {
+          const pct = Number.parseFloat(values.commissionRatePercent ?? "2.5");
+          const commissionRate =
+            Number.isFinite(pct) && pct >= 0 && pct <= 100
+              ? pct / 100
+              : DEFAULT_DEALER_COMMISSION_RATE;
           await addDeveloper({
             id: `d-${result.user.id}`,
             companyName: normalizeAgencyName(values.agencyName ?? ""),
             contactPerson: normalizePersonName(values.fullName),
-            commissionRate: DEFAULT_DEALER_COMMISSION_RATE,
+            commissionRate,
             dealerUserId: result.user.id,
             status: "PENDING_REVIEW",
             origin: "SELF_REGISTERED",
@@ -621,6 +627,7 @@ export function RegisterForm() {
               fieldErrors.password?.message ||
               fieldErrors.agencyName?.message ||
               fieldErrors.registrationNumber?.message ||
+              fieldErrors.commissionRatePercent?.message ||
               "Please fix the highlighted fields and try again.";
             setError(first);
           })}
@@ -761,8 +768,37 @@ export function RegisterForm() {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="commissionRatePercent"
+                render={({ field, fieldState }) => (
+                  <FormItem className="space-y-1">
+                    <FormLabel>Commission rate (%)</FormLabel>
+                    <FormControl>
+                      <Input
+                        className={cn(
+                          "h-10 bg-white",
+                          fieldState.error && "border-destructive focus-visible:ring-destructive",
+                        )}
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        placeholder="e.g. 2.5"
+                        value={field.value ?? ""}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <p className="text-xs leading-relaxed text-muted-foreground">
-                Dealer accounts list under Bharwana&apos;s standard commission structure. Your account will be
+                Set the commission rate Admin and your dealer desk will share. Your account will be
                 reviewed before your first listing is approved.
               </p>
             </div>

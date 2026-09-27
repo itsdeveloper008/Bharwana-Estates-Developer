@@ -46,7 +46,6 @@ import { properties as seedPropertiesList } from "@/lib/mock-data/properties";
 import { transactions as seedTransactions } from "@/lib/mock-data/transactions";
 import { users as seedUsers } from "@/lib/mock-data/users";
 import type {
-  CommissionStatus,
   Developer,
   Inquiry,
   InquiryStatus,
@@ -965,13 +964,4 @@ export function useMockStore() {
     throw new Error("useMockStore must be used within MockStoreProvider");
   }
   return context;
-}
-
-export function sumCommission(
-  items: Transaction[],
-  statuses?: CommissionStatus[],
-): number {
-  return items
-    .filter((tx) => !statuses || statuses.includes(tx.commissionStatus))
-    .reduce((sum, tx) => sum + tx.commissionAmount, 0);
 }

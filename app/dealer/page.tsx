@@ -6,52 +6,33 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CommissionRateEditor } from "@/components/commission/commission-rate-editor";
 import { DealerResubmitDialog } from "@/components/dealers/dealer-resubmit-dialog";
 import {
   SellerListingActions,
   SellerRejectionNotice,
 } from "@/components/properties/seller-listing-status";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  commissionStatusLabel,
-  formatCommissionRate,
-  formatDate,
-  formatPrice,
-  formatPriceFull,
-  inquiryChannelLabel,
-} from "@/lib/format";
+import { formatDate, formatPrice, inquiryChannelLabel } from "@/lib/format";
 import { useMockAuth } from "@/lib/mock-auth";
 import { markListingsViewed } from "@/lib/listings-notifications";
 import { markDealerAccountViewed } from "@/lib/dealer-notifications";
 import { ensureSelfRegisteredDealer } from "@/lib/firestore/developers";
 import { getUserDoc } from "@/lib/firestore/users";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
-import { sumCommission, useMockStore } from "@/lib/mock-store";
-import type { CommissionStatus } from "@/lib/types";
+import { useMockStore } from "@/lib/mock-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-type Tab = "listings" | "leads" | "commission";
-
-function commissionBadgeClass(status: CommissionStatus) {
-  if (status === "PENDING") return "border-amber-600/30 bg-amber-50 text-amber-900";
-  if (status === "INVOICED") return "border-sky-700/25 bg-sky-50 text-sky-900";
-  return "border-emerald-700/25 bg-emerald-50 text-emerald-900";
-}
+type Tab = "listings" | "leads" | "settings";
 
 function DealerDashboard() {
   const { user } = useMockAuth();
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") === "commission" ? "commission" : "listings";
-  const { properties, inquiries, transactions, getDeveloperForUser, updateDeveloper } =
-    useMockStore();
+  const initialTab =
+    searchParams.get("tab") === "settings" || searchParams.get("tab") === "commission"
+      ? "settings"
+      : "listings";
+  const { properties, inquiries, getDeveloperForUser, updateDeveloper } = useMockStore();
   const [tab, setTab] = useState<Tab>(initialTab);
   const [resubmitOpen, setResubmitOpen] = useState(false);
 
@@ -67,15 +48,6 @@ function DealerDashboard() {
   );
   const mineIds = mine.map((property) => property.id);
   const myInquiries = inquiries.filter((inquiry) => mineIds.includes(inquiry.propertyId));
-  const myTransactions = useMemo(
-    () => (developer ? transactions.filter((tx) => tx.developerId === developer.id) : []),
-    [transactions, developer],
-  );
-
-  const totalOwed = sumCommission(myTransactions);
-  const pendingAmount = sumCommission(myTransactions, ["PENDING"]);
-  const invoicedAmount = sumCommission(myTransactions, ["INVOICED"]);
-  const paidAmount = sumCommission(myTransactions, ["PAID"]);
 
   useEffect(() => {
     if (user?.id && tab === "listings") markListingsViewed(user.id);
@@ -113,7 +85,7 @@ function DealerDashboard() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "listings", label: "My Listings" },
     { id: "leads", label: "My Leads" },
-    { id: "commission", label: "Commission" },
+    { id: "settings", label: "Settings" },
   ];
 
   return (
@@ -269,81 +241,27 @@ function DealerDashboard() {
         </div>
       )}
 
-      {tab === "commission" && (
-        <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="border border-forest/10 bg-white p-5">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                Total commission
-              </p>
-              <p className="mt-2 font-serif text-2xl text-forest">{formatPriceFull(totalOwed)}</p>
-            </div>
-            <div className="border border-forest/10 bg-white p-5">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                Pending + invoiced
-              </p>
-              <p className="mt-2 font-serif text-2xl text-amber-900">
-                {formatPriceFull(pendingAmount + invoicedAmount)}
-              </p>
-            </div>
-            <div className="border border-forest/10 bg-white p-5">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Paid</p>
-              <p className="mt-2 font-serif text-2xl text-emerald-900">{formatPriceFull(paidAmount)}</p>
-            </div>
+      {tab === "settings" && (
+        <div className="max-w-lg space-y-6 border border-forest/10 bg-white p-6">
+          <div>
+            <h3 className="font-serif text-xl text-forest">Agency settings</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your commission rate is shared with Bharwana Admin. Changes here update the same
+              field Admin sees on Dealers — no refresh needed on either side.
+            </p>
           </div>
-
-          <p className="text-sm text-muted-foreground">
-            Read-only. Commission status is updated by Bharwana Admin.
-            {developer
-              ? ` Your rate: ${formatCommissionRate(developer.commissionRate)} (future closes).`
-              : ""}
-          </p>
-
-          <div className="overflow-x-auto border border-forest/10">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Property</TableHead>
-                  <TableHead>Final sale</TableHead>
-                  <TableHead>Rate</TableHead>
-                  <TableHead>Commission</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Closed</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {myTransactions.map((tx) => {
-                  const property = properties.find((item) => item.id === tx.propertyId);
-                  return (
-                    <TableRow key={tx.id}>
-                      <TableCell className="font-medium">{property?.title ?? tx.propertyId}</TableCell>
-                      <TableCell>{formatPriceFull(tx.finalPrice)}</TableCell>
-                      <TableCell>{formatCommissionRate(tx.commissionRate)}</TableCell>
-                      <TableCell>{formatPriceFull(tx.commissionAmount)}</TableCell>
-                      <TableCell>
-                        <span
-                          className={cn(
-                            "inline-flex border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em]",
-                            commissionBadgeClass(tx.commissionStatus),
-                          )}
-                        >
-                          {commissionStatusLabel(tx.commissionStatus)}
-                        </span>
-                      </TableCell>
-                      <TableCell>{formatDate(tx.closedAt)}</TableCell>
-                    </TableRow>
-                  );
-                })}
-                {myTransactions.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
-                      No closed deals yet.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          {developer ? (
+            <CommissionRateEditor
+              rate={developer.commissionRate}
+              onSave={async (nextRate) => {
+                await updateDeveloper(developer.id, { commissionRate: nextRate });
+              }}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Loading your dealer profile… If this persists, refresh the page.
+            </p>
+          )}
         </div>
       )}
     </div>

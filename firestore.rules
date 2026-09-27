@@ -240,15 +240,37 @@ service cloud.firestore {
         );
       allow update: if hasPerm('dealers') || canPurgeData() || isSuperAdmin()
         || (
+          // Own commission rate only (Admin ↔ Dealer synced field).
           isSignedIn()
           && resource.data.dealerUserId == request.auth.uid
           && request.resource.data.dealerUserId == resource.data.dealerUserId
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['commissionRate', 'updatedAt'])
+        )
+        || (
+          // Own profile resubmit — not commissionRate (handled above).
+          isSignedIn()
+          && resource.data.dealerUserId == request.auth.uid
+          && request.resource.data.dealerUserId == resource.data.dealerUserId
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly([
+                'companyName',
+                'contactPerson',
+                'registrationNumber',
+                'status',
+                'statusUpdatedAt',
+                'statusHistory',
+                'rejectionReason',
+                'rejectionEmailSentAt',
+                'rejectionEmailClaimedAt',
+                'updatedAt',
+              ])
         );
       allow delete: if hasPerm('dealers') || isSuperAdmin();
     }
 
     match /transactions/{id} {
-      allow read: if hasPerm('commissions') || hasPerm('reports') || canPurgeData() || isSuperAdmin()
+      allow read: if hasPerm('reports') || canPurgeData() || isSuperAdmin()
         || (
           isSignedIn()
           && resource.data.developerId is string
@@ -256,8 +278,8 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/developers/$(resource.data.developerId)).data.dealerUserId
             == request.auth.uid
         );
-      allow create, delete: if hasPerm('commissions') || isSuperAdmin();
-      allow update: if hasPerm('commissions') || canPurgeData() || isSuperAdmin()
+      allow create, delete: if isSuperAdmin();
+      allow update: if canPurgeData() || isSuperAdmin()
         || (
           isSignedIn()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dealerDeleted'])

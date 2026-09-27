@@ -203,7 +203,7 @@ export function Navbar() {
                 ? [
                     { href: "/dealer", label: "My Listings" },
                     { href: "/dealer/add-property", label: "Add Property" },
-                    { href: "/dealer?tab=commission", label: "Commission" },
+                    { href: "/dealer?tab=settings", label: "Settings" },
                   ]
                 : user.role === "SALES_REP"
                   ? [{ href: "/sales", label: "Pipeline" }]

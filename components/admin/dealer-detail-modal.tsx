@@ -7,8 +7,9 @@ import {
   AdminDetailPlaceholder,
   AdminDetailSection,
 } from "@/components/admin/admin-detail-modal";
+import { CommissionRateEditor } from "@/components/commission/commission-rate-editor";
 import { Badge } from "@/components/ui/badge";
-import { formatCommissionRate, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { displayUserEmail } from "@/lib/user-display";
 import type { Developer, DeveloperOrigin, User } from "@/lib/types";
 
@@ -21,16 +22,16 @@ export function DealerDetailModal({
   developer,
   linkedUser,
   linkedListings,
-  pendingCommission,
   open,
   onOpenChange,
+  onSaveCommissionRate,
 }: {
   developer: Developer | null;
   linkedUser?: User;
   linkedListings: number;
-  pendingCommission: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSaveCommissionRate?: (rate: number) => Promise<void>;
 }) {
   const [cached, setCached] = useState<Developer | null>(null);
 
@@ -77,9 +78,6 @@ export function DealerDetailModal({
                 <AdminDetailPlaceholder />
               )}
             </AdminDetailField>
-            <AdminDetailField label="Commission rate">
-              {formatCommissionRate(display.commissionRate)}
-            </AdminDetailField>
             <AdminDetailField label="Origin">{originLabel[display.origin]}</AdminDetailField>
             <AdminDetailField label="Registered">
               {display.createdAt ? formatDate(display.createdAt) : <AdminDetailPlaceholder />}
@@ -90,6 +88,16 @@ export function DealerDetailModal({
               </AdminDetailField>
             ) : null}
           </div>
+        </AdminDetailSection>
+
+        <AdminDetailSection title="Commission rate">
+          {onSaveCommissionRate ? (
+            <CommissionRateEditor rate={display.commissionRate} onSave={onSaveCommissionRate} />
+          ) : (
+            <AdminDetailField label="Rate">
+              {(display.commissionRate * 100).toFixed(1)}%
+            </AdminDetailField>
+          )}
         </AdminDetailSection>
 
         <AdminDetailSection title="Contact">
@@ -121,15 +129,7 @@ export function DealerDetailModal({
             <AdminDetailField label="Linked account">
               {linkedUser?.fullName || <AdminDetailPlaceholder>No linked user</AdminDetailPlaceholder>}
             </AdminDetailField>
-          </div>
-        </AdminDetailSection>
-
-        <AdminDetailSection title="Activity">
-          <div className="grid gap-4 sm:grid-cols-2">
             <AdminDetailField label="Linked listings">{linkedListings}</AdminDetailField>
-            <AdminDetailField label="Pending commission">
-              {pendingCommission > 0 ? pendingCommission.toLocaleString("en-PK") : "None"}
-            </AdminDetailField>
           </div>
         </AdminDetailSection>
       </div>

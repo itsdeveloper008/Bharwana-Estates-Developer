@@ -1,21 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, ClipboardCheck, Handshake, MessageSquare, Percent, UsersRound } from "lucide-react";
+import { Building2, ClipboardCheck, Handshake, MessageSquare, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatPriceFull } from "@/lib/format";
-import { sumCommission, useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store";
 import { useTeamStore } from "@/lib/team-store";
 
 export default function AdminDashboardPage() {
-  const { properties, inquiries, developers, transactions } = useMockStore();
+  const { properties, inquiries, developers } = useMockStore();
   const { members } = useTeamStore();
 
   const activeInquiries = inquiries.filter(
     (inquiry) => !["CLOSED_WON", "CLOSED_LOST"].includes(inquiry.status),
   ).length;
   const pendingSubmissions = properties.filter((property) => property.status === "PENDING_APPROVAL").length;
-  const outstandingCommission = sumCommission(transactions, ["PENDING", "INVOICED"]);
 
   const stats = [
     {
@@ -35,12 +33,6 @@ export default function AdminDashboardPage() {
       href: "/admin/inquiries",
       icon: MessageSquare,
       display: String(activeInquiries),
-    },
-    {
-      label: "Commission Outstanding",
-      href: "/admin/commissions",
-      icon: Percent,
-      display: formatPriceFull(outstandingCommission),
     },
     {
       label: "Team Members",
@@ -90,7 +82,7 @@ export default function AdminDashboardPage() {
             <Link href="/admin/submissions">Verification queue</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/admin/commissions">Commission report</Link>
+            <Link href="/admin/developers">Dealers</Link>
           </Button>
           <Button variant="outline" asChild>
             <Link href="/admin/inquiries">Inquiries</Link>

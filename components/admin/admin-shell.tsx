@@ -14,9 +14,8 @@ import {
   LogOut,
   Menu,
   MessageSquare,
-  Percent,
-  ShieldAlert,
   Mail,
+  ShieldAlert,
   UserCog,
   Users,
   UsersRound,
@@ -75,7 +74,6 @@ const navItems: NavItem[] = [
     module: "dealers",
     badgeModule: "dealers",
   },
-  { href: "/admin/commissions", label: "Commissions", icon: Percent, module: "commissions" },
   {
     href: "/admin/inquiries",
     label: "Inquiries",
