@@ -46,9 +46,6 @@ import { subscribeNewsletterSignups, type NewsletterSignup } from "@/lib/firesto
 import { useMockStore } from "@/lib/mock-store";
 import { cn } from "@/lib/utils";
 
-/** Sidebar brand green from Admin redesign spec. */
-const ADMIN_SIDEBAR = "#0F5132";
-
 type NavItem = {
   href: string;
   label: string;
@@ -92,18 +89,30 @@ const navItems: NavItem[] = [
 function AdminBrand({ compact = false }: { compact?: boolean }) {
   return (
     <Link href="/admin/dashboard" className="flex items-center gap-3">
-      <Image
-        src="/logo.png"
-        alt="Bharwana Estates"
-        width={compact ? 36 : 42}
-        height={compact ? 36 : 42}
-        className={cn("shrink-0 object-contain", compact ? "h-9 w-9" : "h-10 w-10")}
-      />
+      <span
+        className={cn(
+          "relative flex shrink-0 items-center justify-center rounded-full",
+          "ring-1 ring-[var(--admin-gold)]/45",
+          "shadow-[0_0_18px_-4px_rgba(212,175,55,0.45)]",
+          compact ? "h-9 w-9" : "h-10 w-10",
+        )}
+      >
+        <Image
+          src="/logo.png"
+          alt="Bharwana Estates"
+          width={compact ? 36 : 42}
+          height={compact ? 36 : 42}
+          className={cn(
+            "object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)]",
+            compact ? "h-9 w-9" : "h-10 w-10",
+          )}
+        />
+      </span>
       <div className="min-w-0">
-        <p className="font-serif text-[13px] font-semibold uppercase tracking-[0.14em] text-gold">
+        <p className="font-serif text-[13px] font-semibold uppercase tracking-[0.14em] text-[var(--admin-gold)]">
           Bharwana Admin
         </p>
-        <p className="mt-0.5 truncate text-[9px] font-medium uppercase tracking-[0.18em] text-gold/65">
+        <p className="mt-0.5 truncate text-[9px] font-medium uppercase tracking-[0.18em] text-[var(--admin-gold)]/80">
           Bharwana Estates Developers
         </p>
       </div>
@@ -230,19 +239,24 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             href={item.href}
             onClick={onNavigate}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+              "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
               active
-                ? "bg-gold/20 text-ivory"
-                : "text-ivory/80 hover:bg-white/5 hover:text-ivory",
+                ? "border border-[var(--admin-gold)]/35 bg-[var(--admin-sidebar-active)] text-[var(--admin-sidebar-fg)] shadow-[inset_0_0_0_1px_rgba(212,175,55,0.08)]"
+                : "border border-transparent text-[var(--admin-sidebar-fg)]/90 hover:bg-[var(--admin-sidebar-active)]/55 hover:text-[var(--admin-gold)]",
             )}
           >
             <item.icon
-              className={cn("h-4 w-4 shrink-0", active ? "text-gold" : "text-ivory/70")}
+              className={cn(
+                "h-4 w-4 shrink-0 transition-colors",
+                active
+                  ? "text-[var(--admin-gold)]"
+                  : "text-[var(--admin-sidebar-fg)]/80 group-hover:text-[var(--admin-gold)]",
+              )}
               strokeWidth={1.6}
             />
             <span className="flex-1 tracking-wide">{item.label}</span>
             {count > 0 ? (
-              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[10px] font-semibold text-forest">
+              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--admin-gold)] px-1.5 text-[10px] font-semibold text-[var(--admin-sidebar-bg)]">
                 {count > 99 ? "99+" : count}
               </span>
             ) : null}
@@ -250,7 +264,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         );
       })}
       {admin?.adminRole === "staff" && visible.length === 0 ? (
-        <p className="px-3 py-2 text-xs text-ivory/55">No modules assigned.</p>
+        <p className="px-3 py-2 text-xs text-[var(--admin-sidebar-fg)]/55">No modules assigned.</p>
       ) : null}
     </nav>
   );
@@ -266,25 +280,25 @@ function SidebarFooter({
   const { admin } = useAdminAuth();
 
   return (
-    <div className="space-y-3 border-t border-white/10 p-4">
+    <div className="space-y-3 border-t border-[var(--admin-sidebar-divider)] p-4">
       <div className="flex items-center gap-3">
-        <Avatar className="h-9 w-9 ring-1 ring-gold/50">
+        <Avatar className="h-9 w-9 ring-1 ring-[var(--admin-gold)]/50">
           <AvatarImage src={admin?.avatarUrl} />
-          <AvatarFallback className="bg-gold/20 text-xs font-semibold text-gold">
+          <AvatarFallback className="bg-[var(--admin-gold)]/20 text-xs font-semibold text-[var(--admin-gold)]">
             {admin?.fullName?.slice(0, 2).toUpperCase() ?? "BA"}
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-gold">
+          <p className="truncate text-sm font-medium text-[var(--admin-gold)]">
             {admin?.fullName ?? "Bharwana Admin"}
           </p>
-          <p className="truncate text-xs text-ivory/55">{admin?.email}</p>
+          <p className="truncate text-xs text-[var(--admin-sidebar-fg)]/55">{admin?.email}</p>
         </div>
       </div>
       <Button
         variant="outline"
         size="sm"
-        className="w-full justify-start gap-2 border-gold/50 bg-transparent text-gold hover:border-gold hover:bg-gold/10 hover:text-gold"
+        className="w-full justify-start gap-2 border-[var(--admin-gold)]/50 bg-transparent text-[var(--admin-gold)] hover:border-[var(--admin-gold)] hover:bg-[var(--admin-gold)]/10 hover:text-[var(--admin-gold)]"
         onClick={onViewWebsite}
       >
         <ExternalLink className="h-3.5 w-3.5" />
@@ -293,7 +307,7 @@ function SidebarFooter({
       <button
         type="button"
         onClick={onSignOut}
-        className="flex w-full items-center gap-2 px-1 py-1.5 text-sm text-gold/90 transition hover:text-gold"
+        className="flex w-full items-center gap-2 px-1 py-1.5 text-sm text-[var(--admin-gold)]/90 transition hover:text-[var(--admin-gold)]"
       >
         <LogOut className="h-3.5 w-3.5" />
         Sign out
@@ -317,15 +331,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F7F4] font-normal text-forest antialiased [font-synthesis:none]">
+    <div className="admin-shell min-h-screen bg-[#F8F7F4] font-normal text-forest antialiased [font-synthesis:none]">
       <FirebaseConfigBanner />
       <div className="flex min-h-screen">
-        <aside
-          className="hidden w-[17.5rem] shrink-0 lg:block"
-          style={{ backgroundColor: ADMIN_SIDEBAR }}
-        >
+        <aside className="hidden w-[17.5rem] shrink-0 bg-[var(--admin-sidebar-bg)] lg:block">
           <div className="sticky top-0 flex h-screen flex-col">
-            <div className="border-b border-white/10 px-5 py-5">
+            <div className="border-b border-[var(--admin-sidebar-divider)] px-5 py-5">
               <AdminBrand />
             </div>
             <div className="flex-1 overflow-y-auto px-3 py-4">
@@ -336,10 +347,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header
-            className="flex items-center justify-between px-4 py-3 lg:hidden"
-            style={{ backgroundColor: ADMIN_SIDEBAR }}
-          >
+          <header className="flex items-center justify-between bg-[var(--admin-sidebar-bg)] px-4 py-3 lg:hidden">
             <AdminBrand compact />
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
@@ -347,17 +355,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   variant="outline"
                   size="icon"
                   aria-label="Open menu"
-                  className="border-gold/40 bg-transparent text-gold hover:bg-gold/10 hover:text-gold"
+                  className="border-[var(--admin-gold)]/40 bg-transparent text-[var(--admin-gold)] hover:bg-[var(--admin-gold)]/10 hover:text-[var(--admin-gold)]"
                 >
                   {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
                 </Button>
               </SheetTrigger>
               <SheetContent
                 side="left"
-                className="w-[280px] border-r-0 p-0 text-ivory [&>button]:text-gold [&>button]:hover:text-gold"
-                style={{ backgroundColor: ADMIN_SIDEBAR }}
+                className="admin-shell w-[280px] border-r-0 bg-[var(--admin-sidebar-bg)] p-0 text-[var(--admin-sidebar-fg)] [&>button]:text-[var(--admin-gold)] [&>button]:hover:text-[var(--admin-gold)]"
               >
-                <SheetHeader className="border-b border-white/10 px-5 py-4 text-left">
+                <SheetHeader className="border-b border-[var(--admin-sidebar-divider)] px-5 py-4 text-left">
                   <SheetTitle className="sr-only">Admin navigation</SheetTitle>
                   <AdminBrand />
                 </SheetHeader>

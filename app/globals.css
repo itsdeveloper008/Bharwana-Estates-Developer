@@ -81,6 +81,18 @@
 }
 
 @layer components {
+  /**
+   * Admin panel sidebar theme tokens — tweak here only.
+   * Used by desktop aside + mobile drawer (AdminShell).
+   */
+  .admin-shell {
+    --admin-sidebar-bg: #0a2e1f;
+    --admin-sidebar-active: #1f5a3f;
+    --admin-gold: #d4af37;
+    --admin-sidebar-fg: #f1ebd9;
+    --admin-sidebar-divider: rgba(201, 162, 75, 0.15);
+  }
+
   .type-eyebrow {
     @apply font-sans text-[11px] font-medium uppercase tracking-[0.22em] text-gold-800;
   }
