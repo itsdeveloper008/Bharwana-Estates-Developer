@@ -130,6 +130,14 @@ function toFirestorePayload(property: Property): Record<string, unknown> {
   const tags = normalizeFeatureTags(property.featureTags);
   // Write [] instead of deleteField() so create setDoc (no merge) never rejects.
   payload.featureTags = tags;
+  if (property.boundaryPoints && property.boundaryPoints.length >= 3) {
+    payload.boundaryPoints = property.boundaryPoints.map((point) => ({
+      lat: Number(point.lat),
+      lng: Number(point.lng),
+    }));
+  } else {
+    payload.boundaryPoints = [];
+  }
   if (property.statusUpdatedAt) payload.statusUpdatedAt = property.statusUpdatedAt;
   if (property.rejectionReason?.trim()) payload.rejectionReason = property.rejectionReason.trim();
   if (property.statusHistory?.length) {
@@ -306,6 +314,20 @@ function mapProperty(id: string, data: Record<string, unknown>): Property {
     city: String(data.city ?? ""),
     latitude: Number(data.latitude ?? 0),
     longitude: Number(data.longitude ?? 0),
+    boundaryPoints: (() => {
+      if (!Array.isArray(data.boundaryPoints)) return undefined;
+      const points = data.boundaryPoints
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const raw = item as { lat?: unknown; lng?: unknown };
+          const lat = Number(raw.lat);
+          const lng = Number(raw.lng);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+          return { lat, lng };
+        })
+        .filter((item): item is { lat: number; lng: number } => item != null);
+      return points.length >= 3 ? points : undefined;
+    })(),
     images,
     highlightSpecs: normalizeHighlightKeys(rawHighlights, category),
     featureTags: normalizeFeatureTags(rawTags),

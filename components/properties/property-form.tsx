@@ -53,6 +53,7 @@ import {
   AREA_UNITS,
   DEFAULT_AREA_UNIT,
   formatAreaValue,
+  fromAreaSqft,
   resolveListingArea,
   toAreaSqft,
   type AreaUnitId,
@@ -92,8 +93,13 @@ import { CITY_COORDS } from "@/lib/map";
 import { displayUserEmail } from "@/lib/user-display";
 import { isIndividualRole } from "@/lib/user-role";
 import { cn } from "@/lib/utils";
+import type { LatLngPoint } from "@/lib/geo-area";
 
 const MapPicker = dynamic(() => import("@/components/map/map-picker").then((mod) => mod.MapPicker), { ssr: false });
+const BoundaryMapPicker = dynamic(
+  () => import("@/components/map/boundary-map-picker").then((mod) => mod.BoundaryMapPicker),
+  { ssr: false },
+);
 
 const fieldFocus =
   "rounded-xl border border-[#E8E2D6]/90 bg-[#FBF9F5] shadow-[inset_0_1px_2px_rgba(15,46,29,0.045)] transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-gold focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-gold/35";
@@ -552,6 +558,7 @@ export function PropertyForm({
       contactPhone: "",
       highlightSpecs: defaultHighlightKeys("HOME"),
       featureTags: [],
+      boundaryPoints: [],
     },
   });
 
@@ -594,6 +601,7 @@ export function PropertyForm({
       contactPhone: toPakistanMobileLocal(editingProperty.contactPhone ?? ""),
       highlightSpecs: normalizeHighlightKeys(editingProperty.highlightSpecs, editingProperty.category),
       featureTags: normalizeFeatureTags(editingProperty.featureTags),
+      boundaryPoints: editingProperty.boundaryPoints ?? [],
     });
     const safeImages = (editingProperty.images ?? [])
       .filter((url) => isPersistedPropertyImageUrl(url))
@@ -1125,6 +1133,10 @@ export function PropertyForm({
             ownerUserId: resolvedOwnerId ?? editingProperty.ownerUserId,
             highlightSpecs: normalizeHighlightKeys(values.highlightSpecs, values.category),
             featureTags: normalizeFeatureTags(values.featureTags),
+            boundaryPoints:
+              values.boundaryPoints && values.boundaryPoints.length >= 3
+                ? values.boundaryPoints
+                : [],
             status,
             ...statusPatch,
             ...(status === "PUBLISHED" || status === "RESERVED" || !statusChanged
@@ -1166,6 +1178,10 @@ export function PropertyForm({
           contactPhone: values.contactPhone,
           highlightSpecs: normalizeHighlightKeys(values.highlightSpecs, values.category),
           featureTags: normalizeFeatureTags(values.featureTags),
+          boundaryPoints:
+            values.boundaryPoints && values.boundaryPoints.length >= 3
+              ? values.boundaryPoints
+              : [],
         };
         if (developerId) listing.developerId = developerId;
         if (resolvedOwnerId) listing.ownerUserId = resolvedOwnerId;
@@ -1890,6 +1906,34 @@ export function PropertyForm({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="boundaryPoints"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="rounded-2xl border border-forest/10 bg-white/80 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:px-5">
+                    <BoundaryMapPicker
+                      points={(field.value as LatLngPoint[] | undefined) ?? []}
+                      centerLatitude={form.watch("latitude")}
+                      centerLongitude={form.watch("longitude")}
+                      onChange={(next) => {
+                        field.onChange(next);
+                      }}
+                      onAreaSqft={(sqft) => {
+                        if (sqft == null || !(sqft > 0)) return;
+                        const unit = form.getValues("areaUnit");
+                        const converted = fromAreaSqft(sqft, unit);
+                        form.setValue("areaValue", converted, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }}
+                    />
+                  </div>
+                </FormItem>
+              )}
+            />
 
             <div className="rounded-2xl border border-forest/10 bg-white/80 px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
               <p className="text-sm font-medium text-forest">Features to highlight</p>

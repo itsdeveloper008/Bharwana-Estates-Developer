@@ -121,6 +121,8 @@ export interface Property {
   city: string;
   latitude: number;
   longitude: number;
+  /** Optional plot outline from Mark Boundary (lat/lng vertices). */
+  boundaryPoints?: { lat: number; lng: number }[];
   images: string[];
   /** Which core specs to emphasize on map cards / detail (defaults to all for category). */
   highlightSpecs?: PropertyHighlightKey[];
