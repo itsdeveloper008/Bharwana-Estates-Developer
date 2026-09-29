@@ -27,14 +27,15 @@ export function areaUnitMeta(unit: AreaUnitId | string | undefined) {
 
 export function toAreaSqft(value: number, unit: AreaUnitId | string | undefined): number {
   if (!Number.isFinite(value) || value < 0) return 0;
-  return Math.round(value * areaUnitMeta(unit).toSqft);
+  // Keep up to 2 decimal places (do not coerce to an integer).
+  return Math.round(value * areaUnitMeta(unit).toSqft * 100) / 100;
 }
 
 export function fromAreaSqft(sqft: number, unit: AreaUnitId | string | undefined): number {
   const scale = areaUnitMeta(unit).toSqft;
   if (!Number.isFinite(sqft) || scale <= 0) return 0;
   const converted = sqft / scale;
-  return Number.isInteger(converted) ? converted : Number(converted.toFixed(4));
+  return Number.isInteger(converted) ? converted : Number(converted.toFixed(2));
 }
 
 /**

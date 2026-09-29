@@ -18,7 +18,6 @@ import {
   Layers,
   type LucideIcon,
   MapPin,
-  Maximize2,
   Tag,
   UserRound,
   X,
@@ -197,6 +196,8 @@ function NumberInput({
   placeholder,
   max,
   integerOnly = false,
+  /** When set, allow at most this many digits after the decimal point. */
+  maxDecimalPlaces,
 }: {
   value: number | undefined;
   onChange: (value: number | undefined) => void;
@@ -206,7 +207,26 @@ function NumberInput({
   placeholder?: string;
   max?: number;
   integerOnly?: boolean;
+  maxDecimalPlaces?: number;
 }) {
+  const [text, setText] = useState(() => (Number.isFinite(value) ? String(value) : ""));
+  const lastEmitted = useRef<number | undefined>(Number.isFinite(value) ? value : undefined);
+
+  // Sync when the form value changes from outside (e.g. boundary auto-fill).
+  useEffect(() => {
+    if (value === lastEmitted.current) return;
+    lastEmitted.current = Number.isFinite(value) ? value : undefined;
+    setText(Number.isFinite(value) ? String(value) : "");
+  }, [value]);
+
+  const pattern = useMemo(() => {
+    if (integerOnly) return /^\d+$/;
+    if (typeof maxDecimalPlaces === "number") {
+      return new RegExp(`^\\d+(\\.\\d{0,${maxDecimalPlaces}})?$`);
+    }
+    return /^\d+(\.\d*)?$/;
+  }, [integerOnly, maxDecimalPlaces]);
+
   return (
     <div className="relative">
       {Icon ? (
@@ -217,29 +237,50 @@ function NumberInput({
       ) : null}
       <Input
         type="text"
-        inputMode="decimal"
+        inputMode={integerOnly ? "numeric" : "decimal"}
         className={cn("h-10", fieldFocus, Icon && "pl-9")}
         name={name}
         placeholder={placeholder}
-        value={Number.isFinite(value) ? String(value) : ""}
-        onBlur={onBlur}
+        value={text}
+        onBlur={() => {
+          if (Number.isFinite(value)) {
+            const normalized =
+              typeof maxDecimalPlaces === "number"
+                ? String(Number(value!.toFixed(maxDecimalPlaces)))
+                : String(value);
+            setText(normalized);
+            lastEmitted.current = value;
+          } else {
+            setText("");
+            lastEmitted.current = undefined;
+          }
+          onBlur();
+        }}
         onChange={(event) => {
           const raw = event.target.value.trim();
           if (!raw) {
+            setText("");
+            lastEmitted.current = undefined;
             onChange(undefined);
             return;
           }
           // Reject scientific notation and non-numeric junk.
-          if (/[eE]/.test(raw) || !/^\d+(\.\d*)?$/.test(raw)) {
+          if (/[eE]/.test(raw) || !pattern.test(raw)) {
             return;
           }
+          setText(raw);
+          // Keep trailing "." while typing (e.g. "1800.") without committing yet.
+          if (raw.endsWith(".")) return;
           const next = Number(raw);
           if (!Number.isFinite(next) || next < 0) return;
           if (integerOnly && !Number.isInteger(next)) return;
           if (typeof max === "number" && next > max) {
+            setText(String(max));
+            lastEmitted.current = max;
             onChange(max);
             return;
           }
+          lastEmitted.current = next;
           onChange(next);
         }}
       />
@@ -1864,13 +1905,13 @@ export function PropertyForm({
                         onChange={field.onChange}
                         onBlur={field.onBlur}
                         name={field.name}
-                        icon={Maximize2}
+                        maxDecimalPlaces={2}
                         placeholder={
                           form.watch("areaUnit") === "marla"
-                            ? "e.g. 5"
+                            ? "e.g. 5.5"
                             : form.watch("areaUnit") === "kanal"
-                              ? "e.g. 1"
-                              : "e.g. 1800"
+                              ? "e.g. 1.25"
+                              : "e.g. 1800.78"
                         }
                       />
                     </FormControl>
@@ -1924,7 +1965,8 @@ export function PropertyForm({
                         if (sqft == null || !(sqft > 0)) return;
                         const unit = form.getValues("areaUnit");
                         const converted = fromAreaSqft(sqft, unit);
-                        form.setValue("areaValue", converted, {
+                        const withDecimals = Number(converted.toFixed(2));
+                        form.setValue("areaValue", withDecimals, {
                           shouldDirty: true,
                           shouldValidate: true,
                         });

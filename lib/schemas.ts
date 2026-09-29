@@ -97,7 +97,11 @@ export const propertyFormSchema = z
     price: z.number({ message: "Enter a price" }).positive("Enter a price"),
     areaValue: z
       .number({ message: "Enter the area" })
-      .positive("Enter the area"),
+      .positive("Enter the area")
+      .refine(
+        (n) => Math.abs(n * 100 - Math.round(n * 100)) < 1e-6,
+        "Use up to 2 decimal places",
+      ),
     areaUnit: z.enum(
       AREA_UNITS.map((item) => item.id) as [AreaUnitId, ...AreaUnitId[]],
       { message: "Select an area unit" },
