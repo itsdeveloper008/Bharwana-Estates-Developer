@@ -33,6 +33,16 @@ import {
 import { FullNameInput } from "@/components/auth/full-name-input";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogTitle,
@@ -81,6 +91,7 @@ import {
 import { isPersistedPropertyImageUrl } from "@/lib/property-images";
 import { propertyFormSchema, type PropertyFormValues } from "@/lib/schemas";
 import {
+  type ListingPurpose,
   type Property,
   type PropertyCategory,
   type PropertyHighlightKey,
@@ -206,7 +217,7 @@ function NumberInput({
   const [text, setText] = useState(() => (Number.isFinite(value) ? String(value) : ""));
   const lastEmitted = useRef<number | undefined>(Number.isFinite(value) ? value : undefined);
 
-  // Sync when the form value changes from outside (e.g. boundary auto-fill).
+  // Sync when the form value changes from outside (e.g. unit-driven recalculation).
   useEffect(() => {
     if (value === lastEmitted.current) return;
     lastEmitted.current = Number.isFinite(value) ? value : undefined;
@@ -507,6 +518,11 @@ export function PropertyForm({
   const [currentStep, setCurrentStep] = useState(0);
   const [featureTagDraft, setFeatureTagDraft] = useState("");
   const [featureTagError, setFeatureTagError] = useState<string | null>(null);
+  const [pendingCategorySwitch, setPendingCategorySwitch] = useState<
+    | { kind: "purpose"; next: ListingPurpose }
+    | { kind: "category"; next: PropertyCategory }
+    | null
+  >(null);
   const photoFingerprintsRef = useRef<string[]>([]);
 
   function fileFingerprint(file: File | Blob, nameHint = ""): string {
@@ -598,6 +614,142 @@ export function PropertyForm({
 
   const listingType = form.watch("listingType");
   const { isSubmitting, errors } = form.formState;
+
+  function defaultListingType(): PropertyFormValues["listingType"] {
+    if (user?.role === "DEALER") return "BUSINESS";
+    if (isIndividualRole(user?.role)) return "DIRECT_OWNER";
+    return undefined as unknown as PropertyFormValues["listingType"];
+  }
+
+  function clearPropertyPhotos() {
+    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    objectUrlsRef.current = [];
+    photoFingerprintsRef.current = [];
+    setPreviews([]);
+    setPhotoIds([]);
+    setPhotoFiles([]);
+    setPhotoError(false);
+    setPreviewPhotoIndex(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  /** True when anything below Sell/Rent + category tabs has been filled (or photos added). */
+  function formHasDetailsBelow(): boolean {
+    if (previews.length > 0) return true;
+    if (assignOwnerId || assignDeveloperId || showNewOwner) return true;
+    if (newOwnerName.trim() || newOwnerContact.trim()) return true;
+
+    const values = form.getValues();
+    if (values.title?.trim()) return true;
+    if (values.description?.trim()) return true;
+    if (Number.isFinite(values.price) && Number(values.price) > 0) return true;
+    if (Number.isFinite(values.areaValue) && Number(values.areaValue) > 0) return true;
+    if (values.address?.trim()) return true;
+    if (values.city?.trim()) return true;
+    if ((values.featureTags?.length ?? 0) > 0) return true;
+    if (values.subtype && values.subtype !== defaultSubtypeFor(values.category)) return true;
+
+    if (values.category === "HOME") {
+      if (Number.isFinite(values.bedrooms) && Number(values.bedrooms) > 0) return true;
+      if (Number.isFinite(values.bathrooms) && Number(values.bathrooms) > 0) return true;
+    }
+
+    const phone = values.contactPhone?.trim() ?? "";
+    if (phone) {
+      const autoPhone =
+        !isAdmin && !editingProperty && user?.phone
+          ? toPakistanMobileLocal(user.phone)
+          : "";
+      if (phone !== autoPhone) return true;
+    }
+
+    if (isAdmin && values.listingType) return true;
+
+    return false;
+  }
+
+  function resetDetailsKeeping(purpose: ListingPurpose, category: PropertyCategory) {
+    const contactPhone =
+      !isAdmin && !editingProperty && user?.phone
+        ? toPakistanMobileLocal(user.phone)
+        : "";
+
+    form.reset({
+      title: "",
+      description: "",
+      listingType: isAdmin ? (undefined as unknown as PropertyFormValues["listingType"]) : defaultListingType(),
+      purpose,
+      category,
+      subtype: defaultSubtypeFor(category),
+      price: undefined as unknown as number,
+      areaValue: undefined as unknown as number,
+      areaUnit: DEFAULT_AREA_UNIT,
+      bedrooms: undefined as unknown as number,
+      bathrooms: undefined as unknown as number,
+      address: "",
+      city: "",
+      latitude: CITY_COORDS.Lahore.latitude,
+      longitude: CITY_COORDS.Lahore.longitude,
+      contactPhone,
+      highlightSpecs: defaultHighlightKeys(category),
+      featureTags: [],
+    });
+    form.clearErrors();
+    clearPropertyPhotos();
+    setFeatureTagDraft("");
+    setFeatureTagError(null);
+    setAssignOwnerId("");
+    setAssignDeveloperId("");
+    setOwnerQuery("");
+    setDeveloperQuery("");
+    setShowNewOwner(false);
+    setNewOwnerName("");
+    setNewOwnerContact("");
+    setAssignError(null);
+    setSubmitError(null);
+    setCurrentStep(0);
+  }
+
+  function requestPurposeChange(next: ListingPurpose) {
+    const current = form.getValues("purpose");
+    if (next === current) return;
+    if (!formHasDetailsBelow()) {
+      form.setValue("purpose", next, { shouldDirty: true });
+      return;
+    }
+    setPendingCategorySwitch({ kind: "purpose", next });
+  }
+
+  function requestCategoryChange(next: PropertyCategory) {
+    const current = form.getValues("category");
+    if (next === current) return;
+    if (!formHasDetailsBelow()) {
+      form.setValue("category", next, { shouldDirty: true });
+      form.setValue("subtype", defaultSubtypeFor(next), { shouldDirty: true });
+      form.setValue("highlightSpecs", defaultHighlightKeys(next), { shouldDirty: true });
+      if (next === "PLOTS" || next === "COMMERCIAL") {
+        form.setValue("bedrooms", undefined as unknown as number);
+        form.setValue("bathrooms", undefined as unknown as number);
+        form.clearErrors(["bedrooms", "bathrooms"]);
+      }
+      return;
+    }
+    setPendingCategorySwitch({ kind: "category", next });
+  }
+
+  function confirmPendingCategorySwitch() {
+    if (!pendingCategorySwitch) return;
+    const purpose =
+      pendingCategorySwitch.kind === "purpose"
+        ? pendingCategorySwitch.next
+        : form.getValues("purpose");
+    const category =
+      pendingCategorySwitch.kind === "category"
+        ? pendingCategorySwitch.next
+        : form.getValues("category");
+    resetDetailsKeeping(purpose, category);
+    setPendingCategorySwitch(null);
+  }
 
   useEffect(() => {
     if (!editingProperty) return;
@@ -1428,7 +1580,7 @@ export function PropertyForm({
                           <button
                             key={option.id}
                             type="button"
-                            onClick={() => field.onChange(option.id)}
+                            onClick={() => requestPurposeChange(option.id)}
                             className={cn(
                               "relative overflow-hidden rounded-2xl border px-4 py-4 text-left transition-[colors,box-shadow] duration-300",
                               active
@@ -1494,20 +1646,7 @@ export function PropertyForm({
                           <button
                             key={option.id}
                             type="button"
-                            onClick={() => {
-                              const next = option.id as PropertyCategory;
-                              field.onChange(next);
-                              form.setValue("subtype", defaultSubtypeFor(next));
-                              form.setValue("highlightSpecs", defaultHighlightKeys(next));
-                              if (next === "PLOTS" || next === "COMMERCIAL") {
-                                form.setValue("bedrooms", 0);
-                                form.setValue("bathrooms", 0);
-                                form.clearErrors(["bedrooms", "bathrooms"]);
-                              } else if (form.getValues("bedrooms") === 0) {
-                                form.setValue("bedrooms", undefined as unknown as number);
-                                form.setValue("bathrooms", undefined as unknown as number);
-                              }
-                            }}
+                            onClick={() => requestCategoryChange(option.id as PropertyCategory)}
                             className={cn(
                               "relative inline-flex items-center gap-2 px-3 pb-3.5 pt-1.5 text-sm font-medium tracking-tight transition-colors duration-200",
                               active ? "text-forest" : "text-muted-foreground hover:text-forest",
@@ -2345,6 +2484,28 @@ export function PropertyForm({
           </div>
         </form>
       </Form>
+
+      <AlertDialog
+        open={pendingCategorySwitch !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingCategorySwitch(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Switch category?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Switching category will clear the details you&apos;ve entered below. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <AlertDialogAction type="button" onClick={confirmPendingCategorySwitch}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog
         open={previewPhotoIndex !== null}
