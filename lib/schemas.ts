@@ -135,14 +135,6 @@ export const propertyFormSchema = z
       .array(z.string().trim().min(1).max(40))
       .max(6, "Up to 6 custom features")
       .optional(),
-    boundaryPoints: z
-      .array(
-        z.object({
-          lat: z.number().min(-90).max(90),
-          lng: z.number().min(-180).max(180),
-        }),
-      )
-      .optional(),
   })
   .superRefine((data, ctx) => {
     const sqft = toAreaSqft(data.areaValue, data.areaUnit);
