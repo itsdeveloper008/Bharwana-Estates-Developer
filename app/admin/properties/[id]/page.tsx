@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { AdminPropertyDetailBody } from "@/components/admin/admin-property-detail";
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { HistoryBackButton } from "@/components/ui/history-back-button";
 import {
   Dialog,
   DialogContent,
@@ -106,12 +106,7 @@ export default function AdminPropertyDetailPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-3">
-          <Button asChild variant="ghost" size="sm" className="-ml-2 text-forest/70">
-            <Link href="/admin/properties">
-              <ArrowLeft className="mr-1.5 h-4 w-4" />
-              Properties
-            </Link>
-          </Button>
+          <HistoryBackButton fallbackHref="/admin/properties" label="Back" />
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <Badge

@@ -1,5 +1,6 @@
 import { Bath, BedDouble, Maximize2, Tag } from "lucide-react";
 import { formatArea, formatPrice } from "@/lib/format";
+import { formatRoomCount } from "@/lib/room-count";
 import type { Property, PropertyCategory, PropertyHighlightKey } from "@/lib/types";
 
 export const MAX_FEATURE_TAGS = 6;
@@ -67,14 +68,14 @@ export function propertyHighlightDisplay(property: Property): PropertyFeatureDis
       items.push({
         key,
         label: "Bedrooms",
-        value: String(property.bedrooms),
+        value: formatRoomCount(property.bedrooms),
         icon: BedDouble,
       });
     } else if (key === "bathrooms") {
       items.push({
         key,
         label: "Bathrooms",
-        value: String(property.bathrooms),
+        value: formatRoomCount(property.bathrooms),
         icon: Bath,
       });
     } else if (key === "area") {

@@ -119,6 +119,7 @@ export function PropertyCard({
                 "line-clamp-2 font-serif text-[13px] leading-snug",
                 highlighted ? "text-ivory" : "text-forest",
               )}
+              title={property.title}
             >
               {property.title}
             </h3>
@@ -145,6 +146,7 @@ export function PropertyCard({
                 "truncate font-serif text-lg leading-snug",
                 highlighted ? "text-ivory" : "text-forest",
               )}
+              title={property.title}
             >
               {property.title}
             </h3>

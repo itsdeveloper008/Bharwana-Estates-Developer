@@ -3,7 +3,7 @@
 import Image from "next/image";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 function isInlineImageSrc(src: string) {
@@ -86,11 +86,19 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxLoading, setLightboxLoading] = useState(false);
+  const stripRef = useRef<HTMLDivElement>(null);
   const total = images.length;
 
   function go(delta: number) {
     if (total < 2) return;
     setActive((current) => (current + delta + total) % total);
+  }
+
+  function scrollStrip(direction: 1 | -1) {
+    const el = stripRef.current;
+    if (!el) return;
+    const amount = Math.max(el.clientWidth * 0.85, 180);
+    el.scrollBy({ left: direction * amount, behavior: "smooth" });
   }
 
   useEffect(() => {
@@ -183,25 +191,49 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
         ) : null}
       </div>
 
-      <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-        {images.map((image, index) => (
+      {total > 1 ? (
+        <div className="group relative">
           <button
-            key={`${index}-${image.slice(0, 24)}`}
             type="button"
-            onClick={() => {
-              setActive(index);
-              setLightboxOpen(true);
-            }}
-            className={cn(
-              "relative aspect-[4/3] overflow-hidden",
-              active === index ? "ring-1 ring-gold" : "opacity-70 hover:opacity-100",
-            )}
-            aria-label={`Open photo ${index + 1}`}
+            onClick={() => scrollStrip(-1)}
+            aria-label="Scroll photos left"
+            className="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-forest/80 text-ivory shadow-md transition hover:bg-forest md:opacity-0 md:group-hover:opacity-100"
           >
-            <GalleryImage src={image} alt="" fill sizes="120px" />
+            <ChevronLeft className="h-4 w-4" strokeWidth={1.75} />
           </button>
-        ))}
-      </div>
+          <button
+            type="button"
+            onClick={() => scrollStrip(1)}
+            aria-label="Scroll photos right"
+            className="absolute right-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-forest/80 text-ivory shadow-md transition hover:bg-forest md:opacity-0 md:group-hover:opacity-100"
+          >
+            <ChevronRight className="h-4 w-4" strokeWidth={1.75} />
+          </button>
+          <div
+            ref={stripRef}
+            className="flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
+            {images.map((image, index) => (
+              <button
+                key={`${index}-${image.slice(0, 24)}`}
+                type="button"
+                onClick={() => {
+                  setActive(index);
+                  setLightboxOpen(true);
+                }}
+                className={cn(
+                  "relative aspect-[4/3] w-[calc((100%-0.5rem*5)/6)] min-w-[4.75rem] shrink-0 snap-start overflow-hidden sm:min-w-[5.5rem]",
+                  active === index ? "ring-1 ring-gold" : "opacity-70 hover:opacity-100",
+                )}
+                aria-label={`Open photo ${index + 1}`}
+              >
+                <GalleryImage src={image} alt="" fill sizes="120px" />
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <DialogPrimitive.Root open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogPrimitive.Portal>

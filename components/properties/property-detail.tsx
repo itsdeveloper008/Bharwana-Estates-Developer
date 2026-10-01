@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Bath, BedDouble, Maximize2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { HistoryBackButton } from "@/components/ui/history-back-button";
 import { InquiryModal } from "@/components/inquiries/inquiry-modal";
 import { PropertyGallery } from "@/components/properties/property-gallery";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
@@ -55,6 +56,9 @@ function PropertyDetailInner({ property }: { property: Property }) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <div className="mb-6">
+        <HistoryBackButton fallbackHref="/properties" label="Back" />
+      </div>
       <div className="grid gap-12 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
         <div>
           <PropertyGallery images={property.images} title={property.title} />

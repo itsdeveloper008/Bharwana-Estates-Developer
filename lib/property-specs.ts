@@ -1,4 +1,5 @@
 import { formatArea } from "@/lib/format";
+import { formatRoomCount } from "@/lib/room-count";
 import type { Property } from "@/lib/types";
 
 export function propertySpecItems(property: Property): { label: string; value: string }[] {
@@ -16,8 +17,8 @@ export function propertySpecItems(property: Property): { label: string; value: s
   }
 
   return [
-    { label: "Bedrooms", value: String(property.bedrooms) },
-    { label: "Bathrooms", value: String(property.bathrooms) },
+    { label: "Bedrooms", value: formatRoomCount(property.bedrooms) },
+    { label: "Bathrooms", value: formatRoomCount(property.bathrooms) },
     area,
   ];
 }
