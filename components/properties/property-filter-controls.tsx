@@ -129,7 +129,7 @@ function parseRangeNumber(raw: string, fallback: number) {
 
 function clampRange(minVal: number, maxVal: number, absoluteMax: number) {
   let min = Math.min(Math.max(0, minVal), absoluteMax);
-  let max = Math.min(Math.max(0, maxVal), absoluteMax);
+  const max = Math.min(Math.max(0, maxVal), absoluteMax);
   if (min > max) min = max;
   return { min, max };
 }
