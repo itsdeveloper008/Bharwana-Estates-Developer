@@ -565,8 +565,15 @@ export function MiniMap({ property }: { property: Property }) {
         options={{
           disableDefaultUI: true,
           zoomControl: true,
+          // Keep +/- on the left so they never collide with "View larger map".
+          zoomControlOptions: {
+            position: google.maps.ControlPosition.LEFT_BOTTOM,
+          },
           mapTypeId: "satellite",
           mapTypeControl: true,
+          mapTypeControlOptions: {
+            position: google.maps.ControlPosition.TOP_LEFT,
+          },
           gestureHandling: "cooperative",
         }}
       >
@@ -578,7 +585,12 @@ export function MiniMap({ property }: { property: Property }) {
           <PropertyPin listingType={property.listingType} />
         </OverlayViewF>
       </GoogleMap>
-      <Button variant="secondary" className="absolute bottom-3 right-3" asChild>
+      <Button
+        variant="secondary"
+        size="sm"
+        className="absolute bottom-3 right-3 z-10 max-w-[calc(100%-5.5rem)] truncate shadow-md sm:bottom-4 sm:right-4"
+        asChild
+      >
         <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
           View larger map
         </a>

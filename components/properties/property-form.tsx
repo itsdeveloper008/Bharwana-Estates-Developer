@@ -66,12 +66,8 @@ import {
   toAreaSqft,
   type AreaUnitId,
 } from "@/lib/area-units";
-import {
-  ROOM_COUNT_OPTIONS,
-  formatRoomCount,
-  roomCountToSelectValue,
-  selectValueToRoomCount,
-} from "@/lib/room-count";
+import { RoomCountStepper } from "@/components/properties/room-count-stepper";
+import { formatRoomCount } from "@/lib/room-count";
 import { formatPakistanMobileE164, toPakistanMobileLocal } from "@/lib/phone-format";
 import {
   FULL_NAME_MAX_LENGTH,
@@ -1981,25 +1977,16 @@ export function PropertyForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="mb-0.5">Bedrooms</FormLabel>
-                      <Select
-                        value={roomCountToSelectValue(field.value)}
-                        onValueChange={(value) => field.onChange(selectValueToRoomCount(value))}
-                      >
-                        <FormControl>
-                          <SelectTrigger className={cn("relative h-10 pl-9", fieldFocus)}>
-                            <BedDouble className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-forest/40" strokeWidth={1.5} />
-                            <SelectValue placeholder="Select bedrooms" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {ROOM_COUNT_OPTIONS.map((n) => (
-                            <SelectItem key={n} value={String(n)}>
-                              {n}
-                            </SelectItem>
-                          ))}
-                          <SelectItem value="10+">10+</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <RoomCountStepper
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          icon={BedDouble}
+                          placeholder="Select bedrooms"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -2010,25 +1997,16 @@ export function PropertyForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="mb-0.5">Bathrooms</FormLabel>
-                      <Select
-                        value={roomCountToSelectValue(field.value)}
-                        onValueChange={(value) => field.onChange(selectValueToRoomCount(value))}
-                      >
-                        <FormControl>
-                          <SelectTrigger className={cn("relative h-10 pl-9", fieldFocus)}>
-                            <Bath className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-forest/40" strokeWidth={1.5} />
-                            <SelectValue placeholder="Select bathrooms" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {ROOM_COUNT_OPTIONS.map((n) => (
-                            <SelectItem key={n} value={String(n)}>
-                              {n}
-                            </SelectItem>
-                          ))}
-                          <SelectItem value="10+">10+</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <RoomCountStepper
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          icon={Bath}
+                          placeholder="Select bathrooms"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

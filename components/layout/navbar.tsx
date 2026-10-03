@@ -222,7 +222,7 @@ export function Navbar() {
         className={cn(
           "sticky top-0 z-50 w-full",
           // Fixed height on every page - never animate height (that causes navbar shiver)
-          "h-[72px] md:h-[80px]",
+          "h-[82px] md:h-[92px]",
           overHero
             ? "border-b border-white/10 bg-gradient-to-b from-[#082B1D]/70 to-transparent transition-[background-color,border-color,box-shadow] duration-300 ease-out"
             : "border-b border-[#082B1D]/10 bg-[#FBFAF6] shadow-[0_8px_30px_-18px_rgba(8,43,29,0.35)] transition-[background-color,border-color,box-shadow] duration-300 ease-out",
@@ -237,7 +237,7 @@ export function Navbar() {
           >
             <span
               className={cn(
-                "relative flex h-11 w-11 items-center justify-center md:h-12 md:w-12",
+                "relative flex h-12 w-12 items-center justify-center md:h-[3.25rem] md:w-[3.25rem]",
                 "after:absolute after:inset-[-3px] after:rounded-full after:border after:border-[#B89545]/0 after:transition-colors after:duration-300 group-hover:after:border-[#B89545]/45",
               )}
             >
@@ -246,13 +246,13 @@ export function Navbar() {
                 alt=""
                 width={48}
                 height={48}
-                className="relative z-10 h-10 w-10 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition-transform duration-500 group-hover:scale-[1.04] md:h-11 md:w-11"
+                className="relative z-10 h-11 w-11 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition-transform duration-500 group-hover:scale-[1.04] md:h-12 md:w-12"
                 priority
               />
             </span>
             <span
               className={cn(
-                "hidden font-display text-[11px] font-semibold uppercase leading-none tracking-[0.3em] transition-colors duration-300 sm:block",
+                "hidden font-display text-[12px] font-bold uppercase leading-none tracking-[0.3em] transition-colors duration-300 sm:block",
                 overHero ? "text-[#F5F1E8]" : "text-[#06291C]",
               )}
             >
@@ -286,7 +286,7 @@ export function Navbar() {
                     void import("@/components/map/map-view");
                   }}
                   className={cn(
-                    "group relative shrink-0 px-2.5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors duration-300 2xl:px-3.5 2xl:text-[11px] 2xl:tracking-[0.2em]",
+                    "group relative shrink-0 px-2.5 py-2.5 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors duration-300 2xl:px-3.5 2xl:text-[12px] 2xl:tracking-[0.2em]",
                     overHero
                       ? active
                         ? "text-[#F5F1E8]"
@@ -315,7 +315,7 @@ export function Navbar() {
             <Link
               href={listPropertyHref}
               className={cn(
-                "group relative inline-flex items-center overflow-hidden rounded-xl bg-[#B89545] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#082B1D] 2xl:px-4 2xl:py-3 2xl:text-[11px] 2xl:tracking-[0.14em]",
+                "group relative inline-flex items-center overflow-hidden rounded-xl bg-[#B89545] px-3.5 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-[#082B1D] 2xl:px-4 2xl:py-3.5 2xl:text-[12px] 2xl:tracking-[0.14em]",
                 "shadow-[0_10px_24px_-12px_rgba(184,149,69,0.85)] transition-[transform,background-color,box-shadow] duration-300",
                 "hover:-translate-y-px hover:bg-[#c4a455] hover:shadow-[0_14px_28px_-12px_rgba(184,149,69,0.95)]",
                 "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#082B1D]",
@@ -344,24 +344,24 @@ export function Navbar() {
             >
               <span
                 className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-xl border transition-colors duration-300",
+                  "flex h-10 w-10 items-center justify-center rounded-xl border transition-colors duration-300",
                   overHero
                     ? "border-[#F5F1E8]/35 bg-[#F5F1E8]/10 group-hover:border-[#B89545]/60"
                     : "border-[#082B1D]/20 bg-[#082B1D]/[0.04] group-hover:border-[#B89545]/50",
                 )}
               >
-                <PhoneCall className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-hover:-translate-y-px" strokeWidth={1.5} />
+                <PhoneCall className="h-4 w-4 shrink-0 transition-transform duration-300 group-hover:-translate-y-px" strokeWidth={1.5} />
               </span>
               <span className="hidden flex-col leading-tight 2xl:flex">
                 <span
                   className={cn(
-                    "text-[9px] font-medium uppercase tracking-[0.22em]",
+                    "text-[9px] font-semibold uppercase tracking-[0.22em]",
                     overHero ? "text-[#F5F1E8]/85" : "text-[#06291C]/80",
                   )}
                 >
                   Call us
                 </span>
-                <span className="text-[12px] font-semibold tracking-[0.03em]">{phoneDisplay}</span>
+                <span className="text-[13px] font-bold tracking-[0.03em]">{phoneDisplay}</span>
               </span>
             </a>
 
@@ -388,7 +388,7 @@ export function Navbar() {
                     type="button"
                     aria-label="Account menu"
                     className={cn(
-                      "relative flex h-10 w-10 items-center justify-center rounded-full border text-[11px] font-medium tracking-[0.1em] transition-all duration-300",
+                      "relative flex h-11 w-11 items-center justify-center rounded-full border text-[12px] font-bold tracking-[0.1em] transition-all duration-300",
                       "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B89545]",
                       overHero
                         ? "border-[#B89545]/80 bg-[#082B1D]/60 text-[#B89545] hover:border-[#B89545] hover:shadow-[0_0_0_3px_rgba(184,149,69,0.2)]"
@@ -497,7 +497,7 @@ export function Navbar() {
             transition={{ duration: 0.35, ease }}
             className="fixed inset-0 z-[60] flex flex-col bg-[#082B1D] xl:hidden"
           >
-            <div className="mx-auto flex h-[72px] w-full max-w-[1360px] items-center justify-between px-5 sm:px-8">
+            <div className="mx-auto flex h-[82px] w-full max-w-[1360px] items-center justify-between px-5 sm:px-8">
               <Link href="/" aria-label="Bharwana Estates home" onClick={() => setOpen(false)} className="flex items-center gap-3">
                 <Image
                   src="/logo.png"
@@ -542,7 +542,7 @@ export function Navbar() {
                           void import("@/components/map/map-view");
                         }}
                         className={cn(
-                          "block py-2 font-serif text-[2rem] leading-tight tracking-tight text-[#F5F1E8] transition-colors hover:text-[#B89545] sm:text-[2.5rem]",
+                          "block py-2 font-serif text-[2rem] font-bold leading-tight tracking-tight text-[#F5F1E8] transition-colors hover:text-[#B89545] sm:text-[2.5rem]",
                           active && "text-[#B89545]",
                         )}
                       >

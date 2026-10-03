@@ -8,6 +8,8 @@ import {
   CURRENCIES,
   fromScaledAmount,
   PillToggleGroup,
+  PRICE_SLIDER_MAX,
+  PRICE_SLIDER_STEP,
   PropertyTypePicker,
   PURPOSE_OPTIONS,
   RangeFilterPopover,
@@ -19,8 +21,8 @@ import {
   type PurposeId,
   type SourceId,
 } from "@/components/properties/property-filter-controls";
+import { PlaceSearchInput } from "@/components/map/place-search-input";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { CITIES, type PropertyCategory } from "@/lib/types";
@@ -29,6 +31,41 @@ import { cn } from "@/lib/utils";
 function readCategory(raw: string | null): PropertyCategory {
   if (raw === "PLOTS" || raw === "COMMERCIAL" || raw === "HOME") return raw;
   return "HOME";
+}
+
+function locationFilterLabel(label?: string) {
+  if (!label) return null;
+  const short = label.split(",")[0]?.trim() || label.trim();
+  return short || null;
+}
+
+/** Places Autocomplete for the Properties filter bar. */
+function LocationQueryField({
+  value,
+  onApply,
+}: {
+  value: string;
+  onApply: (q: string | null) => void;
+}) {
+  return (
+    <>
+      <Search className="h-4 w-4 shrink-0 text-forest/50" />
+      <PlaceSearchInput
+        defaultValue={value}
+        hideLeadingIcon
+        hideActions
+        placeholder="Search by location"
+        className="min-w-0 flex-1 space-y-0"
+        inputClassName="h-10 border-0 bg-transparent px-0 shadow-none focus-visible:border-transparent focus-visible:ring-0"
+        onPlaceSelected={(result) => {
+          onApply(locationFilterLabel(result.label));
+        }}
+        onQueryChange={(next) => {
+          if (!next.trim()) onApply(null);
+        }}
+      />
+    </>
+  );
 }
 
 function FiltersForm({ compact }: { compact?: boolean }) {
@@ -110,7 +147,7 @@ function FiltersForm({ compact }: { compact?: boolean }) {
 
       <div
         className={cn(
-          "overflow-hidden rounded-2xl border border-forest/10 bg-white",
+          "rounded-2xl border border-forest/10 bg-white",
           compact ? "shadow-sm" : "",
         )}
       >
@@ -131,17 +168,10 @@ function FiltersForm({ compact }: { compact?: boolean }) {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2 border-b border-forest/10 px-3 py-2 lg:border-b-0 lg:border-r">
-            <Search className="h-4 w-4 shrink-0 text-forest/50" />
-            <Input
-              defaultValue={query}
-              key={query}
-              placeholder="Search by location"
-              className="h-10 border-0 bg-transparent shadow-none focus-visible:ring-0"
-              onBlur={(event) => patch({ q: event.target.value.trim() || null })}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") patch({ q: event.currentTarget.value.trim() || null });
-              }}
+          <div className="relative z-20 flex min-w-0 items-center gap-2 overflow-visible border-b border-forest/10 px-3 py-2 lg:border-b-0 lg:border-r">
+            <LocationQueryField
+              value={query}
+              onApply={(q) => patch({ q })}
             />
           </div>
           <div className="px-3 py-1.5">
@@ -210,6 +240,12 @@ function FiltersForm({ compact }: { compact?: boolean }) {
             triggerLabel={rangeTriggerLabel("Price", currencyMeta.label, priceMin, priceMax)}
             min={priceMin}
             max={priceMax}
+            priceSlider={{
+              absoluteMax: Math.round(PRICE_SLIDER_MAX / currencyMeta.toPkr),
+              step: Math.max(1, Math.round(PRICE_SLIDER_STEP / currencyMeta.toPkr)),
+              toPkr: currencyMeta.toPkr,
+              unitLabel: currencyMeta.label,
+            }}
             onApply={(min, max) => {
               const minPkr = toScaledAmount(min, currencyMeta.toPkr);
               const maxPkr = toScaledAmount(max, currencyMeta.toPkr);

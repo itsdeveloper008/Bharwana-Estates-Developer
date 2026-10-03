@@ -8,6 +8,8 @@ import {
   AREA_UNITS,
   CURRENCIES,
   PillToggleGroup,
+  PRICE_SLIDER_MAX,
+  PRICE_SLIDER_STEP,
   PropertyTypePicker,
   PURPOSE_OPTIONS,
   RangeFilterPopover,
@@ -185,6 +187,12 @@ export function HeroSearch() {
             triggerLabel={rangeTriggerLabel("Price", currencyMeta.label, priceMin, priceMax)}
             min={priceMin}
             max={priceMax}
+            priceSlider={{
+              absoluteMax: Math.round(PRICE_SLIDER_MAX / currencyMeta.toPkr),
+              step: Math.max(1, Math.round(PRICE_SLIDER_STEP / currencyMeta.toPkr)),
+              toPkr: currencyMeta.toPkr,
+              unitLabel: currencyMeta.label,
+            }}
             onApply={(min, max) => {
               setPriceMin(min.trim() === "" ? "0" : min);
               setPriceMax(max.trim());

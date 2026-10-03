@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatPrice, listingBadge } from "@/lib/format";
 import { propertyHighlightDisplay } from "@/lib/property-features";
 import { propertyCoverImage } from "@/lib/property-images";
@@ -114,15 +115,21 @@ export function PropertyCard({
             className="min-w-0"
             onClick={() => onSelect?.(property.id)}
           >
-            <h3
-              className={cn(
-                "line-clamp-2 font-serif text-[13px] leading-snug",
-                highlighted ? "text-ivory" : "text-forest",
-              )}
-              title={property.title}
-            >
-              {property.title}
-            </h3>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <h3
+                  className={cn(
+                    "line-clamp-2 font-serif text-[13px] leading-snug",
+                    highlighted ? "text-ivory" : "text-forest",
+                  )}
+                >
+                  {property.title}
+                </h3>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs rounded-[10px] font-semibold">
+                {property.title}
+              </TooltipContent>
+            </Tooltip>
             <p className={cn("text-[11px]", highlighted ? "text-ivory/70" : "text-muted-foreground")}>
               {property.city}
             </p>
@@ -141,15 +148,21 @@ export function PropertyCard({
             className="min-w-0 flex-1"
             onClick={() => onSelect?.(property.id)}
           >
-            <h3
-              className={cn(
-                "truncate font-serif text-lg leading-snug",
-                highlighted ? "text-ivory" : "text-forest",
-              )}
-              title={property.title}
-            >
-              {property.title}
-            </h3>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <h3
+                  className={cn(
+                    "truncate font-serif text-lg leading-snug",
+                    highlighted ? "text-ivory" : "text-forest",
+                  )}
+                >
+                  {property.title}
+                </h3>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs rounded-[10px] font-semibold">
+                {property.title}
+              </TooltipContent>
+            </Tooltip>
             <p className={cn("mt-0.5 text-sm", highlighted ? "text-ivory/70" : "text-muted-foreground")}>
               {property.city}
             </p>

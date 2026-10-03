@@ -5,6 +5,7 @@ import { useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { PropertyCard } from "@/components/properties/property-card";
+import { Button } from "@/components/ui/button";
 import { useMockStore } from "@/lib/mock-store";
 
 export function FeaturedGrid() {
@@ -81,12 +82,17 @@ export function FeaturedSection() {
           </div>
           <Link
             href="/properties?intent=buy"
-            className="inline-flex h-10 items-center justify-center border border-forest/20 bg-white/80 px-4 text-xs uppercase tracking-[0.14em] text-forest transition-colors hover:border-gold hover:bg-white"
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-forest/20 bg-white/80 px-4 text-xs uppercase tracking-[0.14em] text-forest transition-colors hover:border-gold hover:bg-white"
           >
             All properties
           </Link>
         </div>
         <FeaturedGrid />
+        <div className="mt-10 flex justify-center">
+          <Button asChild variant="outline" size="lg" className="rounded-full px-8">
+            <Link href="/properties">View All Properties</Link>
+          </Button>
+        </div>
       </div>
     </section>
   );

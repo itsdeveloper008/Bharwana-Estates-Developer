@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FilterBar } from "@/components/properties/filter-bar";
 import { PropertyCard } from "@/components/properties/property-card";
+import { Button } from "@/components/ui/button";
 import { filtersFromSearchParams, filterProperties } from "@/lib/api/properties";
 import { useMockStore } from "@/lib/mock-store";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 15;
 
 export function PropertiesExplorer() {
   const searchParams = useSearchParams();
@@ -14,6 +17,26 @@ export function PropertiesExplorer() {
   const view = searchParams.get("view") === "list" ? "list" : "grid";
   const filters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
   const results = useMemo(() => filterProperties(properties, filters), [properties, filters]);
+  const [page, setPage] = useState(1);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const filterKey = searchParams.toString();
+
+  useEffect(() => {
+    setPage(1);
+  }, [filterKey]);
+
+  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return results.slice(start, start + PAGE_SIZE);
+  }, [results, currentPage]);
+
+  function goToPage(next: number) {
+    const clamped = Math.min(Math.max(1, next), totalPages);
+    setPage(clamped);
+    gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   if (propertiesLoading) {
     return (
@@ -53,16 +76,48 @@ export function PropertiesExplorer() {
           </p>
         </div>
       ) : (
-        <div
-          className={cn(
-            "mt-8",
-            view === "grid" ? "grid gap-8 sm:grid-cols-2 xl:grid-cols-3" : "flex flex-col gap-4",
-          )}
-        >
-          {results.map((property) => (
-            <PropertyCard key={property.id} property={property} layout={view} />
-          ))}
-        </div>
+        <>
+          <div
+            ref={gridRef}
+            className={cn(
+              "mt-8 scroll-mt-24",
+              view === "grid" ? "grid gap-8 sm:grid-cols-2 xl:grid-cols-3" : "flex flex-col gap-4",
+            )}
+          >
+            {pageItems.map((property) => (
+              <PropertyCard key={property.id} property={property} layout={view} />
+            ))}
+          </div>
+          {totalPages > 1 ? (
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+              {currentPage > 1 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full px-6"
+                  onClick={() => goToPage(currentPage - 1)}
+                >
+                  Previous
+                </Button>
+              ) : null}
+              <p className="text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages}
+              </p>
+              {currentPage < totalPages ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="lg"
+                  className="rounded-full px-6"
+                  onClick={() => goToPage(currentPage + 1)}
+                >
+                  Next
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );
