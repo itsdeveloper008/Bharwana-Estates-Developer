@@ -21,10 +21,15 @@ import {
   type PurposeId,
   type SourceId,
 } from "@/components/properties/property-filter-controls";
+import { PlaceSearchInput } from "@/components/map/place-search-input";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CITIES, type PropertyCategory } from "@/lib/types";
+
+function locationFilterLabel(label?: string) {
+  if (!label) return "";
+  return label.split(",")[0]?.trim() || label.trim();
+}
 
 const CITY_CARDS = [
   { city: "Lahore", hint: "Canal & Model Town" },
@@ -98,7 +103,7 @@ export function HeroSearch() {
         <PillToggleGroup options={SOURCE_OPTIONS} value={source} onChange={onSource} allowDeselect />
       </div>
 
-      <div className="overflow-hidden rounded-3xl bg-ivory shadow-lift">
+      <div className="rounded-3xl bg-ivory shadow-lift">
         <div className="grid gap-0 border-b border-forest/10 lg:grid-cols-[0.9fr_1.4fr_0.9fr]">
           <div className="flex items-center gap-2 border-b border-forest/10 px-4 py-3 lg:border-b-0 lg:border-r">
             <MapPin className="h-4 w-4 shrink-0 text-forest" />
@@ -116,14 +121,19 @@ export function HeroSearch() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2 border-b border-forest/10 px-4 py-3 lg:border-b-0 lg:border-r">
+          <div className="relative z-20 flex min-w-0 items-center gap-2 overflow-visible border-b border-forest/10 px-4 py-3 lg:border-b-0 lg:border-r">
             <Search className="h-4 w-4 shrink-0 text-forest/50" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+            <PlaceSearchInput
+              defaultValue={query}
+              hideLeadingIcon
+              hideActions
               placeholder="Search by location"
-              className="h-11 border-0 bg-transparent shadow-none focus-visible:ring-0"
-              onKeyDown={(event) => event.key === "Enter" && search()}
+              className="min-w-0 flex-1 space-y-0"
+              inputClassName="h-11 border-0 bg-transparent px-0 shadow-none focus-visible:border-transparent focus-visible:ring-0"
+              onPlaceSelected={(result) => {
+                setQuery(locationFilterLabel(result.label));
+              }}
+              onQueryChange={(next) => setQuery(next)}
             />
           </div>
           <div className="px-4 py-2.5">

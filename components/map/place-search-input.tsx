@@ -84,12 +84,11 @@ export function PlaceSearchInput({
   }, [defaultValue]);
 
   useEffect(() => {
-    if (process.env.NODE_ENV !== "development") return;
-    console.info("[PlaceSearchInput]", {
-      hasKey: hasGoogleMapsKey(),
+    console.log("[PlaceSearchInput] mounted", {
       isLoaded,
+      placesAvailable: typeof window !== "undefined" ? Boolean(window.google?.maps?.places) : false,
+      hasKey: hasGoogleMapsKey(),
       loadError: loadError?.message ?? null,
-      places: typeof window !== "undefined" ? Boolean(window.google?.maps?.places) : null,
     });
   }, [isLoaded, loadError]);
 
