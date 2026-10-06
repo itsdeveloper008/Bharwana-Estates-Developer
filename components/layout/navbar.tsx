@@ -222,7 +222,7 @@ export function Navbar() {
         className={cn(
           "sticky top-0 z-50 w-full",
           // Fixed height on every page - never animate height (that causes navbar shiver)
-          "h-[82px] md:h-[92px]",
+          "h-[96px] md:h-[108px]",
           overHero
             ? "border-b border-white/10 bg-gradient-to-b from-[#082B1D]/70 to-transparent transition-[background-color,border-color,box-shadow] duration-300 ease-out"
             : "border-b border-[#082B1D]/10 bg-[#FBFAF6] shadow-[0_8px_30px_-18px_rgba(8,43,29,0.35)] transition-[background-color,border-color,box-shadow] duration-300 ease-out",
@@ -237,22 +237,22 @@ export function Navbar() {
           >
             <span
               className={cn(
-                "relative flex h-12 w-12 items-center justify-center md:h-[3.25rem] md:w-[3.25rem]",
+                "relative flex h-16 w-16 items-center justify-center md:h-[4.5rem] md:w-[4.5rem]",
                 "after:absolute after:inset-[-3px] after:rounded-full after:border after:border-[#B89545]/0 after:transition-colors after:duration-300 group-hover:after:border-[#B89545]/45",
               )}
             >
               <Image
                 src="/logo.png"
                 alt=""
-                width={48}
-                height={48}
-                className="relative z-10 h-11 w-11 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition-transform duration-500 group-hover:scale-[1.04] md:h-12 md:w-12"
+                width={72}
+                height={72}
+                className="relative z-10 h-14 w-14 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition-transform duration-500 group-hover:scale-[1.04] md:h-16 md:w-16"
                 priority
               />
             </span>
             <span
               className={cn(
-                "hidden font-display text-[12px] font-bold uppercase leading-none tracking-[0.3em] transition-colors duration-300 sm:block",
+                "hidden font-display text-[14px] font-bold uppercase leading-none tracking-[0.3em] transition-colors duration-300 sm:block",
                 overHero ? "text-[#F5F1E8]" : "text-[#06291C]",
               )}
             >
@@ -286,7 +286,7 @@ export function Navbar() {
                     void import("@/components/map/map-view");
                   }}
                   className={cn(
-                    "group relative shrink-0 px-2.5 py-2.5 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors duration-300 2xl:px-3.5 2xl:text-[12px] 2xl:tracking-[0.2em]",
+                    "group relative shrink-0 px-3 py-2.5 text-[14px] font-bold uppercase tracking-[0.14em] transition-colors duration-300 2xl:px-4 2xl:text-[15px] 2xl:tracking-[0.16em]",
                     overHero
                       ? active
                         ? "text-[#F5F1E8]"
@@ -497,16 +497,16 @@ export function Navbar() {
             transition={{ duration: 0.35, ease }}
             className="fixed inset-0 z-[60] flex flex-col bg-[#082B1D] xl:hidden"
           >
-            <div className="mx-auto flex h-[82px] w-full max-w-[1360px] items-center justify-between px-5 sm:px-8">
+            <div className="mx-auto flex h-[96px] w-full max-w-[1360px] items-center justify-between px-5 sm:px-8">
               <Link href="/" aria-label="Bharwana Estates home" onClick={() => setOpen(false)} className="flex items-center gap-3">
                 <Image
                   src="/logo.png"
                   alt=""
-                  width={40}
-                  height={40}
-                  className="h-9 w-9 object-contain"
+                  width={56}
+                  height={56}
+                  className="h-14 w-14 object-contain"
                 />
-                <span className="font-display text-[11px] uppercase tracking-[0.28em] text-[#F5F1E8]">
+                <span className="font-display text-[14px] uppercase tracking-[0.28em] text-[#F5F1E8]">
                   Bharwana
                 </span>
               </Link>

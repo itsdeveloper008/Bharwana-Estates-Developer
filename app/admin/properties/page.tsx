@@ -26,6 +26,11 @@ export default function AdminPropertiesPage() {
 
   const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
 
+  const publishedCount = useMemo(
+    () => properties.filter((property) => property.status === "PUBLISHED").length,
+    [properties],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return properties;
@@ -56,6 +61,15 @@ export default function AdminPropertiesPage() {
         <div>
           <p className="type-eyebrow">Inventory</p>
           <h1 className="font-serif text-3xl">Properties</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            <span className="inline-flex items-center rounded-full border border-forest/15 bg-forest/[0.04] px-2.5 py-0.5 text-forest">
+              <span className="font-semibold tabular-nums">{publishedCount}</span>
+              <span className="ml-1.5 text-forest/70">published</span>
+            </span>
+            {properties.length !== publishedCount ? (
+              <span className="ml-2">· {properties.length} total</span>
+            ) : null}
+          </p>
         </div>
         <Button asChild>
           <Link href="/admin/properties/add">Add Property</Link>

@@ -2,14 +2,9 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useJsApiLoader } from "@react-google-maps/api";
 import { Loader2, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import {
-  GOOGLE_MAPS_API_KEY,
-  GOOGLE_MAPS_LIBRARIES,
-  hasGoogleMapsKey,
-} from "@/lib/map";
+import { hasGoogleMapsKey, loadGoogleMapsScript, MULTAN_LOCALITIES, MULTAN_SEARCH_CENTER, MULTAN_SEARCH_RADIUS_M } from "@/lib/map";
 import { cn } from "@/lib/utils";
 
 export type PlaceSearchResult = {
@@ -22,10 +17,28 @@ const fieldClass =
   "h-10 rounded-xl border border-[#E8E2D6]/90 bg-[#FBF9F5] shadow-[inset_0_1px_2px_rgba(15,46,29,0.045)] transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-gold focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-gold/35";
 
 type Prediction = {
-  placeId: string;
+  placeId?: string;
   primary: string;
   secondary: string;
+  latitude?: number;
+  longitude?: number;
 };
+
+function localMultanMatches(query: string): Prediction[] {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  return MULTAN_LOCALITIES.filter((item) => {
+    const hay = `${item.name} ${item.secondary}`.toLowerCase();
+    return hay.includes(q);
+  })
+    .slice(0, 5)
+    .map((item) => ({
+      primary: item.name,
+      secondary: item.secondary,
+      latitude: item.lat,
+      longitude: item.lng,
+    }));
+}
 
 /**
  * Places Autocomplete via AutocompleteService + custom dropdown (portal).
@@ -61,13 +74,8 @@ export function PlaceSearchInput({
   const debounceRef = useRef<number | null>(null);
   const suppressFetchRef = useRef(false);
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "bharwana-google-maps",
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES,
-    preventGoogleFontsLoading: true,
-  });
-
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [query, setQuery] = useState(defaultValue);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -82,6 +90,26 @@ export function PlaceSearchInput({
   useEffect(() => {
     setQuery(defaultValue);
   }, [defaultValue]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadError(null);
+    void loadGoogleMapsScript()
+      .then(() => {
+        if (cancelled) return;
+        setIsLoaded(true);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const next = err instanceof Error ? err : new Error(String(err));
+        console.error("[PlaceSearchInput] Google Maps load failed — exact error:", next);
+        console.error("[PlaceSearchInput] message:", next.message);
+        setLoadError(next);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     console.log("[PlaceSearchInput] mounted", {
@@ -130,41 +158,70 @@ export function PlaceSearchInput({
         setLoadingPredictions(false);
         return;
       }
+
+      const locals = localMultanMatches(trimmed);
+
       if (!window.google?.maps?.places?.AutocompleteService) {
         setLoadingPredictions(false);
+        if (locals.length) {
+          setPredictions(locals);
+          setHighlight(-1);
+          positionMenu();
+          setOpen(true);
+        } else {
+          setPredictions([]);
+          setOpen(false);
+        }
         return;
       }
 
       setLoadingPredictions(true);
+      const center = new google.maps.LatLng(MULTAN_SEARCH_CENTER.lat, MULTAN_SEARCH_CENTER.lng);
       const service = new google.maps.places.AutocompleteService();
       service.getPlacePredictions(
         {
           input: trimmed,
           componentRestrictions: { country: "pk" },
+          // Strong Multan bias — other cities still appear when searched explicitly.
+          location: center,
+          radius: MULTAN_SEARCH_RADIUS_M,
+          locationBias: {
+            center,
+            radius: MULTAN_SEARCH_RADIUS_M,
+          },
         },
         (results, status) => {
           setLoadingPredictions(false);
-          if (status !== google.maps.places.PlacesServiceStatus.OK || !results?.length) {
-            if (process.env.NODE_ENV === "development") {
-              console.info("[PlaceSearchInput] predictions", { status, count: results?.length ?? 0 });
-            }
+          const fromGoogle =
+            status === google.maps.places.PlacesServiceStatus.OK && results?.length
+              ? results.slice(0, 6).map((item) => ({
+                  placeId: item.place_id,
+                  primary: item.structured_formatting?.main_text || item.description,
+                  secondary: item.structured_formatting?.secondary_text || "",
+                }))
+              : [];
+
+          const seen = new Set(fromGoogle.map((item) => item.primary.toLowerCase()));
+          const merged = [
+            ...locals.filter((item) => !seen.has(item.primary.toLowerCase())),
+            ...fromGoogle,
+          ].slice(0, 8);
+
+          if (process.env.NODE_ENV === "development") {
+            console.info("[PlaceSearchInput] predictions", {
+              status,
+              google: fromGoogle.length,
+              local: locals.length,
+              first: merged[0]?.primary,
+            });
+          }
+
+          if (!merged.length) {
             setPredictions([]);
             setOpen(false);
             return;
           }
-          const next = results.slice(0, 6).map((item) => ({
-            placeId: item.place_id,
-            primary: item.structured_formatting?.main_text || item.description,
-            secondary: item.structured_formatting?.secondary_text || "",
-          }));
-          if (process.env.NODE_ENV === "development") {
-            console.info("[PlaceSearchInput] predictions", {
-              status,
-              count: next.length,
-              first: next[0]?.primary,
-            });
-          }
-          setPredictions(next);
+          setPredictions(merged);
           setHighlight(-1);
           positionMenu();
           setOpen(true);
@@ -211,6 +268,29 @@ export function PlaceSearchInput({
 
   const selectPrediction = useCallback(
     async (prediction: Prediction) => {
+      if (
+        prediction.latitude != null &&
+        prediction.longitude != null &&
+        Number.isFinite(prediction.latitude) &&
+        Number.isFinite(prediction.longitude)
+      ) {
+        const label = prediction.secondary
+          ? `${prediction.primary}, ${prediction.secondary}`
+          : prediction.primary;
+        suppressFetchRef.current = true;
+        updateQuery(prediction.primary);
+        applyResult({
+          latitude: prediction.latitude,
+          longitude: prediction.longitude,
+          label,
+        });
+        return;
+      }
+
+      if (!prediction.placeId) {
+        setError(`No results found for “${prediction.primary}”.`);
+        return;
+      }
       if (!window.google?.maps?.Geocoder) {
         setError("Map search is still loading. Try again in a moment.");
         return;
@@ -258,9 +338,14 @@ export function PlaceSearchInput({
       setError(null);
       try {
         const geocoder = new google.maps.Geocoder();
+        const center = new google.maps.LatLng(MULTAN_SEARCH_CENTER.lat, MULTAN_SEARCH_CENTER.lng);
         const response = await geocoder.geocode({
           address: trimmed,
           componentRestrictions: { country: "PK" },
+          bounds: new google.maps.Circle({
+            center,
+            radius: MULTAN_SEARCH_RADIUS_M,
+          }).getBounds()!,
         });
         const first = response.results?.[0];
         const loc = first?.geometry?.location;
@@ -418,7 +503,7 @@ export function PlaceSearchInput({
               }}
             >
               {predictions.map((item, index) => (
-                <li key={item.placeId} role="option" aria-selected={highlight === index}>
+                <li key={item.placeId ?? `${item.primary}-${index}`} role="option" aria-selected={highlight === index}>
                   <button
                     type="button"
                     className={cn(
@@ -446,7 +531,7 @@ export function PlaceSearchInput({
 
       {loadError ? (
         <p className="text-sm text-destructive" role="alert">
-          Could not load Google Places. Check NEXT_PUBLIC_GOOGLE_MAPS_API_KEY and Places API access.
+          Could not load Google Places. {loadError.message}
         </p>
       ) : error ? (
         <p className="text-sm text-destructive" role="alert">

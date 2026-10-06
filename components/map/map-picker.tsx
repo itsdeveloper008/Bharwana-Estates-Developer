@@ -7,8 +7,7 @@ import { PlaceSearchInput } from "@/components/map/place-search-input";
 import { PropertyPin } from "@/components/map/property-pin";
 import {
   DEFAULT_MAP_VIEW,
-  GOOGLE_MAPS_API_KEY,
-  GOOGLE_MAPS_LIBRARIES,
+  GOOGLE_MAPS_JS_API_LOADER_PROPS,
   PLACE_SEARCH_ZOOM,
   hasGoogleMapsKey,
 } from "@/lib/map";
@@ -31,11 +30,7 @@ export function MapPicker({
   });
   const [zoom, setZoom] = useState(11);
 
-  const { isLoaded } = useJsApiLoader({
-    id: "bharwana-google-maps",
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES,
-  });
+  const { isLoaded } = useJsApiLoader(GOOGLE_MAPS_JS_API_LOADER_PROPS);
 
   useEffect(() => {
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;

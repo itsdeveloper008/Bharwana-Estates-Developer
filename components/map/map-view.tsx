@@ -13,8 +13,7 @@ import { SearchLocationPin } from "@/components/map/search-location-pin";
 import {
   CITY_COORDS,
   DEFAULT_MAP_VIEW,
-  GOOGLE_MAPS_API_KEY,
-  GOOGLE_MAPS_LIBRARIES,
+  GOOGLE_MAPS_JS_API_LOADER_PROPS,
   PLACE_SEARCH_ZOOM,
   boundsFromProperties,
   googleBoundsTuple,
@@ -118,13 +117,7 @@ export function MapView({
   const [searchMarker, setSearchMarker] = useState<PlaceSearchResult | null>(null);
   const suppressMapClick = useRef(false);
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "bharwana-google-maps",
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES,
-    // Skip Roboto / Google fonts fetch - meaningful win on slow networks.
-    preventGoogleFontsLoading: true,
-  });
+  const { isLoaded, loadError } = useJsApiLoader(GOOGLE_MAPS_JS_API_LOADER_PROPS);
 
   useEffect(() => {
     const win = window as Window & { gm_authFailure?: () => void };
@@ -543,12 +536,7 @@ export function MapView({
 
 
 export function MiniMap({ property }: { property: Property }) {
-  const { isLoaded } = useJsApiLoader({
-    id: "bharwana-google-maps",
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES,
-    preventGoogleFontsLoading: true,
-  });
+  const { isLoaded } = useJsApiLoader(GOOGLE_MAPS_JS_API_LOADER_PROPS);
 
   if (!hasGoogleMapsKey() || !isLoaded) {
     return <div className="flex h-64 items-center justify-center bg-cream/50 text-xs text-muted-foreground">Map</div>;
