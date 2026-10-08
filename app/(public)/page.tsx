@@ -267,7 +267,8 @@ function WhyBharwanaSection() {
 export default function HomePage() {
   return (
     <>
-      <section className="relative w-full min-h-svh overflow-hidden -mt-[88px] md:-mt-[96px]">
+      {/* Pull hero under the sticky navbar — must match navbar h-[96px] md:h-[108px] */}
+      <section className="relative w-full min-h-svh overflow-hidden -mt-[96px] md:-mt-[108px]">
         <Image
           src="/hero.jpeg"
           alt=""

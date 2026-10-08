@@ -99,12 +99,19 @@ export function MapView({
   onResetBounds?: () => void;
 }) {
   const mapRef = useRef<google.maps.Map | null>(null);
+  const mapShellRef = useRef<HTMLDivElement | null>(null);
   const searchParams = useSearchParams();
   const city = searchParams.get("city");
   // After the user pans/zooms, show "Search this area" once the map settles (debounced).
   const dirtyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userMoved = useRef(false);
   const fittedKey = useRef<string>("");
+
+  const triggerMapResize = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !window.google?.maps?.event) return;
+    google.maps.event.trigger(map, "resize");
+  }, []);
 
   const [zoom, setZoom] = useState(DEFAULT_MAP_VIEW.zoom);
   const [bounds, setBounds] = useState<[number, number, number, number] | null>(null);
@@ -268,10 +275,20 @@ export function MapView({
     };
   }, []);
 
+  useEffect(() => {
+    const el = mapShellRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      triggerMapResize();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [triggerMapResize, isLoaded]);
+
   if (!hasGoogleMapsKey()) return <MapKeyMissing />;
   if (loadError || authFailed) {
     return (
-      <div className="flex h-full min-h-[420px] items-center justify-center bg-cream/60 px-6 text-center">
+      <div className="flex h-full min-h-0 items-center justify-center bg-cream/60 px-6 text-center">
         <div className="max-w-md">
           <p className="font-serif text-2xl text-forest">Google Maps blocked this key</p>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
@@ -305,7 +322,7 @@ export function MapView({
   if (!isLoaded) return <MapLoadingSkeleton />;
 
   return (
-    <div className={`relative h-full w-full ${selected ? "min-h-[1100px]" : "min-h-[420px]"}`}>
+    <div ref={mapShellRef} className="relative h-full min-h-0 w-full">
       {!styleLoaded && (
         <div className="pointer-events-none absolute inset-0 z-10 bg-cream/40">
           <MapLoadingSkeleton />
@@ -320,8 +337,12 @@ export function MapView({
         onLoad={(map) => {
           mapRef.current = map;
           map.setMapTypeId(mapTypeId);
-          syncViewport();
-          if (!city) fitToProperties(properties);
+          // Layout often settles after first paint — resize so tiles fill the pane.
+          window.requestAnimationFrame(() => {
+            google.maps.event.trigger(map, "resize");
+            syncViewport();
+            if (!city) fitToProperties(properties);
+          });
           setStyleLoaded(true);
         }}
         onIdle={() => {

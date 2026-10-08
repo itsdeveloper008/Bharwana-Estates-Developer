@@ -9,7 +9,6 @@ import { filtersFromSearchParams, filterProperties } from "@/lib/api/properties"
 import { preloadGoogleMaps } from "@/lib/map";
 import { useMockStore } from "@/lib/mock-store";
 import type { MapBounds } from "@/lib/types";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +21,7 @@ if (typeof window !== "undefined") {
 const MapView = dynamic(() => import("@/components/map/map-view").then((mod) => mod.MapView), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full min-h-[320px] items-center justify-center bg-cream/60">
+    <div className="flex h-full min-h-0 items-center justify-center bg-cream/60">
       <div className="h-8 w-8 animate-pulse rounded-full border-2 border-forest/20 border-t-gold" />
     </div>
   ),
@@ -58,8 +57,8 @@ export function MapExplorer() {
   }
 
   const listPanel = (
-    <ScrollArea className="h-full min-h-0">
-      <div className="space-y-2 bg-cream/40 p-2">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-cream/40">
+      <div className="space-y-2 p-2">
         {bounds && (
           <div className="mb-1 flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
             <span>Showing properties in the map frame</span>
@@ -92,16 +91,18 @@ export function MapExplorer() {
           </div>
         )}
       </div>
-    </ScrollArea>
+    </div>
   );
 
   return (
-    <div className="flex min-h-[calc(100dvh-5rem)] flex-col">
-      <div className="border-b border-forest/10 bg-ivory px-4 py-4 sm:px-6">
+    <div
+      className="flex h-[calc(100dvh-var(--site-header-height))] flex-col overflow-hidden"
+    >
+      <div className="shrink-0 border-b border-forest/10 bg-ivory px-4 py-4 sm:px-6">
         <FilterBar resultCount={results.length} />
       </div>
 
-      <div className="flex border-b border-forest/10 bg-ivory px-4 py-2 lg:hidden">
+      <div className="flex shrink-0 border-b border-forest/10 bg-ivory px-4 py-2 lg:hidden">
         <div className="grid w-full grid-cols-2 gap-2">
           <button
             type="button"
@@ -126,20 +127,19 @@ export function MapExplorer() {
         </div>
       </div>
 
-      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr]">
         <div
           className={cn(
-            "border-b border-forest/10 lg:block lg:min-h-[calc(100dvh-9rem)] lg:border-b-0 lg:border-r",
-            mobilePanel === "list" ? "flex min-h-[70vh] flex-col" : "hidden",
+            "min-h-0 flex-col border-b border-forest/10 lg:flex lg:border-b-0 lg:border-r",
+            mobilePanel === "list" ? "flex" : "hidden lg:flex",
           )}
         >
           {listPanel}
         </div>
         <div
           className={cn(
-            "lg:block lg:min-h-[calc(100dvh-9rem)]",
-            selectedId ? "min-h-[1100px] lg:min-h-[1100px]" : "",
-            mobilePanel === "map" ? "block min-h-[70vh]" : "hidden lg:block",
+            "relative min-h-0 w-full",
+            mobilePanel === "map" ? "block h-full" : "hidden h-full lg:block",
           )}
         >
           <MapView

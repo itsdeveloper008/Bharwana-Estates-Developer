@@ -34,6 +34,14 @@
     --chart-3: 40 18% 70%;
     --chart-4: 43 40% 40%;
     --chart-5: 152 20% 30%;
+    /* Must match Navbar: h-[96px] md:h-[108px] */
+    --site-header-height: 96px;
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --site-header-height: 108px;
+    }
   }
 }
 
