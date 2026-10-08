@@ -87,6 +87,7 @@ export function MapView({
   boundsActive,
   onBoundsSearch,
   onResetBounds,
+  gestureHandling = "greedy",
 }: {
   properties: Property[];
   hoveredId?: string | null;
@@ -97,6 +98,8 @@ export function MapView({
   boundsActive?: boolean;
   onBoundsSearch?: (bounds: MapBounds) => void;
   onResetBounds?: () => void;
+  /** cooperative while page can still scroll filters; greedy once map pane is stuck. */
+  gestureHandling?: "cooperative" | "greedy";
 }) {
   const mapRef = useRef<google.maps.Map | null>(null);
   const mapShellRef = useRef<HTMLDivElement | null>(null);
@@ -285,6 +288,15 @@ export function MapView({
     return () => observer.disconnect();
   }, [triggerMapResize, isLoaded]);
 
+  useEffect(() => {
+    mapRef.current?.setOptions({ gestureHandling });
+  }, [gestureHandling]);
+
+  const liveMapOptions = useMemo(
+    () => ({ ...mapOptions, gestureHandling }),
+    [gestureHandling],
+  );
+
   if (!hasGoogleMapsKey()) return <MapKeyMissing />;
   if (loadError || authFailed) {
     return (
@@ -333,10 +345,11 @@ export function MapView({
         mapContainerStyle={mapContainerStyle}
         center={initialCenter}
         zoom={initialZoom}
-        options={mapOptions}
+        options={liveMapOptions}
         onLoad={(map) => {
           mapRef.current = map;
           map.setMapTypeId(mapTypeId);
+          map.setOptions({ gestureHandling });
           // Layout often settles after first paint — resize so tiles fill the pane.
           window.requestAnimationFrame(() => {
             google.maps.event.trigger(map, "resize");

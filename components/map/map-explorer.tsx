@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FilterBar } from "@/components/properties/filter-bar";
 import { PropertyCard } from "@/components/properties/property-card";
@@ -27,6 +27,13 @@ const MapView = dynamic(() => import("@/components/map/map-view").then((mod) => 
   ),
 });
 
+function readHeaderHeightPx() {
+  if (typeof window === "undefined") return 96;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--site-header-height").trim();
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) ? n : 96;
+}
+
 export function MapExplorer() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -36,10 +43,32 @@ export function MapExplorer() {
   const [focusId, setFocusId] = useState<string | null>(null);
   const [focusKey, setFocusKey] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [mobilePanel, setMobilePanel] = useState<"list" | "map">("list");
+  const [stuck, setStuck] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     void preloadGoogleMaps();
+  }, []);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const headerPx = readHeaderHeightPx();
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setStuck(!entry?.isIntersecting);
+      },
+      {
+        root: null,
+        threshold: 0,
+        // Treat the sticky top edge (under the header) as the fold line.
+        rootMargin: `-${headerPx}px 0px 0px 0px`,
+      },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
   }, []);
 
   const barFilters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
@@ -56,92 +85,94 @@ export function MapExplorer() {
     router.push("/map?intent=buy");
   }
 
-  const listPanel = (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-cream/40">
-      <div className="space-y-2 p-2">
-        {bounds && (
-          <div className="mb-1 flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
-            <span>Showing properties in the map frame</span>
-            <button type="button" className="text-forest underline-offset-2 hover:underline" onClick={resetBounds}>
-              Show all
-            </button>
-          </div>
-        )}
-        {results.map((property) => (
-          <PropertyCard
-            key={property.id}
-            property={property}
-            layout="list"
-            highlighted={property.id === selectedId}
-            onHover={setHoveredId}
-            onSelect={(id) => {
-              setFocusId(id);
-              setSelectedId(id);
-              setFocusKey((key) => key + 1);
-              setMobilePanel("map");
-            }}
-          />
-        ))}
-        {results.length === 0 && (
-          <div className="p-8 text-center">
-            <p className="text-sm text-muted-foreground">No properties in this frame.</p>
-            <Button variant="outline" size="sm" className="mt-4" onClick={resetAll}>
-              Reset filters
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
+  const onListWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      if (!stuck) return;
+      const el = listRef.current;
+      if (!el) return;
+      // At top of list, hand scroll back to the page so filters can return.
+      if (event.deltaY < 0 && el.scrollTop <= 0) {
+        event.preventDefault();
+        window.scrollBy({ top: event.deltaY, left: 0, behavior: "auto" });
+      }
+    },
+    [stuck],
   );
 
   return (
-    <div
-      className="flex h-[calc(100dvh-var(--site-header-height))] flex-col overflow-hidden"
-    >
-      <div className="shrink-0 border-b border-forest/10 bg-ivory px-4 py-4 sm:px-6">
-        <FilterBar resultCount={results.length} />
+    <div className="bg-ivory">
+      <div className="border-b border-forest/10 bg-ivory px-4 py-4 sm:px-6">
+        <FilterBar resultCount={results.length} showViewToggle={false} />
       </div>
 
-      <div className="flex shrink-0 border-b border-forest/10 bg-ivory px-4 py-2 lg:hidden">
-        <div className="grid w-full grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setMobilePanel("list")}
-            className={cn(
-              "rounded-full px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] transition-colors",
-              mobilePanel === "list" ? "bg-forest text-ivory" : "bg-cream text-forest",
-            )}
-          >
-            List ({results.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobilePanel("map")}
-            className={cn(
-              "rounded-full px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] transition-colors",
-              mobilePanel === "map" ? "bg-forest text-ivory" : "bg-cream text-forest",
-            )}
-          >
-            Map
-          </button>
-        </div>
-      </div>
+      {/* 1px sentinel just above the sticky list+map block */}
+      <div ref={sentinelRef} aria-hidden className="h-px w-full" />
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr]">
+      <div
+        className={cn(
+          "sticky z-20 grid min-h-0 bg-ivory",
+          "top-[var(--site-header-height)]",
+          "h-[calc(100dvh-var(--site-header-height))]",
+          "grid-cols-1 grid-rows-[45dvh_minmax(0,1fr)]",
+          "lg:grid-cols-[260px_1fr] lg:grid-rows-1 xl:grid-cols-[280px_1fr]",
+        )}
+      >
+        {/* List — left on desktop, under map on mobile */}
         <div
           className={cn(
-            "min-h-0 flex-col border-b border-forest/10 lg:flex lg:border-b-0 lg:border-r",
-            mobilePanel === "list" ? "flex" : "hidden lg:flex",
+            "order-2 flex min-h-0 flex-col border-forest/10 lg:order-1 lg:border-r",
+            "border-t lg:border-t-0",
           )}
         >
-          {listPanel}
+          <div
+            ref={listRef}
+            onWheel={onListWheel}
+            className={cn(
+              "min-h-0 flex-1 bg-cream/40",
+              stuck ? "overflow-y-auto overscroll-contain" : "overflow-y-hidden",
+            )}
+          >
+            <div className="space-y-2 p-2">
+              {bounds && (
+                <div className="mb-1 flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
+                  <span>Showing properties in the map frame</span>
+                  <button
+                    type="button"
+                    className="text-forest underline-offset-2 hover:underline"
+                    onClick={resetBounds}
+                  >
+                    Show all
+                  </button>
+                </div>
+              )}
+              {results.map((property) => (
+                <PropertyCard
+                  key={property.id}
+                  property={property}
+                  layout="list"
+                  highlighted={property.id === selectedId}
+                  onHover={setHoveredId}
+                  onSelect={(id) => {
+                    setFocusId(id);
+                    setSelectedId(id);
+                    setFocusKey((key) => key + 1);
+                  }}
+                />
+              ))}
+              {results.length === 0 && (
+                <div className="p-8 text-center">
+                  <p className="text-sm text-muted-foreground">No properties in this frame.</p>
+                  <Button variant="outline" size="sm" className="mt-4" onClick={resetAll}>
+                    Reset filters
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-        <div
-          className={cn(
-            "relative min-h-0 w-full",
-            mobilePanel === "map" ? "block h-full" : "hidden h-full lg:block",
-          )}
-        >
+
+        {/* Map — right on desktop, top sticky strip on mobile */}
+        <div className="relative order-1 min-h-0 w-full lg:order-2">
           <MapView
             properties={results}
             hoveredId={hoveredId}
@@ -155,6 +186,7 @@ export function MapExplorer() {
             boundsActive={Boolean(bounds)}
             onBoundsSearch={setBounds}
             onResetBounds={resetAll}
+            gestureHandling={stuck ? "greedy" : "cooperative"}
           />
         </div>
       </div>
