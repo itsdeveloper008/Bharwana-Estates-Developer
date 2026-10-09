@@ -109,10 +109,11 @@ export function preloadGoogleMaps() {
   });
 }
 
+/** Default map camera — Multan (primary market); avoids loading all of Pakistan first. */
 export const DEFAULT_MAP_VIEW = {
-  latitude: 31.52,
-  longitude: 74.34,
-  zoom: 5.5,
+  latitude: 30.1575,
+  longitude: 71.5249,
+  zoom: 11.4,
 };
 
 export const CITY_COORDS: Record<string, { latitude: number; longitude: number; zoom: number }> = {

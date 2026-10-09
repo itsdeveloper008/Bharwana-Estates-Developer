@@ -517,6 +517,17 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // Paint cached session immediately; onAuthStateChanged confirms or clears.
+      try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as User;
+          if (parsed?.id && parsed?.email && !cancelled) setUser(parsed);
+        }
+      } catch {
+        localStorage.removeItem(SESSION_KEY);
+      }
+
       // Never leave the UI stuck on "Checking your session…" - Auth network calls can hang
       // (e.g. getProjectConfig ERR_CONNECTION_CLOSED) without rejecting.
       readyTimer = window.setTimeout(() => {

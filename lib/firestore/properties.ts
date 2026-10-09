@@ -44,14 +44,21 @@ export const PUBLIC_PROPERTIES_LIMIT = 250;
  */
 
 const MAX_UPLOAD_BYTES = 9 * 1024 * 1024;
-const ALREADY_COMPRESSED_BYTES = LISTING_IMAGE_MAX_MB * 1024 * 1024;
+/** Soft target from form compress; allow slight overshoot so submit does not re-encode. */
+const ALREADY_COMPRESSED_BYTES = Math.ceil(LISTING_IMAGE_MAX_MB * 1.25 * 1024 * 1024);
+/** Parallel Storage uploads — 3 balances speed vs phone memory (serial was too slow). */
+const PHOTO_UPLOAD_CONCURRENCY = 3;
 
 /**
  * Shrink listing photos before Storage upload.
  * Skips a second pass when the form already compressed to JPEG under the soft size target.
  */
 async function compressImageBlob(blob: Blob): Promise<Blob> {
-  if (blob.type === "image/jpeg" && blob.size > 0 && blob.size <= ALREADY_COMPRESSED_BYTES) {
+  if (
+    (blob.type === "image/jpeg" || blob.type === "image/jpg") &&
+    blob.size > 0 &&
+    blob.size <= ALREADY_COMPRESSED_BYTES
+  ) {
     return blob;
   }
   try {
@@ -179,14 +186,16 @@ async function resolvePropertyImages(
   const uid = currentUser.uid;
 
   const total = images.length;
-  // Serial uploads - parallel bitmap/canvas on phones often OOMs mid-submit.
-  const urls: string[] = [];
-  for (let index = 0; index < images.length; index += 1) {
-    onProgress?.(index + 1, total);
+  const urls: string[] = new Array(total);
+  let finished = 0;
+
+  async function uploadOne(index: number): Promise<void> {
     const image = images[index];
     if (isRemoteImageUrl(image) && !imageFiles?.[index]) {
-      urls.push(image);
-      continue;
+      urls[index] = image;
+      finished += 1;
+      onProgress?.(finished, total);
+      return;
     }
     if (/^https?:\/\//i.test(image) && !imageFiles?.[index]) {
       throw new Error(
@@ -221,13 +230,11 @@ async function resolvePropertyImages(
       throw new Error(`Photo ${index + 1} could not be processed. Try a JPG or PNG.`);
     }
 
-
-    const contentType = "image/jpeg";
     const storageRef = ref(storage, `listings/${uid}/${propertyId}/${index}.jpg`);
 
     try {
       await withTimeout(
-        uploadBytes(storageRef, blob, { contentType }),
+        uploadBytes(storageRef, blob, { contentType: "image/jpeg" }),
         PHOTO_UPLOAD_TIMEOUT_MS,
         `Photo ${index + 1} upload`,
       );
@@ -244,8 +251,22 @@ async function resolvePropertyImages(
     if (!isStoredImageUrl(downloadUrl)) {
       throw new Error(`Photo ${index + 1} upload returned an invalid URL`);
     }
-    urls.push(downloadUrl);
+    urls[index] = downloadUrl;
+    finished += 1;
+    onProgress?.(finished, total);
   }
+
+  // Bounded concurrency — faster than serial, safer than uploading all at once on phones.
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < total) {
+      const index = nextIndex;
+      nextIndex += 1;
+      await uploadOne(index);
+    }
+  }
+  const workers = Math.min(PHOTO_UPLOAD_CONCURRENCY, total);
+  await Promise.all(Array.from({ length: workers }, () => worker()));
   return urls;
 }
 

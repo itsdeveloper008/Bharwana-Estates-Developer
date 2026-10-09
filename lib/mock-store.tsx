@@ -350,6 +350,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, [isAdminSession, adminAuthReady, hasModule, isSuperAdmin]);
 
   // Admin: full inventory. Public: PUBLISHED/RESERVED only (capped).
+  // Public marketplace starts immediately — do not wait on adminAuthReady (that delayed every visitor).
   useEffect(() => {
     if (!isFirebaseConfigured()) {
       setUsingFirestoreProperties(false);
@@ -358,34 +359,28 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Avoid briefly attaching the public listener before admin session resolves.
-    if (!adminAuthReady) {
+    // Confirmed admin panel session only — wait until ready so we don't flash public data.
+    if (adminAuthReady && isAdminSession) {
       setPropertiesLoading(true);
       setPropertiesError(null);
-      return;
-    }
 
-    setPropertiesLoading(true);
-    setPropertiesError(null);
+      const timeout = window.setTimeout(() => {
+        setPropertiesLoading(false);
+        setPropertiesError((current) =>
+          current ?? "Loading properties is taking longer than expected. Try refreshing.",
+        );
+      }, 8_000);
 
-    const timeout = window.setTimeout(() => {
-      setPropertiesLoading(false);
-      setPropertiesError((current) =>
-        current ?? "Loading properties is taking longer than expected. Try refreshing.",
-      );
-    }, 8_000);
+      const onError = (error: Error) => {
+        window.clearTimeout(timeout);
+        console.error("Firestore properties subscription failed", error);
+        setUsingFirestoreProperties(false);
+        setProperties([]);
+        setPropertiesLoading(false);
+        setPropertiesError(firestoreErrorMessage(error, "Could not load properties from Firestore."));
+        toast.error("Could not load properties from Firestore.");
+      };
 
-    const onError = (error: Error) => {
-      window.clearTimeout(timeout);
-      console.error("Firestore properties subscription failed", error);
-      setUsingFirestoreProperties(false);
-      setProperties([]);
-      setPropertiesLoading(false);
-      setPropertiesError(firestoreErrorMessage(error, "Could not load properties from Firestore."));
-      toast.error("Could not load properties from Firestore.");
-    };
-
-    if (isAdminSession) {
       ownedPropertiesRef.current = [];
       publicPropertiesRef.current = [];
 
@@ -431,6 +426,27 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       };
     }
 
+    // Still resolving admin auth, or confirmed non-admin: load public marketplace now.
+    setPropertiesLoading(true);
+    setPropertiesError(null);
+
+    const timeout = window.setTimeout(() => {
+      setPropertiesLoading(false);
+      setPropertiesError((current) =>
+        current ?? "Loading properties is taking longer than expected. Try refreshing.",
+      );
+    }, 8_000);
+
+    const onError = (error: Error) => {
+      window.clearTimeout(timeout);
+      console.error("Firestore properties subscription failed", error);
+      setUsingFirestoreProperties(false);
+      setProperties([]);
+      setPropertiesLoading(false);
+      setPropertiesError(firestoreErrorMessage(error, "Could not load properties from Firestore."));
+      toast.error("Could not load properties from Firestore.");
+    };
+
     adminPropertiesRef.current = [];
     const unsub = subscribePublicProperties(
       (next) => {
@@ -458,9 +474,9 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
 
   // Sellers: merge their listings (all statuses) into the public marketplace set.
   useEffect(() => {
-    if (!isFirebaseConfigured() || !adminAuthReady || isAdminSession || !marketplaceUserId) {
+    if (!isFirebaseConfigured() || isAdminSession || !marketplaceUserId) {
       ownedPropertiesRef.current = [];
-      if (adminAuthReady && !isAdminSession && isFirebaseConfigured()) rebuildProperties();
+      if (!isAdminSession && isFirebaseConfigured()) rebuildProperties();
       return;
     }
 
@@ -478,7 +494,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     );
 
     return () => unsub?.();
-  }, [isAdminSession, adminAuthReady, marketplaceUserId, rebuildProperties]);
+  }, [isAdminSession, marketplaceUserId, rebuildProperties]);
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {

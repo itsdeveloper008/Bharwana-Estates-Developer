@@ -38,7 +38,8 @@ export function PropertiesExplorer() {
     gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  if (propertiesLoading) {
+  // Don't block the whole page when we already have listings from a live snapshot.
+  if (propertiesLoading && results.length === 0) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6">
         <p className="text-sm text-muted-foreground">Loading the collection…</p>
@@ -46,7 +47,7 @@ export function PropertiesExplorer() {
     );
   }
 
-  if (propertiesError) {
+  if (propertiesError && results.length === 0) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6">
         <p className="text-sm text-destructive" role="alert">

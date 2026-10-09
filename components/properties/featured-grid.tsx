@@ -10,14 +10,13 @@ export function FeaturedGrid() {
   const { properties, propertiesLoading } = useMockStore();
   const featured = properties.filter((property) => property.status === "PUBLISHED").slice(0, 6);
 
-  if (propertiesLoading) {
-    return <p className="py-10 text-center text-sm text-muted-foreground">Loading featured homes…</p>;
-  }
-
+  // Show listings as soon as any arrive — don't block the whole section on the full snapshot.
   if (featured.length === 0) {
     return (
       <p className="py-10 text-center text-sm text-muted-foreground">
-        Featured listings will appear here when residences are published.
+        {propertiesLoading
+          ? "Loading featured homes…"
+          : "Featured listings will appear here when residences are published."}
       </p>
     );
   }
@@ -32,7 +31,7 @@ export function FeaturedGrid() {
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.45, delay: index * 0.08, ease: "easeOut" }}
         >
-          <PropertyCard property={property} />
+          <PropertyCard property={property} priority={index < 2} />
         </motion.div>
       ))}
     </div>

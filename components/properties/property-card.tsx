@@ -15,12 +15,15 @@ export function PropertyCard({
   property,
   layout = "grid",
   highlighted = false,
+  priority = false,
   onHover,
   onSelect,
 }: {
   property: Property;
   layout?: "grid" | "list";
   highlighted?: boolean;
+  /** Eager-load cover (featured above the fold). */
+  priority?: boolean;
   onHover?: (id: string | null) => void;
   onSelect?: (id: string) => void;
 }) {
@@ -42,6 +45,7 @@ export function PropertyCard({
         src={cover}
         alt={property.title}
         fill
+        priority={priority}
         className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
         sizes={isList ? "96px" : "(max-width: 768px) 100vw, 33vw"}
       />
