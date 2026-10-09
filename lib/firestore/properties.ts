@@ -171,10 +171,11 @@ async function resolvePropertyImages(
   });
   if (!needsUpload) return images.filter((url) => isStoredImageUrl(url));
 
-  const storage = getFirebaseStorage();
-  if (!storage || !isFirebaseConfigured()) {
+  const storageOrNull = getFirebaseStorage();
+  if (!storageOrNull || !isFirebaseConfigured()) {
     throw new Error("Firebase Storage is not configured for photo uploads");
   }
+  const storage = storageOrNull;
 
   const auth = getFirebaseAuth();
   const currentUser = auth?.currentUser;
