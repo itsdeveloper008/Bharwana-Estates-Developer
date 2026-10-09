@@ -309,7 +309,7 @@ export function Footer() {
         {/* Legal bar */}
         <div className="mt-16 flex flex-col gap-5 border-t border-[rgba(194,163,90,0.2)] pt-6 sm:mt-20 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[10px] uppercase tracking-[0.16em] text-[#F4F0E6]/45">
-            © {new Date().getFullYear()} Bharwana Estates Dealer
+            © {new Date().getFullYear()} Bharwana Estates
           </p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             {legalLinks.map((link) => (

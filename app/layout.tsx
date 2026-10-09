@@ -18,12 +18,26 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
+  applicationName: "Bharwana Estates",
   title: {
-    default: "Bharwana Estates Dealer",
+    default: "Bharwana Estates",
     template: "%s · Bharwana Estates",
   },
   description:
     "A considered marketplace for private homes and Dealer-verified residences across Pakistan.",
+  openGraph: {
+    type: "website",
+    siteName: "Bharwana Estates",
+    title: "Bharwana Estates",
+    description:
+      "A considered marketplace for private homes and Dealer-verified residences across Pakistan.",
+  },
+  twitter: {
+    card: "summary",
+    title: "Bharwana Estates",
+    description:
+      "A considered marketplace for private homes and Dealer-verified residences across Pakistan.",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

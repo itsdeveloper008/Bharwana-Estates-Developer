@@ -22,7 +22,7 @@ export function AboutHero() {
         >
           <Image
             src="/logo.png"
-            alt="Bharwana Estates Dealer"
+            alt="Bharwana Estates"
             width={64}
             height={64}
             className="mx-auto h-16 w-16 object-contain"
@@ -34,7 +34,7 @@ export function AboutHero() {
           </h1>
           <div className="mx-auto mt-6 h-px w-16 bg-gold/70" />
           <p className="type-subheading-on-dark mx-auto">
-            Bharwana Estates Dealer exists to place private homes and
+            Bharwana Estates exists to place private homes and
             Dealer-verified residences on a single, honest floor. We favour
             clarity over noise, so every conversation starts with the property,
             not the pitch.

@@ -2,7 +2,7 @@ import { LegalPage } from "@/components/legal/legal-page";
 
 export const metadata = {
   title: "Privacy Policy",
-  description: "How Bharwana Estates Dealer collects, uses, and protects your personal information.",
+  description: "How Bharwana Estates collects, uses, and protects your personal information.",
 };
 
 export default function PrivacyPage() {
@@ -10,7 +10,7 @@ export default function PrivacyPage() {
     <LegalPage
       eyebrow="Legal"
       title="Privacy Policy"
-      intro="Bharwana Estates Dealer respects your privacy. This policy explains what information we collect when you use our website, how we use it, and the choices available to you."
+      intro="Bharwana Estates respects your privacy. This policy explains what information we collect when you use our website, how we use it, and the choices available to you."
       updated="28 August 2026"
       sections={[
         {

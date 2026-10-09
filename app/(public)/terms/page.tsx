@@ -2,7 +2,7 @@ import { LegalPage } from "@/components/legal/legal-page";
 
 export const metadata = {
   title: "Terms & Conditions",
-  description: "Terms governing your use of Bharwana Estates Dealer and its property services.",
+  description: "Terms governing your use of Bharwana Estates and its property services.",
 };
 
 export default function TermsPage() {
@@ -10,13 +10,13 @@ export default function TermsPage() {
     <LegalPage
       eyebrow="Legal"
       title="Terms & Conditions"
-      intro="These terms govern access to and use of the Bharwana Estates Dealer website and related services. By using the platform, you agree to these terms."
+      intro="These terms govern access to and use of the Bharwana Estates website and related services. By using the platform, you agree to these terms."
       updated="28 August 2026"
       sections={[
         {
           title: "About the platform",
           paragraphs: [
-            "Bharwana Estates Dealer is a real estate presentation platform for direct-from-owner residences and Dealer-verified stock. We facilitate introductions, listings, and inquiries but do not replace independent legal, financial, or technical due diligence.",
+            "Bharwana Estates is a real estate presentation platform for direct-from-owner residences and Dealer-verified stock. We facilitate introductions, listings, and inquiries but do not replace independent legal, financial, or technical due diligence.",
           ],
         },
         {
@@ -53,7 +53,7 @@ export default function TermsPage() {
         {
           title: "Limitation of liability",
           paragraphs: [
-            "To the fullest extent permitted by law, Bharwana Estates Dealer is not liable for indirect, incidental, or consequential losses arising from use of the platform, property viewings, or third-party conduct. Our total liability is limited to the amount you paid us for the relevant service, if any, in the preceding twelve months.",
+            "To the fullest extent permitted by law, Bharwana Estates is not liable for indirect, incidental, or consequential losses arising from use of the platform, property viewings, or third-party conduct. Our total liability is limited to the amount you paid us for the relevant service, if any, in the preceding twelve months.",
           ],
         },
         {

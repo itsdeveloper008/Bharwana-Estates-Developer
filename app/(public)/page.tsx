@@ -91,7 +91,7 @@ function VisionMissionSection() {
               One floor. Honest introductions.
             </h3>
             <p className="mt-4 text-sm leading-relaxed text-[#526057] sm:text-[15px] sm:leading-[1.75]">
-              Bharwana Estates Dealer exists to place private homes and Dealer-verified residences on
+              Bharwana Estates exists to place private homes and Dealer-verified residences on
               a single, honest floor. We favour clarity over noise, so every conversation starts
               with the property, not the pitch.
             </p>
@@ -284,7 +284,7 @@ export default function HomePage() {
             transition={{ duration: 0.7, ease: "easeOut" }}
             className="flex w-full flex-col items-center"
           >
-            <Image src="/logo.png" alt="Bharwana Estates Dealer" width={128} height={128} className="h-[128px] w-[128px] object-contain sm:h-[140px] sm:w-[140px]" />
+            <Image src="/logo.png" alt="Bharwana Estates" width={128} height={128} className="h-[128px] w-[128px] object-contain sm:h-[140px] sm:w-[140px]" />
             <h1 className="mt-5 max-w-3xl font-serif text-4xl text-ivory sm:text-5xl sm:leading-[1.08]">
               Homes held with the gravity of a family name.
             </h1>

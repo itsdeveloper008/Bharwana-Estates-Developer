@@ -2,7 +2,7 @@ import { LegalPage } from "@/components/legal/legal-page";
 
 export const metadata = {
   title: "Disclaimer",
-  description: "Important notices regarding property information and use of Bharwana Estates Dealer.",
+  description: "Important notices regarding property information and use of Bharwana Estates.",
 };
 
 export default function DisclaimerPage() {
@@ -10,7 +10,7 @@ export default function DisclaimerPage() {
     <LegalPage
       eyebrow="Legal"
       title="Disclaimer"
-      intro="Please read this disclaimer carefully before relying on any property information or engaging through Bharwana Estates Dealer."
+      intro="Please read this disclaimer carefully before relying on any property information or engaging through Bharwana Estates."
       updated="28 August 2026"
       sections={[
         {

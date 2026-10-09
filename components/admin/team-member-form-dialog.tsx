@@ -75,11 +75,11 @@ export function TeamMemberFormDialog({
     onSave({
       fullName: normalizePersonName(values.fullName),
       role: values.role.trim(),
-      bio: member?.bio?.trim() || "Team member at Bharwana Estates Dealer.",
+      bio: member?.bio?.trim() || "Team member at Bharwana Estates.",
       email: member?.email,
       linkedinUrl: member?.linkedinUrl,
       photoUrl: values.photoUrl?.trim() || preview || DEFAULT_AVATAR,
-      about: member?.about?.trim() || "Team member at Bharwana Estates Dealer.",
+      about: member?.about?.trim() || "Team member at Bharwana Estates.",
       expertise: member?.expertise ?? [],
       responsibilities: member?.responsibilities ?? [],
       highlights: member?.highlights ?? [],

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { GoogleMap, OverlayViewF, OverlayView, useJsApiLoader } from "@react-google-maps/api";
 import Supercluster from "supercluster";
@@ -269,7 +270,7 @@ export function MapView({
     setSelectedId(focusId);
     mapRef.current.panTo({ lat: property.latitude, lng: property.longitude });
     const z = mapRef.current.getZoom() ?? 13;
-    mapRef.current.setZoom(Math.max(z, 13));
+    mapRef.current.setZoom(Math.max(z, 16));
   }, [focusId, focusKey, byId, setSelectedId]);
 
   useEffect(() => {
@@ -292,10 +293,16 @@ export function MapView({
     mapRef.current?.setOptions({ gestureHandling });
   }, [gestureHandling]);
 
-  const liveMapOptions = useMemo(
-    () => ({ ...mapOptions, gestureHandling }),
-    [gestureHandling],
-  );
+  const liveMapOptions = useMemo(() => {
+    const options: google.maps.MapOptions = { ...mapOptions, gestureHandling };
+    // Mid-right so +/- never collide with the bottom legend / attribution.
+    if (isLoaded && typeof google !== "undefined" && google.maps?.ControlPosition) {
+      options.zoomControlOptions = {
+        position: google.maps.ControlPosition.RIGHT_CENTER,
+      };
+    }
+    return options;
+  }, [gestureHandling, isLoaded]);
 
   if (!hasGoogleMapsKey()) return <MapKeyMissing />;
   if (loadError || authFailed) {
@@ -417,7 +424,7 @@ export function MapView({
                   selectPin(propertyId);
                   mapRef.current.panTo({ lat: latitude, lng: longitude });
                   const z = mapRef.current.getZoom() ?? 13;
-                  mapRef.current.setZoom(Math.max(z, 13));
+                  mapRef.current.setZoom(Math.max(z, 16));
                 }}
               />
             </OverlayViewF>
@@ -520,7 +527,7 @@ export function MapView({
       )}
 
       {boundsActive && onResetBounds && (
-        <div className="absolute bottom-4 left-4 z-20">
+        <div className="absolute bottom-[4.75rem] left-3 z-20">
           <button
             type="button"
             className="rounded-xl bg-ivory/95 px-3 py-1.5 text-xs text-forest shadow-lift underline-offset-2 hover:underline"
@@ -536,7 +543,8 @@ export function MapView({
         </div>
       )}
 
-      <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-ivory/95 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-forest shadow-lift sm:left-auto sm:right-4 sm:translate-x-0">
+      {/* Bottom-left — clear of Google +/- (RIGHT_CENTER) and attribution strip */}
+      <div className="pointer-events-none absolute bottom-6 left-3 z-20 flex items-center gap-3 rounded-xl bg-ivory/95 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-forest shadow-lift">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full border border-gold bg-forest" />
           Owner
@@ -576,8 +584,6 @@ export function MiniMap({ property }: { property: Property }) {
     return <div className="flex h-64 items-center justify-center bg-cream/50 text-xs text-muted-foreground">Map</div>;
   }
 
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${property.latitude},${property.longitude}`;
-
   return (
     <div className="relative h-64 overflow-hidden rounded-2xl">
       <GoogleMap
@@ -587,9 +593,9 @@ export function MiniMap({ property }: { property: Property }) {
         options={{
           disableDefaultUI: true,
           zoomControl: true,
-          // Keep +/- on the left so they never collide with "View larger map".
+          // Mid-right — clear of our bottom-left "View larger map" control.
           zoomControlOptions: {
-            position: google.maps.ControlPosition.LEFT_BOTTOM,
+            position: google.maps.ControlPosition.RIGHT_CENTER,
           },
           mapTypeId: "satellite",
           mapTypeControl: true,
@@ -610,12 +616,10 @@ export function MiniMap({ property }: { property: Property }) {
       <Button
         variant="secondary"
         size="sm"
-        className="absolute bottom-3 right-3 z-10 max-w-[calc(100%-5.5rem)] truncate shadow-md sm:bottom-4 sm:right-4"
+        className="absolute bottom-3 left-3 z-10 max-w-[calc(100%-5.5rem)] truncate shadow-md sm:bottom-4 sm:left-4"
         asChild
       >
-        <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
-          View larger map
-        </a>
+        <Link href={`/map?propertyId=${encodeURIComponent(property.id)}`}>View larger map</Link>
       </Button>
     </div>
   );

@@ -128,6 +128,37 @@
       transparent
     );
   }
+
+  /**
+   * Map page property list — always-visible themed scrollbar (forest thumb / cream track).
+   * Forces a classic scrollbar so macOS overlay scrollbars don't hide it.
+   */
+  .map-list-scroll {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #0f2e1d #f4f2ed;
+  }
+
+  .map-list-scroll::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 8px;
+  }
+
+  .map-list-scroll::-webkit-scrollbar-track {
+    background: #f4f2ed;
+    border-radius: 4px;
+  }
+
+  .map-list-scroll::-webkit-scrollbar-thumb {
+    background-color: #0f2e1d;
+    border-radius: 4px;
+    border: 1px solid #f4f2ed;
+  }
+
+  .map-list-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: #1a4a30;
+  }
 }
 
 /* Google Places Autocomplete dropdown above map chrome / dialogs */

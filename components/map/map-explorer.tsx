@@ -46,6 +46,10 @@ export function MapExplorer() {
   const [stuck, setStuck] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const deepLinkHandled = useRef<string | null>(null);
+
+  const propertyIdParam =
+    searchParams.get("propertyId")?.trim() || searchParams.get("selected")?.trim() || null;
 
   useEffect(() => {
     void preloadGoogleMaps();
@@ -73,7 +77,40 @@ export function MapExplorer() {
 
   const barFilters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
   const filters = useMemo(() => ({ ...barFilters, bounds }), [barFilters, bounds]);
-  const results = useMemo(() => filterProperties(properties, filters), [properties, filters]);
+  const results = useMemo(() => {
+    const filtered = filterProperties(properties, filters);
+    if (!propertyIdParam) return filtered;
+    if (filtered.some((item) => item.id === propertyIdParam)) return filtered;
+    const target = properties.find((item) => item.id === propertyIdParam);
+    if (!target) return filtered;
+    // Deep-link from detail: always include the property even if filters would hide it.
+    return [target, ...filtered];
+  }, [properties, filters, propertyIdParam]);
+
+  // From property detail "View larger map" — center, select, open preview once.
+  useEffect(() => {
+    if (!propertyIdParam) {
+      deepLinkHandled.current = null;
+      return;
+    }
+    if (deepLinkHandled.current === propertyIdParam) return;
+    const target = properties.find((item) => item.id === propertyIdParam);
+    if (!target) return;
+    deepLinkHandled.current = propertyIdParam;
+    setBounds(undefined);
+    setSelectedId(target.id);
+    setFocusId(target.id);
+    setFocusKey((key) => key + 1);
+  }, [propertyIdParam, properties]);
+
+  // Marker/card selection: keep the matching list row in view.
+  useEffect(() => {
+    if (!selectedId || !listRef.current) return;
+    const row = listRef.current.querySelector<HTMLElement>(
+      `[data-property-id="${CSS.escape(selectedId)}"]`,
+    );
+    row?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selectedId, focusKey]);
 
   function resetBounds() {
     setBounds(undefined);
@@ -82,8 +119,16 @@ export function MapExplorer() {
   function resetAll() {
     setBounds(undefined);
     setSelectedId(null);
+    setFocusId(null);
+    deepLinkHandled.current = null;
     router.push("/map?intent=buy");
   }
+
+  const selectFromList = useCallback((id: string) => {
+    setFocusId(id);
+    setSelectedId(id);
+    setFocusKey((key) => key + 1);
+  }, []);
 
   const onListWheel = useCallback(
     (event: React.WheelEvent<HTMLDivElement>) => {
@@ -120,7 +165,7 @@ export function MapExplorer() {
         {/* List — left on desktop, under map on mobile */}
         <div
           className={cn(
-            "order-2 flex min-h-0 flex-col border-forest/10 lg:order-1 lg:border-r",
+            "order-2 flex h-full min-h-0 flex-col border-forest/10 lg:order-1 lg:border-r",
             "border-t lg:border-t-0",
           )}
         >
@@ -129,7 +174,7 @@ export function MapExplorer() {
             onWheel={onListWheel}
             className={cn(
               "min-h-0 flex-1 bg-cream/40",
-              stuck ? "overflow-y-auto overscroll-contain" : "overflow-y-hidden",
+              stuck ? "map-list-scroll" : "overflow-y-hidden",
             )}
           >
             <div className="space-y-2 p-2">
@@ -150,13 +195,10 @@ export function MapExplorer() {
                   key={property.id}
                   property={property}
                   layout="list"
+                  selectOnly
                   highlighted={property.id === selectedId}
                   onHover={setHoveredId}
-                  onSelect={(id) => {
-                    setFocusId(id);
-                    setSelectedId(id);
-                    setFocusKey((key) => key + 1);
-                  }}
+                  onSelect={selectFromList}
                 />
               ))}
               {results.length === 0 && (

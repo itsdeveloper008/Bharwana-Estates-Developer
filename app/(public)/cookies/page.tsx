@@ -2,7 +2,7 @@ import { LegalPage } from "@/components/legal/legal-page";
 
 export const metadata = {
   title: "Cookie Policy",
-  description: "How Bharwana Estates Dealer uses cookies and similar technologies.",
+  description: "How Bharwana Estates uses cookies and similar technologies.",
 };
 
 export default function CookiesPage() {
@@ -10,7 +10,7 @@ export default function CookiesPage() {
     <LegalPage
       eyebrow="Legal"
       title="Cookie Policy"
-      intro="This policy explains how Bharwana Estates Dealer uses cookies and similar technologies when you visit our website."
+      intro="This policy explains how Bharwana Estates uses cookies and similar technologies when you visit our website."
       updated="28 August 2026"
       sections={[
         {

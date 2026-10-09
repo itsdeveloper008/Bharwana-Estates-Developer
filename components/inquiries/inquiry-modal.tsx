@@ -229,7 +229,7 @@ export function InquiryModal({
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />
                   <span>
                     By choosing this option, you acknowledge this transaction is conducted entirely at your own
-                    risk, outside Bharwana Estates Dealer&apos;s involvement.
+                    risk, outside Bharwana Estates&apos;s involvement.
                   </span>
                 </p>
                 <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-forest">
