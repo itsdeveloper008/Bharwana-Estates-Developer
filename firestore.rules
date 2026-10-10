@@ -203,6 +203,15 @@ service cloud.firestore {
       allow write: if hasPerm('team') || isSuperAdmin();
     }
 
+    // —— Site settings (featured landing picks, etc.) ——
+    match /siteSettings/{docId} {
+      allow read: if true;
+      allow write: if hasPerm('featured')
+        || hasPerm('properties')
+        || canManageProperties()
+        || isSuperAdmin();
+    }
+
     // —— Public lead forms (create only; no public read) ——
     match /contactMessages/{id} {
       allow create: if true;

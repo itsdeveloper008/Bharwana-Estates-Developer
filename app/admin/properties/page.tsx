@@ -30,6 +30,20 @@ export default function AdminPropertiesPage() {
     () => properties.filter((property) => property.status === "PUBLISHED").length,
     [properties],
   );
+  const publishedSaleCount = useMemo(
+    () =>
+      properties.filter(
+        (property) => property.status === "PUBLISHED" && property.purpose !== "RENT",
+      ).length,
+    [properties],
+  );
+  const publishedRentCount = useMemo(
+    () =>
+      properties.filter(
+        (property) => property.status === "PUBLISHED" && property.purpose === "RENT",
+      ).length,
+    [properties],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -65,6 +79,9 @@ export default function AdminPropertiesPage() {
             <span className="inline-flex items-center rounded-full border border-forest/15 bg-forest/[0.04] px-2.5 py-0.5 text-forest">
               <span className="font-semibold tabular-nums">{publishedCount}</span>
               <span className="ml-1.5 text-forest/70">published</span>
+            </span>
+            <span className="ml-2 text-forest/60">
+              ({publishedSaleCount} buy · {publishedRentCount} rent)
             </span>
             {properties.length !== publishedCount ? (
               <span className="ml-2">· {properties.length} total</span>

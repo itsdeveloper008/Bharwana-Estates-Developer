@@ -432,19 +432,23 @@ export function PropertyTypePicker({
   onChange,
   triggerClassName,
   align = "end",
+  allTypes = false,
 }: {
   category: PropertyCategory;
   subtype: string | "ALL";
   onChange: (next: { category: PropertyCategory; subtype: string | "ALL" }) => void;
   triggerClassName?: string;
   align?: "start" | "center" | "end";
+  /** When true, show "All types" (no category filter applied in the URL). */
+  allTypes?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<PropertyCategory>(category);
   const AllIcon = ALL_ICONS[activeTab];
   const options = PROPERTY_SUBTYPES[activeTab];
-  const triggerLabel =
-    subtype === "ALL"
+  const triggerLabel = allTypes
+    ? "All types"
+    : subtype === "ALL"
       ? categoryPluralLabel(category)
       : PROPERTY_SUBTYPES[category].find((item) => item.id === subtype)?.label ??
         categoryPluralLabel(category);

@@ -169,3 +169,34 @@
   box-shadow: 0 12px 32px -12px rgba(15, 46, 29, 0.28);
   font-family: inherit;
 }
+
+/* Sonner — viewport layer above header/map/modals; close button inside the toast */
+[data-sonner-toaster] {
+  z-index: 10050 !important;
+  position: fixed !important;
+}
+
+[data-sonner-toast] {
+  max-width: min(380px, calc(100vw - 24px)) !important;
+  /* Room so the close control sits inside the box (sonner defaults to outside). */
+  padding-inline-end: 2.25rem !important;
+}
+
+[data-sonner-toast] [data-close-button],
+[data-sonner-toast] button[data-close-button] {
+  left: auto !important;
+  right: 8px !important;
+  top: 8px !important;
+  inset-inline-start: auto !important;
+  inset-inline-end: 8px !important;
+  transform: none !important;
+  margin: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sonner-toast],
+  [data-sonner-toast] * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

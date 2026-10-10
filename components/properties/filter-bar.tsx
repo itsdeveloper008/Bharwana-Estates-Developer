@@ -28,9 +28,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { CITIES, type PropertyCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-function readCategory(raw: string | null): PropertyCategory {
+function readCategory(raw: string | null): PropertyCategory | null {
   if (raw === "PLOTS" || raw === "COMMERCIAL" || raw === "HOME") return raw;
-  return "HOME";
+  // Missing param = all types (do not default to HOME — that hid plots/commercial).
+  return null;
 }
 
 function locationFilterLabel(label?: string) {
@@ -83,6 +84,7 @@ function FiltersForm({ compact }: { compact?: boolean }) {
   const beds = searchParams.get("beds") ?? "ALL";
   const city = searchParams.get("city") ?? "ALL";
   const query = searchParams.get("q") ?? "";
+  const pickerCategory = category ?? "HOME";
 
   const [areaUnit, setAreaUnit] = useState<AreaUnitId>("sqft");
   const [currency, setCurrency] = useState<CurrencyId>("PKR");
@@ -176,8 +178,9 @@ function FiltersForm({ compact }: { compact?: boolean }) {
           </div>
           <div className="px-3 py-1.5">
             <PropertyTypePicker
-              category={category}
-              subtype={subtype}
+              category={pickerCategory}
+              subtype={category ? subtype : "ALL"}
+              allTypes={!category}
               align="end"
               triggerClassName="px-1"
               onChange={(next) => {

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { HeroSearch } from "@/components/properties/hero-search";
 import { FeaturedSection } from "@/components/properties/featured-grid";
+import type { PropertyCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -133,7 +134,11 @@ function WhyBharwanaSection() {
               transition={{ duration: 0.7, delay: 0.05, ease }}
               className="mt-5 font-serif text-[2.5rem] leading-[1.1] tracking-tight text-[#082B1D] sm:text-5xl lg:text-[4.5rem] lg:leading-[1.05]"
             >
-              Homes deserve a more thoughtful introduction.
+              Homes deserve
+              <br />
+              a more thoughtful
+              <br />
+              introduction.
             </motion.h2>
 
             <motion.p
@@ -265,6 +270,8 @@ function WhyBharwanaSection() {
 }
 
 export default function HomePage() {
+  const [featuredCategory, setFeaturedCategory] = useState<PropertyCategory>("HOME");
+
   return (
     <>
       {/* Pull hero under the sticky navbar — must match navbar h-[96px] md:h-[108px] */}
@@ -286,19 +293,22 @@ export default function HomePage() {
           >
             <Image src="/logo.png" alt="Bharwana Estates" width={128} height={128} className="h-[128px] w-[128px] object-contain sm:h-[140px] sm:w-[140px]" />
             <h1 className="mt-5 max-w-3xl font-serif text-4xl text-ivory sm:text-5xl sm:leading-[1.08]">
-              Homes held with the gravity of a family name.
+              Homes Held With The Gravity Of A Family Name.
             </h1>
             <p className="type-subheading-on-dark">
               Direct-owner residences and Dealer-verified stock, presented as a brochure, not a marketplace stall.
             </p>
             <div className="mt-8 w-full">
-              <HeroSearch />
+              <HeroSearch
+                featuredCategory={featuredCategory}
+                onFeaturedCategoryChange={setFeaturedCategory}
+              />
             </div>
           </motion.div>
         </div>
       </section>
 
-      <FeaturedSection />
+      <FeaturedSection category={featuredCategory} onCategoryChange={setFeaturedCategory} />
 
       <VisionMissionSection />
 

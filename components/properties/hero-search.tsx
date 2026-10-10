@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, CheckCircle2, Home, MapPin, Search, ShieldCheck, Sparkles } from "lucide-react";
 import {
   AREA_UNITS,
@@ -45,7 +45,14 @@ const TRUST = [
   { icon: Sparkles, label: "Quiet process" },
 ] as const;
 
-export function HeroSearch() {
+export function HeroSearch({
+  featuredCategory,
+  onFeaturedCategoryChange,
+}: {
+  /** Syncs with landing Featured section when the visitor picks Homes / Plots / Commercial. */
+  featuredCategory?: PropertyCategory;
+  onFeaturedCategoryChange?: (category: PropertyCategory) => void;
+} = {}) {
   const router = useRouter();
   const [purpose, setPurpose] = useState<PurposeId>("buy");
   const [source, setSource] = useState<SourceId>("ALL");
@@ -53,6 +60,8 @@ export function HeroSearch() {
   const [listingType, setListingType] = useState("ALL");
   const [category, setCategory] = useState<PropertyCategory>("HOME");
   const [subtype, setSubtype] = useState<string | "ALL">("ALL");
+  /** False until the user picks a type — avoids defaulting search to HOME-only. */
+  const [typeFilterActive, setTypeFilterActive] = useState(false);
   const [areaUnit, setAreaUnit] = useState<AreaUnitId>("sqft");
   const [areaMin, setAreaMin] = useState("0");
   const [areaMax, setAreaMax] = useState("");
@@ -61,6 +70,20 @@ export function HeroSearch() {
   const [priceMax, setPriceMax] = useState("");
   const [beds, setBeds] = useState("ALL");
   const [query, setQuery] = useState("");
+
+  // Keep hero type picker in sync when Featured section tabs change (skip mount).
+  const skipFeaturedSync = useRef(true);
+  useEffect(() => {
+    if (!featuredCategory) return;
+    if (skipFeaturedSync.current) {
+      skipFeaturedSync.current = false;
+      return;
+    }
+    setCategory(featuredCategory);
+    setTypeFilterActive(true);
+    setSubtype("ALL");
+    if (featuredCategory === "PLOTS" || featuredCategory === "COMMERCIAL") setBeds("ALL");
+  }, [featuredCategory]);
 
   const areaUnitMeta = AREA_UNITS.find((item) => item.id === areaUnit) ?? AREA_UNITS[0];
   const currencyMeta = CURRENCIES.find((item) => item.id === currency) ?? CURRENCIES[0];
@@ -77,13 +100,21 @@ export function HeroSearch() {
     if (query) params.set("q", query);
     if (city !== "ALL") params.set("city", city);
     if (listingType !== "ALL") params.set("listingType", listingType);
-    params.set("category", category);
-    if (subtype !== "ALL") params.set("subtype", subtype);
+    // Only apply category when the user chose a type (default was forcing HOME and hiding plots).
+    if (typeFilterActive) {
+      params.set("category", category);
+      if (subtype !== "ALL") params.set("subtype", subtype);
+    }
     const minAreaSqft = toScaledAmount(areaMin, areaUnitMeta.toSqft);
     const maxAreaSqft = toScaledAmount(areaMax, areaUnitMeta.toSqft);
     if (minAreaSqft) params.set("minArea", String(minAreaSqft));
     if (maxAreaSqft) params.set("maxArea", String(maxAreaSqft));
-    if (beds !== "ALL" && category !== "PLOTS" && category !== "COMMERCIAL") params.set("beds", beds);
+    if (
+      beds !== "ALL" &&
+      (!typeFilterActive || (category !== "PLOTS" && category !== "COMMERCIAL"))
+    ) {
+      params.set("beds", beds);
+    }
     const minPricePkr = toScaledAmount(priceMin, currencyMeta.toPkr);
     const maxPricePkr = toScaledAmount(priceMax, currencyMeta.toPkr);
     if (minPricePkr) params.set("minPrice", String(minPricePkr));
@@ -140,10 +171,13 @@ export function HeroSearch() {
             <PropertyTypePicker
               category={category}
               subtype={subtype}
+              allTypes={!typeFilterActive}
               onChange={(next) => {
+                setTypeFilterActive(true);
                 setCategory(next.category);
                 setSubtype(next.subtype);
                 if (next.category === "PLOTS" || next.category === "COMMERCIAL") setBeds("ALL");
+                onFeaturedCategoryChange?.(next.category);
               }}
             />
           </div>

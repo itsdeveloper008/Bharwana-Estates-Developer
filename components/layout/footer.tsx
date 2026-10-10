@@ -7,6 +7,14 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { createNewsletterSignup } from "@/lib/firestore/inquiries";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
+import {
+  SITE_EMAIL,
+  SITE_OFFICE_ADDRESS_LINES,
+  SITE_PHONE_DISPLAY,
+  SITE_PHONE_E164,
+  SITE_SOCIAL,
+} from "@/lib/site-contact";
+import { cn } from "@/lib/utils";
 
 const footerLinks = [
   { href: "/properties", label: "Properties" },
@@ -26,40 +34,84 @@ const legalLinks = [
   { href: "/deletion-policy", label: "Data Deletion" },
 ];
 
-const socials = [
+type SocialName = "facebook" | "instagram" | "youtube" | "tiktok" | "linkedin";
+
+const socials: {
+  href: string;
+  label: string;
+  name: SocialName;
+  className: string;
+}[] = [
   {
-    href: "https://www.linkedin.com/company/bharwana-estates-developer/",
-    label: "LinkedIn",
-    name: "linkedin" as const,
-  },
-  { href: "https://www.instagram.com/bharwanaestates", label: "Instagram", name: "instagram" as const },
-  {
-    href: "https://www.facebook.com/share/1Hnf1jSJ7q/?mibextid=wwXIfr",
+    href: SITE_SOCIAL.facebook,
     label: "Facebook",
-    name: "facebook" as const,
+    name: "facebook",
+    className: "bg-[#1877F2]",
+  },
+  {
+    href: SITE_SOCIAL.instagram,
+    label: "Instagram",
+    name: "instagram",
+    className: "bg-[linear-gradient(45deg,#f09433_0%,#e6683c_25%,#dc2743_50%,#cc2366_75%,#bc1888_100%)]",
+  },
+  {
+    href: SITE_SOCIAL.youtube,
+    label: "YouTube",
+    name: "youtube",
+    className: "bg-[#FF0000]",
+  },
+  {
+    href: SITE_SOCIAL.tiktok,
+    label: "TikTok",
+    name: "tiktok",
+    className: "bg-[#010101]",
+  },
+  {
+    href: SITE_SOCIAL.linkedin,
+    label: "LinkedIn",
+    name: "linkedin",
+    className: "bg-[#0A66C2]",
   },
 ];
 
-function SocialIcon({ name }: { name: "linkedin" | "instagram" | "facebook" }) {
-  if (name === "linkedin") {
+function SocialIcon({ name }: { name: SocialName }) {
+  if (name === "facebook") {
     return (
-      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] fill-current" aria-hidden>
-        <path d="M4.98 3.5C4.98 4.88 3.86 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.5 8.5h4V23h-4V8.5zM8.5 8.5h3.8v2h.05c.53-1 1.82-2.05 3.75-2.05 4.01 0 4.75 2.64 4.75 6.07V23h-4v-6.6c0-1.57-.03-3.6-2.2-3.6-2.2 0-2.54 1.72-2.54 3.49V23h-4V8.5z" />
+      <svg viewBox="0 0 24 24" className="h-[15px] w-[15px] fill-white" aria-hidden>
+        <path d="M14 8h3V4h-3c-2.8 0-5 2.2-5 5v2H7v4h2v9h4v-9h3.1l.9-4H13V9c0-.6.4-1 1-1z" />
       </svg>
     );
   }
   if (name === "instagram") {
     return (
-      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] fill-none stroke-current" strokeWidth="1.5" aria-hidden>
-        <rect x="3" y="3" width="18" height="18" rx="5" />
-        <circle cx="12" cy="12" r="4" />
-        <circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" stroke="none" />
+      <svg viewBox="0 0 24 24" className="h-[15px] w-[15px] fill-none stroke-white" strokeWidth="1.75" aria-hidden>
+        <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+        <circle cx="12" cy="12" r="3.75" />
+        <circle cx="17.25" cy="6.75" r="0.9" fill="white" stroke="none" />
+      </svg>
+    );
+  }
+  if (name === "youtube") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-[15px] w-[15px] fill-white" aria-hidden>
+        <path d="M23.5 7.2a3 3 0 0 0-2.1-2.1C19.5 4.6 12 4.6 12 4.6s-7.5 0-9.4.5A3 3 0 0 0 .5 7.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-4.8zM9.75 15.02V8.98L15.8 12l-6.05 3.02z" />
+      </svg>
+    );
+  }
+  if (name === "tiktok") {
+    const note =
+      "M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3.15 15.34 6.34 6.34 0 0 0 9.49 21.7a6.34 6.34 0 0 0 6.34-6.34V8.4a8.2 8.2 0 0 0 4.76 1.51V6.46a4.85 4.85 0 0 1-1-.77z";
+    return (
+      <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" aria-hidden>
+        <path fill="#25F4EE" d={note} transform="translate(-0.7 0.4)" />
+        <path fill="#FE2C55" d={note} transform="translate(0.7 -0.4)" />
+        <path fill="white" d={note} />
       </svg>
     );
   }
   return (
-    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] fill-current" aria-hidden>
-      <path d="M14 8h3V4h-3c-2.8 0-5 2.2-5 5v2H7v4h2v9h4v-9h3.1l.9-4H13V9c0-.6.4-1 1-1z" />
+    <svg viewBox="0 0 24 24" className="h-[14px] w-[14px] fill-white" aria-hidden>
+      <path d="M4.98 3.5C4.98 4.88 3.86 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.5 8.5h4V23h-4V8.5zM8.5 8.5h3.8v2h.05c.53-1 1.82-2.05 3.75-2.05 4.01 0 4.75 2.64 4.75 6.07V23h-4v-6.6c0-1.57-.03-3.6-2.2-3.6-2.2 0-2.54 1.72-2.54 3.49V23h-4V8.5z" />
     </svg>
   );
 }
@@ -69,7 +121,7 @@ function FooterLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="group inline-flex items-center gap-2 text-[15px] text-[#F4F0E6]/75 transition-all duration-300 hover:translate-x-1 hover:text-[#C2A35A]"
+      className="group inline-flex items-center gap-2 text-[15px] text-white transition-all duration-300 hover:translate-x-1 hover:text-[#C2A35A]"
     >
       <span>{label}</span>
       <span
@@ -242,7 +294,7 @@ export function Footer() {
           className="mt-20 grid gap-12 border-t border-[rgba(194,163,90,0.2)] pt-14 sm:grid-cols-2 lg:mt-24 lg:grid-cols-4 lg:gap-12 lg:pt-16"
         >
           <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-[#C2A35A]">Explore</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white">Company</p>
             <ul className="mt-5 space-y-3">
               {footerLinks.map((link) => (
                 <li key={link.href}>
@@ -253,7 +305,7 @@ export function Footer() {
           </div>
 
           <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-[#C2A35A]">Legal</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white">Legal</p>
             <ul className="mt-5 space-y-3">
               {legalLinks.map((link) => (
                 <li key={link.href}>
@@ -264,51 +316,71 @@ export function Footer() {
           </div>
 
           <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-[#C2A35A]">Contact</p>
-            <address className="mt-5 not-italic text-[15px] leading-[1.75] text-[#F4F0E6]/75">
-              Office No. 42, First Floor
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white">Contact</p>
+            <address className="mt-5 not-italic text-[15px] leading-[1.75] text-white">
+              {SITE_OFFICE_ADDRESS_LINES[0]}
               <br />
-              Main Boulevard, Buch Executive Villas
-              <br />
-              Bosan Road, Multan
+              {SITE_OFFICE_ADDRESS_LINES[1]}
             </address>
             <a
-              href="tel:+923001713811"
-              className="mt-5 block text-[15px] text-[#F4F0E6]/75 transition-colors duration-300 hover:text-[#C2A35A]"
+              href={`tel:${SITE_PHONE_E164}`}
+              className="mt-5 block text-[15px] text-white transition-colors duration-300 hover:text-[#C2A35A]"
             >
-              +92 300 1713811
+              {SITE_PHONE_DISPLAY}
             </a>
             <a
-              href="mailto:info@bharwanaestate.com"
-              className="mt-1 block text-[15px] text-[#F4F0E6]/75 transition-colors duration-300 hover:text-[#C2A35A]"
+              href={`mailto:${SITE_EMAIL}`}
+              className="mt-1 block text-[15px] text-white transition-colors duration-300 hover:text-[#C2A35A]"
             >
-              info@bharwanaestate.com
+              {SITE_EMAIL}
             </a>
           </div>
 
           <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-[#C2A35A]">Follow</p>
-            <ul className="mt-5 flex items-center gap-5">
-              {socials.map((social) => (
-                <li key={social.label}>
-                  <a
-                    href={social.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={social.label}
-                    className="inline-flex text-[#F4F0E6]/70 transition-all duration-300 hover:-translate-y-0.5 hover:text-[#C2A35A]"
-                  >
-                    <SocialIcon name={social.name} />
-                  </a>
-                </li>
-              ))}
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white">Follow</p>
+            <ul className="mt-5 flex flex-wrap items-center gap-3">
+              {socials.map((social) => {
+                const ready = Boolean(social.href);
+                const className = cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full transition-transform duration-300 hover:-translate-y-0.5",
+                  social.className,
+                  !ready && "cursor-default opacity-90",
+                );
+                if (!ready) {
+                  return (
+                    <li key={social.label}>
+                      <span
+                        role="img"
+                        aria-label={`${social.label} (link coming soon)`}
+                        title={`${social.label} — link coming soon`}
+                        className={className}
+                      >
+                        <SocialIcon name={social.name} />
+                      </span>
+                    </li>
+                  );
+                }
+                return (
+                  <li key={social.label}>
+                    <a
+                      href={social.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={social.label}
+                      className={className}
+                    >
+                      <SocialIcon name={social.name} />
+                    </a>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </motion.div>
 
         {/* Legal bar */}
         <div className="mt-16 flex flex-col gap-5 border-t border-[rgba(194,163,90,0.2)] pt-6 sm:mt-20 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-[#F4F0E6]/45">
+          <p className="text-[10px] uppercase tracking-[0.16em] text-white">
             © {new Date().getFullYear()} Bharwana Estates
           </p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -316,7 +388,7 @@ export function Footer() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-[10px] uppercase tracking-[0.16em] text-[#F4F0E6]/45 transition-colors duration-300 hover:text-[#C2A35A]"
+                className="text-[10px] uppercase tracking-[0.16em] text-white transition-colors duration-300 hover:text-[#C2A35A]"
               >
                 {link.label}
               </Link>
@@ -324,7 +396,7 @@ export function Footer() {
             <button
               type="button"
               onClick={scrollTop}
-              className="group inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-[#F4F0E6]/45 transition-colors duration-300 hover:text-[#C2A35A]"
+              className="group inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white transition-colors duration-300 hover:text-[#C2A35A]"
               aria-label="Back to top"
             >
               <span

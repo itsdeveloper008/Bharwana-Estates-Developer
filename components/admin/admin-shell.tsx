@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Mail,
   ShieldAlert,
+  Star,
   UserCog,
   Users,
   UsersRound,
@@ -64,6 +65,7 @@ const navItems: NavItem[] = [
     badgeModule: "submissions",
   },
   { href: "/admin/properties", label: "Properties", icon: Building2, module: "properties" },
+  { href: "/admin/featured", label: "Featured", icon: Star, module: "featured" },
   {
     href: "/admin/developers",
     label: "Dealers",

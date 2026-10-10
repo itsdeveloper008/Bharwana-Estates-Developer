@@ -15,6 +15,7 @@ function firstAllowedPath(
   const order: Array<{ module: AdminModule; href: string }> = [
     { module: "submissions", href: "/admin/submissions" },
     { module: "properties", href: "/admin/properties" },
+    { module: "featured", href: "/admin/featured" },
     { module: "dealers", href: "/admin/developers" },
     { module: "inquiries", href: "/admin/inquiries" },
     { module: "newsletter", href: "/admin/newsletter" },
