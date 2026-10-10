@@ -150,8 +150,16 @@ export default function AdminFeaturedPage() {
       setSaved({ ...draft });
       toast.success("Featured properties saved.");
     } catch (error) {
-      console.error(error);
-      toast.error("Could not save featured properties.");
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code?: unknown }).code ?? "")
+          : "";
+      console.error("[featured/save]", code || "unknown", error);
+      toast.error(
+        code === "permission-denied" || code === "firestore/permission-denied"
+          ? "You don't have permission to save featured properties"
+          : "Could not save featured properties.",
+      );
     } finally {
       setSaving(false);
     }

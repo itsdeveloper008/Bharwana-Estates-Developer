@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { toast, Toaster as Sonner } from "sonner";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 let errorDurationPatched = false;
 
-/** Errors linger ~6s; success/info keep the Toaster default (~4s). Pause-on-hover is built into sonner. */
+/** Errors linger 6s; success/info keep Toaster default (4s). Pause-on-hover is built into sonner. */
 function patchErrorDuration() {
   if (errorDurationPatched || typeof window === "undefined") return;
   errorDurationPatched = true;
@@ -17,43 +17,35 @@ function patchErrorDuration() {
 }
 
 /**
- * Global toast host (sonner). Viewport-fixed under the site header so toasts
- * never sit over form fields / filter chips. Close control sits inside the
- * toast box via globals.css ([data-sonner-toast] [data-close-button]).
+ * Single global toast host (sonner) for admin + public.
+ * Fixed bottom-center viewport layer — never in page flow.
  */
 const Toaster = ({ ...props }: ToasterProps) => {
-  const [mobile, setMobile] = useState(false);
-
   useEffect(() => {
     patchErrorDuration();
-    const mq = window.matchMedia("(max-width: 767px)");
-    const sync = () => setMobile(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
   }, []);
 
   return (
     <Sonner
       theme="light"
       className="toaster group"
-      position={mobile ? "top-center" : "top-right"}
-      offset={
-        mobile
-          ? { top: "calc(var(--site-header-height, 96px) + 12px)", right: 12, left: 12 }
-          : { top: "calc(var(--site-header-height, 96px) + 12px)", right: 16 }
-      }
-      mobileOffset={{ top: "calc(var(--site-header-height, 96px) + 12px)", right: 12, left: 12 }}
+      position="bottom-center"
+      offset={{ bottom: 24 }}
+      mobileOffset={{
+        bottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
+        left: 16,
+        right: 16,
+      }}
       duration={4000}
-      gap={10}
+      gap={8}
       richColors
       closeButton
       visibleToasts={3}
-      expand
+      expand={false}
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-ivory group-[.toaster]:text-forest group-[.toaster]:border-gold/30 group-[.toaster]:shadow-lift",
+            "group toast bharwana-toast group-[.toaster]:bg-ivory group-[.toaster]:text-forest group-[.toaster]:border-gold/30 group-[.toaster]:shadow-lift",
           description: "group-[.toast]:text-muted-foreground",
           actionButton: "group-[.toast]:bg-gold group-[.toast]:text-forest",
           cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
@@ -62,11 +54,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
           success:
             "group-[.toaster]:border-forest/25 group-[.toaster]:bg-ivory group-[.toaster]:text-forest",
           error: "group-[.toaster]:border-destructive/30",
+          info: "group-[.toaster]:border-forest/20 group-[.toaster]:bg-ivory group-[.toaster]:text-forest",
         },
       }}
       style={
         {
-          ["--width" as string]: "min(380px, calc(100vw - 24px))",
+          ["--width" as string]: "min(420px, calc(100vw - 32px))",
         } as React.CSSProperties
       }
       {...props}
