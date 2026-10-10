@@ -103,7 +103,7 @@ export async function saveFeaturedSettings(
 /** Load properties by id (parallel getDoc). Missing ids are skipped. Preserves order. */
 export async function fetchPropertiesByIds(ids: string[]): Promise<Property[]> {
   if (!isFirebaseConfigured() || ids.length === 0) return [];
-  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  const unique = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
   const loaded = await Promise.all(unique.map((id) => getPropertyDoc(id)));
   const byId = new Map<string, Property>();
   for (const property of loaded) {
