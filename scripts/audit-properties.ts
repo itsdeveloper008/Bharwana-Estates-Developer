@@ -61,7 +61,7 @@ function bump(map: Map<string, number>, key: string) {
 
 function printGroup(title: string, map: Map<string, number>) {
   console.log(`\n## ${title}`);
-  const entries = [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const entries = Array.from(map.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   for (const [key, count] of entries) {
     console.log(`  ${count.toString().padStart(4)}  ${key}`);
   }
@@ -242,7 +242,7 @@ async function main() {
     list.push(row.id);
     reasonGroups.set(key, list);
   }
-  for (const [reason, ids] of [...reasonGroups.entries()].sort((a, b) => b[1].length - a[1].length)) {
+  for (const [reason, ids] of Array.from(reasonGroups.entries()).sort((a, b) => b[1].length - a[1].length)) {
     console.log(`\n  ${ids.length}× ${reason}`);
     console.log(`    ids: ${ids.join(", ")}`);
   }
