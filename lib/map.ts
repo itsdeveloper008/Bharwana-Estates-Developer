@@ -125,27 +125,6 @@ export const CITY_COORDS: Record<string, { latitude: number; longitude: number; 
   Multan: { latitude: 30.1575, longitude: 71.5249, zoom: 11.4 },
 };
 
-/** Center + radius for Places Autocomplete bias (greater Multan). */
-export const MULTAN_SEARCH_CENTER = {
-  lat: CITY_COORDS.Multan!.latitude,
-  lng: CITY_COORDS.Multan!.longitude,
-} as const;
-export const MULTAN_SEARCH_RADIUS_M = 35_000;
-
-/** Known Multan localities — fallback suggestions when Google’s list is thin. */
-export const MULTAN_LOCALITIES = [
-  { name: "DHA Multan", secondary: "Defence Housing Authority, Multan", lat: 30.1645, lng: 71.5258 },
-  { name: "Multan Cantt", secondary: "Cantonment, Multan", lat: 30.1984, lng: 71.4492 },
-  { name: "Shah Rukn-e-Alam", secondary: "Multan", lat: 30.1989, lng: 71.4735 },
-  { name: "Gulgasht Colony", secondary: "Multan", lat: 30.2146, lng: 71.4752 },
-  { name: "Bosan Road", secondary: "Multan", lat: 30.2395, lng: 71.4758 },
-  { name: "Model Town Multan", secondary: "Multan", lat: 30.1798, lng: 71.4475 },
-  { name: "New Multan", secondary: "Multan", lat: 30.1578, lng: 71.4456 },
-  { name: "Wapda Town Multan", secondary: "Multan", lat: 30.1648, lng: 71.5021 },
-  { name: "Buch Executive Villas", secondary: "Multan", lat: 30.1572, lng: 71.524 },
-  { name: "Officer Colony Multan", secondary: "Multan", lat: 30.2055, lng: 71.455 },
-] as const;
-
 /** [west, south, east, north] */
 export function boundsFromProperties(
   properties: Pick<Property, "latitude" | "longitude">[],
