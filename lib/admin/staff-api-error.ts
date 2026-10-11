@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-/** Temporary: surface Firebase Admin error detail to the browser for diagnosis. */
-export const EXPOSE_STAFF_API_ERROR_DETAILS = true;
+/** Never expose SDK/internal error details to browsers in production. */
+export const EXPOSE_STAFF_API_ERROR_DETAILS = process.env.NODE_ENV === "development";
 
 export type SerializedAdminError = {
   message: string;

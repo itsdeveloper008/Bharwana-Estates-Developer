@@ -3,7 +3,6 @@ import {
   getAdminAuth,
   getAdminDb,
   isFirebaseAdminConfigured,
-  readAdminProjectId,
 } from "@/lib/firebase/admin";
 
 export type VerifiedAdminCaller = {
@@ -110,17 +109,17 @@ export async function requireVerifiedAdmin(
   request: Request,
 ): Promise<{ ok: true; caller: VerifiedAdminCaller } | { ok: false; status: number; error: string }> {
   if (!isFirebaseAdminConfigured()) {
+    console.error("[requireVerifiedAdmin] Firebase Admin SDK is not configured");
     return {
       ok: false,
       status: 503,
-      error:
-        "Admin APIs need Firebase Admin credentials. Set FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY.",
+      error: "Admin service is temporarily unavailable.",
     };
   }
 
   const token = bearerToken(request);
   if (!token) {
-    return { ok: false, status: 401, error: "Missing Authorization bearer token." };
+    return { ok: false, status: 401, error: "Authentication required." };
   }
 
   let decoded: { uid: string; email?: string };
@@ -128,22 +127,22 @@ export async function requireVerifiedAdmin(
     // Reject revoked sessions (e.g. after staff deactivate / password change).
     decoded = await getAdminAuth().verifyIdToken(token, true);
   } catch (error) {
-    console.error("[requireVerifiedAdmin] verifyIdToken failed", error);
-    const message = errorMessage(error);
-    const code = errorCode(error);
+    console.error("[requireVerifiedAdmin] verifyIdToken failed", {
+      code: errorCode(error),
+      message: errorMessage(error),
+      serviceAccountFailure: isServiceAccountAuthFailure(error),
+    });
     if (isServiceAccountAuthFailure(error)) {
       return {
         ok: false,
         status: 503,
-        error: `Firebase Admin credentials error while verifying token${code ? ` (${code})` : ""}: ${message}`,
+        error: "Admin service is temporarily unavailable.",
       };
     }
     return {
       ok: false,
       status: 401,
-      error: code
-        ? `Invalid or expired auth token (${code}): ${message}`
-        : `Invalid or expired auth token: ${message}`,
+      error: "Invalid or expired session.",
     };
   }
 
@@ -151,24 +150,15 @@ export async function requireVerifiedAdmin(
   try {
     caller = await loadAdminCaller(decoded.uid, decoded.email ?? "");
   } catch (error) {
-    console.error("[requireVerifiedAdmin] loadAdminCaller / Firestore failed", error);
-    const message = errorMessage(error);
-    const code = errorCode(error);
-    if (isServiceAccountAuthFailure(error)) {
-      return {
-        ok: false,
-        status: 503,
-        error:
-          `Firebase Admin service account cannot access Firestore (${code || "UNAUTHENTICATED"}). ` +
-          `Confirm FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY ` +
-          `are copied from the same service-account JSON for project "${readAdminProjectId()}", ` +
-          `the key is not revoked, and the SA has Cloud Datastore User (or Firebase Admin). Detail: ${message}`,
-      };
-    }
+    console.error("[requireVerifiedAdmin] loadAdminCaller / Firestore failed", {
+      code: errorCode(error),
+      message: errorMessage(error),
+      serviceAccountFailure: isServiceAccountAuthFailure(error),
+    });
     return {
       ok: false,
       status: 503,
-      error: `Could not load admin profile from Firestore${code ? ` (${code})` : ""}: ${message}`,
+      error: "Admin service is temporarily unavailable.",
     };
   }
 
