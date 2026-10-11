@@ -34,18 +34,14 @@ function readCategory(raw: string | null): PropertyCategory | null {
   return null;
 }
 
-function locationFilterLabel(label?: string) {
-  if (!label) return null;
-  const short = label.split(",")[0]?.trim() || label.trim();
-  return short || null;
-}
-
 /** Places Autocomplete for the Properties filter bar. */
 function LocationQueryField({
   value,
+  cityScope,
   onApply,
 }: {
   value: string;
+  cityScope: string;
   onApply: (q: string | null) => void;
 }) {
   return (
@@ -53,13 +49,14 @@ function LocationQueryField({
       <Search className="h-4 w-4 shrink-0 text-forest/50" />
       <PlaceSearchInput
         defaultValue={value}
+        cityScope={cityScope}
         hideLeadingIcon
         hideActions
         placeholder="Search by location"
         className="min-w-0 flex-1 space-y-0"
         inputClassName="h-10 border-0 bg-transparent px-0 shadow-none focus-visible:border-transparent focus-visible:ring-0"
         onPlaceSelected={(result) => {
-          onApply(locationFilterLabel(result.label));
+          onApply(result.label ?? null);
         }}
         onQueryChange={(next) => {
           if (!next.trim()) onApply(null);
@@ -173,6 +170,7 @@ function FiltersForm({ compact }: { compact?: boolean }) {
           <div className="relative z-20 flex min-w-0 items-center gap-2 overflow-visible border-b border-forest/10 px-3 py-2 lg:border-b-0 lg:border-r">
             <LocationQueryField
               value={query}
+              cityScope={city}
               onApply={(q) => patch({ q })}
             />
           </div>

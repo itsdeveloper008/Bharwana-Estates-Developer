@@ -26,11 +26,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CITIES, type PropertyCategory } from "@/lib/types";
 
-function locationFilterLabel(label?: string) {
-  if (!label) return "";
-  return label.split(",")[0]?.trim() || label.trim();
-}
-
 const CITY_CARDS = [
   { city: "Lahore", hint: "Canal & Model Town" },
   { city: "Islamabad", hint: "F-sectors & Bahria" },
@@ -156,13 +151,14 @@ export function HeroSearch({
             <Search className="h-4 w-4 shrink-0 text-forest/50" />
             <PlaceSearchInput
               defaultValue={query}
+              cityScope={city}
               hideLeadingIcon
               hideActions
               placeholder="Search by location"
               className="min-w-0 flex-1 space-y-0"
               inputClassName="h-11 border-0 bg-transparent px-0 shadow-none focus-visible:border-transparent focus-visible:ring-0"
               onPlaceSelected={(result) => {
-                setQuery(locationFilterLabel(result.label));
+                setQuery(result.label ?? "");
               }}
               onQueryChange={(next) => setQuery(next)}
             />

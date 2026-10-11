@@ -447,6 +447,7 @@ export function MapView({
       <div className="pointer-events-none absolute left-3 right-3 top-3 z-30 flex items-start justify-between gap-2 sm:left-4 sm:right-4 sm:top-4">
         <div className="pointer-events-auto w-full max-w-sm">
           <PlaceSearchInput
+            cityScope={city && city !== "ALL" ? city : "ALL"}
             inputClassName="bg-ivory/95 shadow-lift"
             onPlaceSelected={(result) => {
               setSearchMarker(result);

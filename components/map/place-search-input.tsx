@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { hasGoogleMapsKey, loadGoogleMapsScript } from "@/lib/map";
+import { CITY_COORDS, hasGoogleMapsKey, loadGoogleMapsScript } from "@/lib/map";
+import { useMockStore } from "@/lib/mock-store";
 import { cn } from "@/lib/utils";
 
 export type PlaceSearchResult = {
@@ -17,38 +18,97 @@ const fieldClass =
   "h-10 rounded-xl border border-[#E8E2D6]/90 bg-[#FBF9F5] shadow-[inset_0_1px_2px_rgba(15,46,29,0.045)] transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-gold focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-gold/35";
 
 const DEBOUNCE_MS = 150;
+const MAX_RESULTS = 10;
+/** ~30 km around a selected city. */
+const CITY_RADIUS_M = 30_000;
 
 type Prediction = {
-  placeId: string;
+  placeId?: string;
   primary: string;
   secondary: string;
+  latitude?: number;
+  longitude?: number;
+  source: "local" | "google";
 };
 
-/** Page-session cache of predictions by normalized query. */
+/** Page-session cache keyed by `cityScope|normalizedQuery`. */
 const predictionCache = new Map<string, Prediction[]>();
 
 function normalizeQueryKey(query: string) {
   return query.trim().toLowerCase();
 }
 
+function cacheKey(cityScope: string, query: string) {
+  return `${cityScope || "ALL"}|${normalizeQueryKey(query)}`;
+}
+
+/** Match start of the whole name or any word (case-insensitive). */
+function matchesWordPrefix(name: string, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return false;
+  const lower = name.toLowerCase();
+  if (lower.startsWith(q)) return true;
+  return lower.split(/[\s,/().\-#]+/).some((word) => word.length > 0 && word.startsWith(q));
+}
+
+function predictionDedupeKey(item: Prediction) {
+  if (item.placeId) return `id:${item.placeId}`;
+  return `t:${item.primary.trim().toLowerCase()}|${item.secondary.trim().toLowerCase()}`;
+}
+
+function mergePredictions(local: Prediction[], google: Prediction[], limit = MAX_RESULTS): Prediction[] {
+  const seen = new Set<string>();
+  const out: Prediction[] = [];
+  for (const item of [...local, ...google]) {
+    const key = predictionDedupeKey(item);
+    if (seen.has(key)) continue;
+    // Also dedupe by primary text alone when secondary differs slightly
+    const primaryKey = `p:${item.primary.trim().toLowerCase()}`;
+    if (seen.has(primaryKey)) continue;
+    seen.add(key);
+    seen.add(primaryKey);
+    out.push(item);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 function mapGoogleResults(
   results: google.maps.places.AutocompletePrediction[] | null | undefined,
+  cityScope: string,
 ): Prediction[] {
   if (!results?.length) return [];
-  return results.map((item) => ({
+  const mapped = results.map((item) => ({
     placeId: item.place_id,
     primary: item.structured_formatting?.main_text || item.description,
     secondary: item.structured_formatting?.secondary_text || "",
+    source: "google" as const,
+    description: item.description,
   }));
+
+  if (!cityScope || cityScope === "ALL") {
+    return mapped.map(({ description: _d, ...rest }) => rest);
+  }
+
+  const cityLower = cityScope.toLowerCase();
+  const withCity: typeof mapped = [];
+  const withoutCity: typeof mapped = [];
+  for (const item of mapped) {
+    const blob = `${item.primary} ${item.secondary} ${item.description}`.toLowerCase();
+    if (blob.includes(cityLower)) withCity.push(item);
+    else withoutCity.push(item);
+  }
+  // Prefer rows that mention the selected city; still include biased leftovers.
+  return [...withCity, ...withoutCity].map(({ description: _d, ...rest }) => rest);
 }
 
 function getPlacePredictions(
   service: google.maps.places.AutocompleteService,
   request: google.maps.places.AutocompletionRequest,
-): Promise<Prediction[]> {
+): Promise<google.maps.places.AutocompletePrediction[]> {
   return new Promise((resolve) => {
     let settled = false;
-    const finish = (items: Prediction[]) => {
+    const finish = (items: google.maps.places.AutocompletePrediction[]) => {
       if (settled) return;
       settled = true;
       resolve(items);
@@ -57,8 +117,8 @@ function getPlacePredictions(
     try {
       service.getPlacePredictions(request, (results, status) => {
         window.clearTimeout(timer);
-        if (status === google.maps.places.PlacesServiceStatus.OK) {
-          finish(mapGoogleResults(results));
+        if (status === google.maps.places.PlacesServiceStatus.OK && results?.length) {
+          finish(results);
         } else {
           finish([]);
         }
@@ -78,7 +138,7 @@ function HighlightMatch({ text, query }: { text: string; query: string }) {
   let index = lower.indexOf(needle);
   if (index < 0) {
     const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const wordMatch = lower.match(new RegExp(`(?:^|[\\s,/().\\-])(${escaped})`, "i"));
+    const wordMatch = lower.match(new RegExp(`(?:^|[\\s,/().\\-#])(${escaped})`, "i"));
     if (wordMatch?.index != null) {
       index = wordMatch.index + (wordMatch[0].length - (wordMatch[1]?.length ?? 0));
     }
@@ -88,20 +148,23 @@ function HighlightMatch({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, index)}
-      <strong className="font-bold">{text.slice(index, end)}</strong>
+      <strong className="font-bold underline decoration-forest/40 underline-offset-2">
+        {text.slice(index, end)}
+      </strong>
       {text.slice(end)}
     </>
   );
 }
 
 /**
- * Google Places Autocomplete (AutocompleteService) — same idea as the Maps search box:
- * one unrestricted request per query, from the first character typed.
+ * Zameen-style location search: Pakistan-only, optional city scope,
+ * our listing localities first, then one Google Autocomplete request.
  */
 export function PlaceSearchInput({
   onPlaceSelected,
   onQueryChange,
-  placeholder = "Search address or place (e.g. DHA Multan)",
+  cityScope = "ALL",
+  placeholder = "Search by location",
   className,
   inputClassName,
   disabled = false,
@@ -111,6 +174,8 @@ export function PlaceSearchInput({
 }: {
   onPlaceSelected: (result: PlaceSearchResult) => void;
   onQueryChange?: (query: string) => void;
+  /** "ALL" / empty = Pakistan-wide; otherwise bias + prefer that city (e.g. "Multan"). */
+  cityScope?: string;
   placeholder?: string;
   className?: string;
   inputClassName?: string;
@@ -124,9 +189,13 @@ export function PlaceSearchInput({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const debounceRef = useRef<number | null>(null);
-  const suppressFetchRef = useRef(false);
+  /** Skip autocomplete after a programmatic selection (must stay true across the next query effect). */
+  const justSelectedRef = useRef(false);
   const requestIdRef = useRef(0);
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+
+  const { properties } = useMockStore();
+  const scope = !cityScope || cityScope === "ALL" ? "ALL" : cityScope;
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<Error | null>(null);
@@ -141,6 +210,56 @@ export function PlaceSearchInput({
   const [menuBox, setMenuBox] = useState<{ top: number; left: number; width: number } | null>(
     null,
   );
+
+  const listingLocalities = useMemo(() => {
+    const byKey = new Map<string, Prediction>();
+
+    for (const [name, coords] of Object.entries(CITY_COORDS)) {
+      if (scope !== "ALL" && name !== scope) continue;
+      byKey.set(name.toLowerCase(), {
+        primary: name,
+        secondary: "Pakistan",
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        source: "local",
+      });
+    }
+
+    for (const property of properties) {
+      if (property.status !== "PUBLISHED" && property.status !== "RESERVED") continue;
+      const city = property.city?.trim();
+      if (!city) continue;
+      if (scope !== "ALL" && city !== scope) continue;
+
+      const cityKey = city.toLowerCase();
+      if (!byKey.has(cityKey)) {
+        const coords = CITY_COORDS[city];
+        byKey.set(cityKey, {
+          primary: city,
+          secondary: "Pakistan",
+          latitude: coords?.latitude ?? property.latitude,
+          longitude: coords?.longitude ?? property.longitude,
+          source: "local",
+        });
+      }
+
+      const address = property.address?.trim();
+      if (!address) continue;
+      const head = address.split(",")[0]?.trim() || address;
+      if (head.length < 2 || head.length > 64) continue;
+      const key = `${head.toLowerCase()}|${cityKey}`;
+      if (byKey.has(key)) continue;
+      byKey.set(key, {
+        primary: head,
+        secondary: city,
+        latitude: property.latitude,
+        longitude: property.longitude,
+        source: "local",
+      });
+    }
+
+    return Array.from(byKey.values());
+  }, [properties, scope]);
 
   const ensureSessionToken = useCallback(() => {
     if (typeof window === "undefined" || !window.google?.maps?.places?.AutocompleteSessionToken) {
@@ -161,6 +280,7 @@ export function PlaceSearchInput({
   }, []);
 
   useEffect(() => {
+    if (justSelectedRef.current) return;
     setQuery(defaultValue);
   }, [defaultValue]);
 
@@ -192,18 +312,6 @@ export function PlaceSearchInput({
     [onQueryChange],
   );
 
-  const applyResult = useCallback(
-    (result: PlaceSearchResult) => {
-      setError(null);
-      setOpen(false);
-      setPredictions([]);
-      setEmptyMessage(null);
-      refreshSessionToken();
-      onPlaceSelected(result);
-    },
-    [onPlaceSelected, refreshSessionToken],
-  );
-
   const positionMenu = useCallback(() => {
     const el = inputRef.current ?? rootRef.current;
     if (!el) return;
@@ -214,6 +322,23 @@ export function PlaceSearchInput({
       width: Math.max(rect.width, 240),
     });
   }, []);
+
+  const buildLocalPredictions = useCallback(
+    (trimmed: string): Prediction[] => {
+      const cities = listingLocalities.filter(
+        (item) =>
+          Object.prototype.hasOwnProperty.call(CITY_COORDS, item.primary) &&
+          matchesWordPrefix(item.primary, trimmed),
+      );
+      const areas = listingLocalities.filter(
+        (item) =>
+          !Object.prototype.hasOwnProperty.call(CITY_COORDS, item.primary) &&
+          matchesWordPrefix(item.primary, trimmed),
+      );
+      return mergePredictions(cities, areas, MAX_RESULTS);
+    },
+    [listingLocalities],
+  );
 
   const fetchPredictions = useCallback(
     async (raw: string) => {
@@ -226,8 +351,8 @@ export function PlaceSearchInput({
         return;
       }
 
-      const cacheKey = normalizeQueryKey(trimmed);
-      const cached = predictionCache.get(cacheKey);
+      const key = cacheKey(scope, trimmed);
+      const cached = predictionCache.get(key);
       if (cached) {
         setLoadingPredictions(false);
         setPredictions(cached);
@@ -238,44 +363,68 @@ export function PlaceSearchInput({
         return;
       }
 
+      const locals = buildLocalPredictions(trimmed);
+      if (locals.length) {
+        setPredictions(locals);
+        setHighlight(-1);
+        setEmptyMessage(null);
+        positionMenu();
+        setOpen(true);
+      } else {
+        setPredictions([]);
+        setEmptyMessage(null);
+        positionMenu();
+        setOpen(true);
+      }
+
       const places = window.google?.maps?.places;
       if (!places?.AutocompleteService) {
         setLoadingPredictions(false);
-        setPredictions([]);
-        setEmptyMessage("No locations found");
-        positionMenu();
-        setOpen(true);
+        predictionCache.set(key, locals);
+        if (!locals.length) setEmptyMessage("No locations found");
         return;
       }
 
       const requestId = ++requestIdRef.current;
       setLoadingPredictions(true);
-      setEmptyMessage(null);
-      positionMenu();
-      setOpen(true);
 
       const service = new places.AutocompleteService();
       const token = ensureSessionToken() ?? undefined;
+      const request: google.maps.places.AutocompletionRequest = {
+        input: trimmed,
+        componentRestrictions: { country: "pk" },
+        sessionToken: token,
+      };
+
+      if (scope !== "ALL" && CITY_COORDS[scope]) {
+        const center = new google.maps.LatLng(
+          CITY_COORDS[scope].latitude,
+          CITY_COORDS[scope].longitude,
+        );
+        request.location = center;
+        request.radius = CITY_RADIUS_M;
+        // Classic AutocompleteService supports strictBounds; typings omit it.
+        (request as google.maps.places.AutocompletionRequest & { strictBounds?: boolean }).strictBounds =
+          true;
+      }
 
       try {
-        // One request, no country / bias / types — same as Maps search box.
-        const results = await getPlacePredictions(service, {
-          input: trimmed,
-          sessionToken: token,
-        });
-
+        const rawResults = await getPlacePredictions(service, request);
         if (requestId !== requestIdRef.current) return;
 
-        predictionCache.set(cacheKey, results);
-        setPredictions(results);
+        const googleMapped = mapGoogleResults(rawResults, scope);
+        const merged = mergePredictions(locals, googleMapped, MAX_RESULTS);
+        predictionCache.set(key, merged);
+        setPredictions(merged);
         setHighlight(-1);
-        setEmptyMessage(results.length ? null : "No locations found");
+        setEmptyMessage(merged.length ? null : "No locations found");
         positionMenu();
         setOpen(true);
       } catch {
         if (requestId !== requestIdRef.current) return;
-        setPredictions([]);
-        setEmptyMessage("No locations found");
+        predictionCache.set(key, locals);
+        setPredictions(locals);
+        setEmptyMessage(locals.length ? null : "No locations found");
         positionMenu();
         setOpen(true);
       } finally {
@@ -284,12 +433,13 @@ export function PlaceSearchInput({
         }
       }
     },
-    [ensureSessionToken, positionMenu],
+    [buildLocalPredictions, ensureSessionToken, positionMenu, scope],
   );
 
+  // Typing → debounced fetch (skipped right after a selection).
   useEffect(() => {
-    if (suppressFetchRef.current) {
-      suppressFetchRef.current = false;
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
       return;
     }
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
@@ -308,6 +458,21 @@ export function PlaceSearchInput({
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
   }, [query, fetchPredictions]);
+
+  // City scope change: clear + re-query current input.
+  useEffect(() => {
+    predictionCache.clear();
+    setPredictions([]);
+    setEmptyMessage(null);
+    setHighlight(-1);
+    setOpen(false);
+    if (justSelectedRef.current) return;
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    void fetchPredictions(query);
+    // Only react to scope changes, not every query edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: cityScope only
+  }, [scope]);
 
   useEffect(() => {
     if (!open) return;
@@ -336,32 +501,58 @@ export function PlaceSearchInput({
     itemRefs.current[highlight]?.scrollIntoView({ block: "nearest" });
   }, [highlight]);
 
+  const closeMenu = useCallback(() => {
+    setOpen(false);
+    setPredictions([]);
+    setEmptyMessage(null);
+    setHighlight(-1);
+    setLoadingPredictions(false);
+  }, []);
+
   const selectPrediction = useCallback(
     async (prediction: Prediction) => {
-      if (!window.google?.maps?.Geocoder) {
-        setError("Map search is still loading. Try again in a moment.");
+      // Selection is final: visible text = suggestion main text only (never geocoded address).
+      justSelectedRef.current = true;
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+      requestIdRef.current += 1; // discard in-flight Google responses
+      setQuery(prediction.primary);
+      onQueryChange?.(prediction.primary);
+      closeMenu();
+      setError(null);
+      refreshSessionToken();
+
+      if (
+        prediction.latitude != null &&
+        prediction.longitude != null &&
+        Number.isFinite(prediction.latitude) &&
+        Number.isFinite(prediction.longitude)
+      ) {
+        onPlaceSelected({
+          latitude: prediction.latitude,
+          longitude: prediction.longitude,
+          label: prediction.primary,
+        });
         return;
       }
+
+      if (!prediction.placeId || !window.google?.maps?.Geocoder) {
+        return;
+      }
+
       setPending(true);
-      setError(null);
       try {
         const geocoder = new google.maps.Geocoder();
-        const response = await geocoder.geocode({
-          placeId: prediction.placeId,
-        });
-        const first = response.results?.[0];
-        const loc = first?.geometry?.location;
+        const response = await geocoder.geocode({ placeId: prediction.placeId });
+        const loc = response.results?.[0]?.geometry?.location;
         if (!loc) {
           setError(`No results found for “${prediction.primary}”.`);
           return;
         }
-        const label = first.formatted_address || prediction.primary;
-        suppressFetchRef.current = true;
-        updateQuery(label);
-        applyResult({
+        // Keep input as prediction.primary — coords only for map/filter.
+        onPlaceSelected({
           latitude: loc.lat(),
           longitude: loc.lng(),
-          label,
+          label: prediction.primary,
         });
       } catch {
         setError(`No results found for “${prediction.primary}”.`);
@@ -369,46 +560,54 @@ export function PlaceSearchInput({
         setPending(false);
       }
     },
-    [applyResult, updateQuery],
+    [closeMenu, onPlaceSelected, onQueryChange, refreshSessionToken],
   );
 
-  const geocodeQuery = useCallback(
+  const applyPlainText = useCallback(
     async (raw: string) => {
       const trimmed = raw.trim();
-      if (!trimmed) {
-        setError("Enter a place name or address to search.");
-        return;
-      }
+      justSelectedRef.current = true;
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+      closeMenu();
+      if (!trimmed) return;
+
+      // Keep typed text; geocode only for map centering when Maps is available.
       if (!window.google?.maps?.Geocoder) {
-        setError("Map search is still loading. Try again in a moment.");
+        onQueryChange?.(trimmed);
         return;
       }
       setPending(true);
       setError(null);
       try {
         const geocoder = new google.maps.Geocoder();
-        const response = await geocoder.geocode({ address: trimmed });
-        const first = response.results?.[0];
-        const loc = first?.geometry?.location;
-        if (!loc) {
-          setError(`No results found for “${trimmed}”.`);
-          return;
+        const request: google.maps.GeocoderRequest = {
+          address: trimmed,
+          componentRestrictions: { country: "PK" },
+        };
+        if (scope !== "ALL" && CITY_COORDS[scope]) {
+          request.bounds = new google.maps.Circle({
+            center: {
+              lat: CITY_COORDS[scope].latitude,
+              lng: CITY_COORDS[scope].longitude,
+            },
+            radius: CITY_RADIUS_M,
+          }).getBounds()!;
         }
-        const label = first.formatted_address || trimmed;
-        suppressFetchRef.current = true;
-        updateQuery(label);
-        applyResult({
+        const response = await geocoder.geocode(request);
+        const loc = response.results?.[0]?.geometry?.location;
+        if (!loc) return;
+        onPlaceSelected({
           latitude: loc.lat(),
           longitude: loc.lng(),
-          label,
+          label: trimmed,
         });
       } catch {
-        setError(`No results found for “${trimmed}”.`);
+        // Plain text filter still stands via onQueryChange from typing.
       } finally {
         setPending(false);
       }
     },
-    [applyResult, updateQuery],
+    [closeMenu, onPlaceSelected, onQueryChange, scope],
   );
 
   function onEnterOrSearch() {
@@ -416,19 +615,15 @@ export function PlaceSearchInput({
       void selectPrediction(predictions[highlight]!);
       return;
     }
-    if (predictions[0]) {
-      void selectPrediction(predictions[0]);
-      return;
-    }
-    void geocodeQuery(query);
+    // No suggestion chosen — keep typed text as a plain filter (do not auto-pick #1).
+    void applyPlainText(query);
   }
 
   function clearQuery() {
+    justSelectedRef.current = true;
     updateQuery("");
     setError(null);
-    setPredictions([]);
-    setOpen(false);
-    setEmptyMessage(null);
+    closeMenu();
     refreshSessionToken();
   }
 
@@ -465,6 +660,7 @@ export function PlaceSearchInput({
           aria-controls={listId}
           aria-autocomplete="list"
           onFocus={() => {
+            if (justSelectedRef.current) return;
             if (predictions.length || loadingPredictions || emptyMessage) {
               positionMenu();
               setOpen(true);
@@ -473,6 +669,7 @@ export function PlaceSearchInput({
             }
           }}
           onChange={(event) => {
+            justSelectedRef.current = false;
             updateQuery(event.target.value);
             if (error) setError(null);
           }}
@@ -541,7 +738,7 @@ export function PlaceSearchInput({
             <ul
               id={listId}
               role="listbox"
-              className="fixed z-[10050] max-h-[320px] overflow-y-auto overscroll-contain rounded-xl border border-forest/15 bg-ivory py-1 shadow-[0_16px_40px_-18px_rgba(15,46,29,0.4)] [scrollbar-color:#0f2e1d_#f4f2ed] [scrollbar-width:thin]"
+              className="fixed z-[10050] max-h-[360px] overflow-y-auto overscroll-contain rounded-xl border border-forest/15 bg-ivory py-1 shadow-[0_16px_40px_-18px_rgba(15,46,29,0.4)] [scrollbar-color:#0f2e1d_#f4f2ed] [scrollbar-width:thin]"
               style={{
                 top: menuBox.top,
                 left: menuBox.left,
@@ -553,7 +750,7 @@ export function PlaceSearchInput({
               ) : null}
               {predictions.map((item, index) => (
                 <li
-                  key={item.placeId}
+                  key={item.placeId ?? `${item.primary}-${item.secondary}-${index}`}
                   role="option"
                   aria-selected={highlight === index}
                 >
@@ -563,7 +760,7 @@ export function PlaceSearchInput({
                       itemRefs.current[index] = el;
                     }}
                     className={cn(
-                      "flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition-colors",
+                      "flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors",
                       highlight === index ? "bg-gold/15" : "hover:bg-forest/[0.05]",
                     )}
                     onMouseEnter={() => setHighlight(index)}
@@ -572,12 +769,12 @@ export function PlaceSearchInput({
                     }}
                     onClick={() => void selectPrediction(item)}
                   >
-                    <span className="text-sm font-semibold text-forest">
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-forest">
                       <HighlightMatch text={item.primary} query={query} />
                     </span>
                     {item.secondary ? (
-                      <span className="text-xs text-muted-foreground">
-                        <HighlightMatch text={item.secondary} query={query} />
+                      <span className="max-w-[45%] shrink-0 truncate text-right text-xs text-muted-foreground">
+                        {item.secondary}
                       </span>
                     ) : null}
                   </button>
@@ -593,7 +790,7 @@ export function PlaceSearchInput({
 
       {loadError ? (
         <p className="text-sm text-destructive" role="alert">
-          Could not load Google Places. {loadError.message}
+          Could not load Google Places. Listing locations still work. {loadError.message}
         </p>
       ) : error ? (
         <p className="text-sm text-destructive" role="alert">
