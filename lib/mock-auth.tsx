@@ -45,7 +45,13 @@ import {
   type User as FirebaseUser,
   type UserCredential,
 } from "firebase/auth";
-import { getFirebaseAuth, isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
+import {
+  FIREBASE_NOT_CONFIGURED_MESSAGE,
+  allowOfflineAuthFallback,
+  getFirebaseAuth,
+  isFirebaseConfigured,
+  logFirebaseConfigDiagnostics,
+} from "@/lib/firebase/client";
 import { resolveAdminAuthorization } from "@/lib/firestore/admin-access";
 import { createDeletionRequest, purgeUserOwnedData } from "@/lib/firestore/deletion";
 import {
@@ -496,7 +502,21 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (!isFirebaseConfigured()) {
-        // Mock/local mode only - restore cached session.
+        // Production: fail closed — never restore mock/localStorage sessions.
+        if (!allowOfflineAuthFallback()) {
+          try {
+            localStorage.removeItem(SESSION_KEY);
+          } catch {
+            /* ignore */
+          }
+          logFirebaseConfigDiagnostics("auth");
+          if (!cancelled) {
+            setUser(null);
+            setIsReady(true);
+          }
+          return;
+        }
+        // Dev mock/local mode only - restore cached session.
         try {
           const raw = localStorage.getItem(SESSION_KEY);
           if (raw) {
@@ -701,6 +721,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
   const loginAs = useCallback(
     (next: User) => {
+      if (!allowOfflineAuthFallback()) return;
       persist(toPublicUser(next));
     },
     [persist],
@@ -708,6 +729,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
   const loginAsRole = useCallback(
     (role: UserRole) => {
+      if (!allowOfflineAuthFallback()) return;
       const match = seedUsers.find((item) => item.role === role);
       if (match) persist(match);
     },
@@ -764,6 +786,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             return { ok: false as const, error: emailAuthErrorMessage(code) };
           }
         }
+      }
+
+      if (!allowOfflineAuthFallback()) {
+        return { ok: false as const, error: FIREBASE_NOT_CONFIGURED_MESSAGE };
       }
 
       await delay(0);
@@ -1507,6 +1533,10 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
             };
           }
         }
+      }
+
+      if (!allowOfflineAuthFallback()) {
+        return { ok: false as const, error: FIREBASE_NOT_CONFIGURED_MESSAGE };
       }
 
       const registered = readRegistered();

@@ -101,6 +101,14 @@ export function isFirebaseConfigured() {
   );
 }
 
+/**
+ * Offline localStorage/seed auth is for local development only.
+ * Production must fail closed when Firebase env vars are missing.
+ */
+export function allowOfflineAuthFallback() {
+  return process.env.NODE_ENV !== "production";
+}
+
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;

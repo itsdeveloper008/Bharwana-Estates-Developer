@@ -12,7 +12,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/lib/admin-auth";
-import { isFirebaseConfigured } from "@/lib/firebase/client";
+import { allowOfflineAuthFallback, isFirebaseConfigured } from "@/lib/firebase/client";
 import { whenFirebaseUserReady } from "@/lib/firebase/when-auth-ready";
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import {
@@ -157,7 +157,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const marketplaceUserId = isAdminSession ? null : (user?.id ?? null);
 
   const [properties, setProperties] = useState<Property[]>(() =>
-    isFirebaseConfigured() ? [] : seedPropertiesList,
+    isFirebaseConfigured() || !allowOfflineAuthFallback() ? [] : seedPropertiesList,
   );
   const [developers, setDevelopers] = useState<Developer[]>(seedDevelopers);
   const [transactions, setTransactions] = useState<Transaction[]>(seedTransactions);
@@ -197,6 +197,13 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       setDevelopers(seedDevelopers);
       setTransactions(seedTransactions);
       setUsers(seedUsers);
+    } else if (!allowOfflineAuthFallback()) {
+      // Production without Firebase: empty store, no seed/localStorage fallback.
+      purgeMockLocalStorage();
+      setProperties([]);
+      setDevelopers([]);
+      setTransactions([]);
+      setUsers([]);
     } else {
       setProperties(mergeById(seedPropertiesList, readJsonArray<Property>(PROPERTIES_KEY)));
       setDevelopers(mergeById(seedDevelopers, readJsonArray<Developer>(DEVELOPERS_KEY)));
@@ -208,6 +215,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
+    if (!allowOfflineAuthFallback()) return;
     // When Firestore owns properties, skip writing them to localStorage (avoids stale overrides).
     try {
       if (!usingFirestoreProperties) {
