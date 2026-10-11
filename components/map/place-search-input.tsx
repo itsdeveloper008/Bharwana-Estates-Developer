@@ -98,15 +98,13 @@ function mapGoogleResults(
   }
 
   const cityLower = cityScope.toLowerCase();
-  const withCity: typeof mapped = [];
-  const withoutCity: typeof mapped = [];
-  for (const item of mapped) {
-    const blob = `${item.primary} ${item.secondary} ${item.description}`.toLowerCase();
-    if (blob.includes(cityLower)) withCity.push(item);
-    else withoutCity.push(item);
-  }
-  // Prefer rows that mention the selected city; still include biased leftovers.
-  return [...withCity, ...withoutCity].map(toPrediction);
+  // Drop anything that does not mention the selected city (avoids e.g. DHA Lahore under Multan).
+  return mapped
+    .filter((item) => {
+      const blob = `${item.primary} ${item.secondary} ${item.description}`.toLowerCase();
+      return blob.includes(cityLower);
+    })
+    .map(toPrediction);
 }
 
 function getPlacePredictions(
