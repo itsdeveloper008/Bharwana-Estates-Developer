@@ -582,11 +582,15 @@ export function MiniMap({ property }: { property: Property }) {
   const { isLoaded } = useJsApiLoader(GOOGLE_MAPS_JS_API_LOADER_PROPS);
 
   if (!hasGoogleMapsKey() || !isLoaded) {
-    return <div className="flex h-64 items-center justify-center bg-cream/50 text-xs text-muted-foreground">Map</div>;
+    return (
+      <div className="flex h-52 items-center justify-center bg-cream/50 text-xs text-muted-foreground sm:h-64">
+        Map
+      </div>
+    );
   }
 
   return (
-    <div className="relative h-64 overflow-hidden rounded-2xl">
+    <div className="relative h-52 overflow-hidden rounded-2xl sm:h-64">
       <GoogleMap
         mapContainerStyle={mapContainerStyle}
         center={{ lat: property.latitude, lng: property.longitude }}

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FilterBar } from "@/components/properties/filter-bar";
 import { PropertyCard } from "@/components/properties/property-card";
@@ -11,6 +11,31 @@ import { useMockStore } from "@/lib/mock-store";
 import type { MapBounds } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+/** Keep the property list usable if the Maps JS API fails to construct. */
+class MapPaneErrorBoundary extends Component<
+  { children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="flex h-full min-h-0 items-center justify-center bg-cream/60 px-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Map is temporarily unavailable. Browse properties in the list.
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Kick off Maps API + MapView chunk immediately (parallel with hydration).
 if (typeof window !== "undefined") {
@@ -130,20 +155,6 @@ export function MapExplorer() {
     setFocusKey((key) => key + 1);
   }, []);
 
-  const onListWheel = useCallback(
-    (event: React.WheelEvent<HTMLDivElement>) => {
-      if (!stuck) return;
-      const el = listRef.current;
-      if (!el) return;
-      // At top of list, hand scroll back to the page so filters can return.
-      if (event.deltaY < 0 && el.scrollTop <= 0) {
-        event.preventDefault();
-        window.scrollBy({ top: event.deltaY, left: 0, behavior: "auto" });
-      }
-    },
-    [stuck],
-  );
-
   return (
     <div className="bg-ivory">
       <div className="border-b border-forest/10 bg-ivory px-4 py-4 sm:px-6">
@@ -158,26 +169,25 @@ export function MapExplorer() {
           "sticky z-20 grid min-h-0 bg-ivory",
           "top-[var(--site-header-height)]",
           "h-[calc(100dvh-var(--site-header-height))]",
-          "grid-cols-1 grid-rows-[45dvh_minmax(0,1fr)]",
-          "lg:grid-cols-[260px_1fr] lg:grid-rows-1 xl:grid-cols-[280px_1fr]",
+          /* Stacked: map ~45dvh, list fills the rest (~55dvh) with its own scroller */
+          "grid-cols-1 grid-rows-[minmax(0,45dvh)_minmax(0,1fr)]",
+          /* Side-by-side: wide enough list for full cards + always-visible scrollbar */
+          "lg:grid-cols-[minmax(300px,34%)_minmax(0,1fr)] lg:grid-rows-1",
+          "xl:grid-cols-[minmax(320px,360px)_minmax(0,1fr)]",
         )}
       >
         {/* List — left on desktop, under map on mobile */}
         <div
           className={cn(
-            "order-2 flex h-full min-h-0 flex-col border-forest/10 lg:order-1 lg:border-r",
+            "order-2 flex h-full min-h-0 min-w-0 flex-col border-forest/10 lg:order-1 lg:border-r",
             "border-t lg:border-t-0",
           )}
         >
           <div
             ref={listRef}
-            onWheel={onListWheel}
-            className={cn(
-              "min-h-0 flex-1 bg-cream/40",
-              stuck ? "map-list-scroll" : "overflow-y-hidden",
-            )}
+            className="map-list-scroll min-h-0 flex-1 bg-cream/40"
           >
-            <div className="space-y-2 p-2">
+            <div className="space-y-2 p-2 pb-8 pr-3">
               {bounds && (
                 <div className="mb-1 flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
                   <span>Showing properties in the map frame</span>
@@ -215,21 +225,23 @@ export function MapExplorer() {
 
         {/* Map — right on desktop, top sticky strip on mobile */}
         <div className="relative order-1 min-h-0 w-full lg:order-2">
-          <MapView
-            properties={results}
-            hoveredId={hoveredId}
-            focusId={focusId}
-            focusKey={focusKey}
-            selectedId={selectedId}
-            onSelectedChange={(id) => {
-              setSelectedId(id);
-              if (id === null) setFocusId(null);
-            }}
-            boundsActive={Boolean(bounds)}
-            onBoundsSearch={setBounds}
-            onResetBounds={resetAll}
-            gestureHandling={stuck ? "greedy" : "cooperative"}
-          />
+          <MapPaneErrorBoundary>
+            <MapView
+              properties={results}
+              hoveredId={hoveredId}
+              focusId={focusId}
+              focusKey={focusKey}
+              selectedId={selectedId}
+              onSelectedChange={(id) => {
+                setSelectedId(id);
+                if (id === null) setFocusId(null);
+              }}
+              boundsActive={Boolean(bounds)}
+              onBoundsSearch={setBounds}
+              onResetBounds={resetAll}
+              gestureHandling={stuck ? "greedy" : "cooperative"}
+            />
+          </MapPaneErrorBoundary>
         </div>
       </div>
     </div>

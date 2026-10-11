@@ -103,13 +103,18 @@ export function PropertyCard({
       <Badge
         variant={property.listingType === "DIRECT_OWNER" ? "owner" : "verified"}
         className={cn(
-          "pointer-events-none absolute rounded-full uppercase",
-          isList ? "left-1.5 top-1.5 scale-90 text-[8px]" : "left-2.5 top-2.5 text-[10px]",
+          "pointer-events-none absolute z-[1] rounded-full uppercase",
+          isList ? "left-1 top-1 max-w-[calc(100%-0.5rem)] truncate text-[7px]" : "left-2.5 top-2.5 text-[10px]",
         )}
       >
         {listingBadge(property.listingType)}
       </Badge>
-      <PropertySaveButton propertyId={property.id} variant="card" />
+      {/* List thumbs are narrow — keep the heart off the badge (bottom-right). */}
+      <PropertySaveButton
+        propertyId={property.id}
+        variant="card"
+        className={isList ? "!right-1 !top-auto bottom-1 h-7 w-7" : undefined}
+      />
     </div>
   );
 
@@ -135,7 +140,7 @@ export function PropertyCard({
             {property.title}
           </h3>
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs rounded-[10px] font-semibold">
+        <TooltipContent className="max-w-xs rounded-[10px] font-semibold [@media(hover:none)]:hidden">
           {property.title}
         </TooltipContent>
       </Tooltip>

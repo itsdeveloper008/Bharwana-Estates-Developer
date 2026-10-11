@@ -55,17 +55,25 @@ function PropertyDetailInner({ property }: { property: Property }) {
 
   const tags = property.featureTags ?? [];
 
+  const primaryCta = ownerListing ? "How to proceed" : "Inquire / book visit";
+  const callHref = "tel:+923001713811";
+  const whatsappHref = `https://wa.me/923001713811?text=${encodeURIComponent(
+    `Hi Bharwana Estates, I'm interested in ${property.title}`,
+  )}`;
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-7xl px-4 py-10 pb-28 sm:px-6 lg:pb-10">
       <div className="mb-6">
         <HistoryBackButton fallbackHref="/properties" label="Back" />
       </div>
-      <div className="grid gap-12 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
-        <div>
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)] lg:gap-12">
+        <div className="min-w-0">
           <PropertyGallery images={property.images} title={property.title} />
           <div className="mt-10">
             <p className="type-eyebrow">The residence</p>
-            <p className="mt-4 max-w-2xl text-lg leading-relaxed text-forest/80">{property.description}</p>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-forest/80 sm:text-lg">
+              {property.description}
+            </p>
           </div>
           <PropertyVideo youtubeVideoId={property.youtubeVideoId} />
           <div className="mt-10">
@@ -73,21 +81,21 @@ function PropertyDetailInner({ property }: { property: Property }) {
             <MiniMap property={property} />
           </div>
         </div>
-        <aside className="lg:sticky lg:top-24 lg:self-start">
+        <aside className="min-w-0 lg:sticky lg:top-[calc(var(--site-header-height)+1rem)] lg:self-start">
           <Badge variant={ownerListing ? "owner" : "verified"} className="rounded-full uppercase">
             {listingBadge(property.listingType)}
           </Badge>
-          <h1 className="mt-4 font-serif text-4xl leading-tight">{property.title}</h1>
+          <h1 className="mt-4 font-serif text-3xl leading-tight sm:text-4xl">{property.title}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {property.address}, {property.city}
           </p>
-          <p className="mt-6 font-serif text-4xl text-gold-700">{formatPrice(property.price)}</p>
+          <p className="mt-6 font-serif text-3xl text-gold-700 sm:text-4xl">{formatPrice(property.price)}</p>
           <p className="text-xs text-muted-foreground">{formatPriceFull(property.price)}</p>
           <div className="mt-6 grid grid-cols-3 gap-3 rounded-2xl border-y border-forest/10 py-5">
             {specs.map((spec) => (
-              <div key={spec.key ?? spec.label}>
+              <div key={spec.key ?? spec.label} className="min-w-0">
                 <spec.icon className="h-4 w-4 text-gold" />
-                <p className="mt-2 text-sm font-semibold text-forest">{spec.value}</p>
+                <p className="mt-2 truncate text-sm font-semibold text-forest">{spec.value}</p>
                 <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{spec.label}</p>
               </div>
             ))}
@@ -108,16 +116,45 @@ function PropertyDetailInner({ property }: { property: Property }) {
             {statusLabel(property.status)} · Listed {formatDate(property.createdAt)}
           </p>
           <div className="mt-6 flex flex-col gap-3">
-            <Button size="lg" className="rounded-full" onClick={() => setOpen(true)}>
-              {ownerListing ? "How to proceed" : "Inquire / book visit"}
+            <Button size="lg" className="w-full rounded-full" onClick={() => setOpen(true)}>
+              {primaryCta}
             </Button>
-            <div className="flex gap-2">
-              <PropertySaveButton propertyId={property.id} showLabel variant="detail" />
-              <PropertyShareButton property={property} />
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <PropertySaveButton
+                propertyId={property.id}
+                showLabel
+                variant="detail"
+                className="w-full sm:flex-1"
+              />
+              <PropertyShareButton property={property} className="w-full sm:flex-1" />
             </div>
           </div>
         </aside>
       </div>
+
+      {/* Phone sticky actions — padded page bottom so content isn't covered */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest/10 bg-ivory/95 px-3 pt-2.5 pb-[calc(0.65rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md lg:hidden">
+        <div className="mx-auto flex max-w-7xl gap-2">
+          <a
+            href={callHref}
+            className="inline-flex h-11 min-w-[2.75rem] flex-1 items-center justify-center rounded-full border border-forest/20 bg-white text-sm font-medium text-forest transition hover:bg-cream"
+          >
+            Call
+          </a>
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-11 min-w-[2.75rem] flex-1 items-center justify-center rounded-full border border-[#25D366]/40 bg-[#25D366]/10 text-sm font-medium text-[#128C7E] transition hover:bg-[#25D366]/20"
+          >
+            WhatsApp
+          </a>
+          <Button size="lg" className="h-11 flex-[1.35] rounded-full px-3 text-sm" onClick={() => setOpen(true)}>
+            {ownerListing ? "Proceed" : "Inquire"}
+          </Button>
+        </div>
+      </div>
+
       <InquiryModal property={property} open={open} onOpenChange={setOpen} />
     </div>
   );

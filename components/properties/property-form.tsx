@@ -171,7 +171,7 @@ function WizardStepIndicator({ current }: { current: number }) {
                 </span>
                 <span
                   className={cn(
-                    "text-[10px] uppercase tracking-[0.14em]",
+                    "max-w-[4.5rem] truncate text-[9px] uppercase tracking-[0.12em] min-[380px]:max-w-none min-[380px]:text-[10px] min-[380px]:tracking-[0.14em]",
                     active || complete ? "text-gold-700" : "text-muted-foreground",
                   )}
                 >
@@ -2493,24 +2493,33 @@ export function PropertyForm({
             </>
           )}
 
-          <div className="mt-8 flex items-center justify-between gap-4 border-t border-forest/10 pt-8">
+          <div className="mt-8 flex flex-col-reverse gap-3 border-t border-forest/10 pt-8 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             {currentStep > 0 ? (
-              <Button type="button" variant="outline" onClick={handleBack} className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBack}
+                className="h-11 w-full gap-2 sm:w-auto"
+              >
                 <ChevronLeft className="h-4 w-4" />
                 Back
               </Button>
             ) : (
-              <span />
+              <span className="hidden sm:block" />
             )}
             {currentStep < 2 ? (
-              <Button type="button" onClick={() => void handleContinue()} className="min-w-[140px]">
+              <Button
+                type="button"
+                onClick={() => void handleContinue()}
+                className="h-11 w-full min-w-[140px] sm:w-auto"
+              >
                 Continue
               </Button>
             ) : (
               <Button
                 type="button"
                 disabled={isSubmitting || compressingPhotos}
-                className="min-w-[180px] sm:min-w-[220px]"
+                className="h-11 w-full min-w-[180px] sm:w-auto sm:min-w-[220px]"
                 onClick={() => submitListing()}
               >
                 {compressingPhotos

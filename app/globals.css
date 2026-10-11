@@ -34,11 +34,17 @@
     --chart-3: 40 18% 70%;
     --chart-4: 43 40% 40%;
     --chart-5: 152 20% 30%;
-    /* Must match Navbar: h-[96px] md:h-[108px] */
-    --site-header-height: 96px;
+    /* Must match Navbar: h-16 (64px) / md:h-[96px] / xl:h-[108px] */
+    --site-header-height: 64px;
   }
 
   @media (min-width: 768px) {
+    :root {
+      --site-header-height: 96px;
+    }
+  }
+
+  @media (min-width: 1280px) {
     :root {
       --site-header-height: 108px;
     }
@@ -52,10 +58,13 @@
 
   html {
     scroll-behavior: smooth;
+    /* clip (not hidden) so position:sticky on /map keeps working across browsers */
+    overflow-x: clip;
   }
 
   body {
     @apply bg-background font-sans font-normal text-foreground antialiased;
+    overflow-x: clip;
   }
 
   h1 {
@@ -131,29 +140,30 @@
 
   /**
    * Map page property list — always-visible themed scrollbar (forest thumb / cream track).
-   * Forces a classic scrollbar so macOS overlay scrollbars don't hide it.
+   * overflow-y: scroll (not auto) so the track stays visible on macOS.
    */
   .map-list-scroll {
-    overflow-y: auto;
+    overflow-y: scroll;
     overscroll-behavior: contain;
     scrollbar-width: thin;
-    scrollbar-color: #0f2e1d #f4f2ed;
+    scrollbar-color: #0f3d2e #efe9dc;
   }
 
   .map-list-scroll::-webkit-scrollbar {
     -webkit-appearance: none;
-    width: 8px;
+    width: 10px;
   }
 
   .map-list-scroll::-webkit-scrollbar-track {
-    background: #f4f2ed;
-    border-radius: 4px;
+    background: #efe9dc;
+    border-radius: 8px;
   }
 
   .map-list-scroll::-webkit-scrollbar-thumb {
-    background-color: #0f2e1d;
-    border-radius: 4px;
-    border: 1px solid #f4f2ed;
+    background-color: #0f3d2e;
+    border-radius: 8px;
+    border: 2px solid #efe9dc;
+    min-height: 40px;
   }
 
   .map-list-scroll::-webkit-scrollbar-thumb:hover {

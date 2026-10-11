@@ -134,9 +134,9 @@ function WhyBharwanaSection() {
               transition={{ duration: 0.7, delay: 0.05, ease }}
               className="mt-5 font-serif text-[2.35rem] leading-[1.12] tracking-tight text-[#082B1D] sm:text-[2.75rem] lg:text-[3.75rem] lg:leading-[1.08]"
             >
-              <span className="block whitespace-nowrap">Homes deserve</span>
-              <span className="block whitespace-nowrap">a more thoughtful</span>
-              <span className="block whitespace-nowrap">introduction.</span>
+              <span className="block sm:whitespace-nowrap">Homes deserve</span>
+              <span className="block sm:whitespace-nowrap">a more thoughtful</span>
+              <span className="block sm:whitespace-nowrap">introduction.</span>
             </motion.h2>
 
             <motion.p
@@ -272,8 +272,8 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Pull hero under the sticky navbar — must match navbar h-[96px] md:h-[108px] */}
-      <section className="relative w-full min-h-svh overflow-hidden -mt-[96px] md:-mt-[108px]">
+      {/* Pull hero under the sticky navbar — must match --site-header-height */}
+      <section className="relative w-full min-h-svh overflow-hidden -mt-16 md:-mt-[96px] xl:-mt-[108px]">
         <Image
           src="/hero.jpeg"
           alt=""

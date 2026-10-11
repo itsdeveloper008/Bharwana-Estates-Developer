@@ -321,10 +321,12 @@ export function PlaceSearchInput({
     const el = inputRef.current ?? rootRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
+    const width = Math.min(Math.max(rect.width, 240), Math.max(200, window.innerWidth - 16));
+    const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
     setMenuBox({
       top: rect.bottom + 6,
-      left: rect.left,
-      width: Math.max(rect.width, 240),
+      left,
+      width,
     });
   }, []);
 

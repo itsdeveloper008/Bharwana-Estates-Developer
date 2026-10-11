@@ -250,7 +250,10 @@ export function HeroSearch({
               setPriceMax("");
             }}
           />
-          <Button className="h-11 bg-forest px-8 text-ivory hover:bg-forest-800" onClick={search}>
+          <Button
+            className="h-11 w-full bg-forest px-8 text-ivory hover:bg-forest-800 sm:w-auto sm:justify-self-stretch lg:min-w-[8.5rem]"
+            onClick={search}
+          >
             Search
           </Button>
         </div>

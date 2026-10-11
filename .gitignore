@@ -19,6 +19,7 @@
 # misc
 .DS_Store
 *.pem
+.responsive-shots/
 
 # debug
 npm-debug.log*

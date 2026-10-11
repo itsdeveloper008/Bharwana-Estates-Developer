@@ -169,8 +169,8 @@ export default function AdminFeaturedPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <p className="type-eyebrow">Landing page</p>
           <h1 className="font-serif text-3xl">Featured</h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
@@ -178,19 +178,23 @@ export default function AdminFeaturedPage() {
             homepage Featured section. Order here is the order visitors see.
           </p>
         </div>
-        <Button onClick={() => void onSave()} disabled={!dirty || saving || loading} className="rounded-xl">
+        <Button
+          onClick={() => void onSave()}
+          disabled={!dirty || saving || loading}
+          className="w-full rounded-xl sm:w-auto"
+        >
           {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
         </Button>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-6 flex gap-2 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]">
         {TABS.map((item) => (
           <button
             key={item.key}
             type="button"
             onClick={() => setTab(item.key)}
             className={cn(
-              "rounded-full px-4 py-2 text-sm font-medium transition",
+              "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition",
               tab === item.key
                 ? "bg-forest text-ivory"
                 : "border border-forest/15 bg-white text-forest hover:border-gold/40",

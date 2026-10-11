@@ -196,7 +196,7 @@ export default function AdminDeletionRequestsPage() {
         ) : pending.length === 0 ? (
           <p className="mt-4 text-sm text-muted-foreground">No pending requests.</p>
         ) : (
-          <div className="mt-4 overflow-x-auto border border-forest/10">
+          <div className="mt-4 w-full max-w-full overflow-x-auto overscroll-x-contain border border-forest/10 [-webkit-overflow-scrolling:touch]">
             <Table>
               <TableHeader>
                 <TableRow>

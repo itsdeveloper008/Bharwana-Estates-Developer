@@ -23,11 +23,11 @@ function WhatsAppGlyph({ className }: { className?: string }) {
 
 export function WhatsAppFloat() {
   const pathname = usePathname();
-  // Keep map controls clear - no WhatsApp FAB on /map.
-  if (pathname === "/map") return null;
+  // Keep map controls clear; property detail has its own sticky WhatsApp action.
+  if (pathname === "/map" || pathname?.startsWith("/property/")) return null;
 
   return (
-    <div className="pointer-events-none fixed bottom-5 right-5 z-[45] sm:bottom-6 sm:right-6">
+    <div className="pointer-events-none fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] right-[calc(1.25rem+env(safe-area-inset-right,0px))] z-[45] sm:bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:right-6">
       <motion.span
         aria-hidden
         className="absolute inset-0 rounded-full bg-[#25D366]"

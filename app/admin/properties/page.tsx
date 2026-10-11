@@ -99,7 +99,7 @@ export default function AdminPropertiesPage() {
         placeholder="Search by title, city, owner, price…"
       />
 
-      <div className="overflow-x-auto border border-forest/10">
+      <div className="w-full max-w-full overflow-x-auto overscroll-x-contain border border-forest/10 [-webkit-overflow-scrolling:touch]">
         <Table>
           <TableHeader>
             <TableRow>

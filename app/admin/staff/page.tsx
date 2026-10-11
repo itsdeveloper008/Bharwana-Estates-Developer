@@ -257,7 +257,7 @@ export default function AdminStaffPage() {
           No staff members yet. Add someone with limited module access.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-forest/10 bg-white">
+        <div className="w-full max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-forest/10 bg-white [-webkit-overflow-scrolling:touch]">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="border-b border-forest/10 bg-cream/40 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               <tr>

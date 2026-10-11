@@ -66,7 +66,7 @@ export default function AdminInquiriesPage() {
             : "Could not load inquiries. Refresh the page after confirming you are signed in."}
         </p>
       ) : (
-        <div className="overflow-x-auto border border-forest/10">
+        <div className="w-full max-w-full overflow-x-auto overscroll-x-contain border border-forest/10 [-webkit-overflow-scrolling:touch]">
           <Table>
             <TableHeader>
               <TableRow>

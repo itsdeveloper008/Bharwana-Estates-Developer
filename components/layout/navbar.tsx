@@ -222,7 +222,7 @@ export function Navbar() {
         className={cn(
           "sticky top-0 z-50 w-full overflow-visible",
           // Fixed height on every page - never animate height (that causes navbar shiver)
-          "h-[96px] md:h-[108px]",
+          "h-16 md:h-[96px] xl:h-[108px]",
           overHero
             ? "border-b border-white/10 bg-gradient-to-b from-[#082B1D]/70 to-transparent transition-[background-color,border-color,box-shadow] duration-300 ease-out"
             : "border-b border-[#082B1D]/10 bg-[#FBFAF6] shadow-[0_8px_30px_-18px_rgba(8,43,29,0.35)] transition-[background-color,border-color,box-shadow] duration-300 ease-out",
@@ -237,9 +237,9 @@ export function Navbar() {
           >
             <span
               className={cn(
-                // Layout slot stays within navbar height; crest image can render larger.
-                "relative flex h-12 w-12 shrink-0 items-center justify-center md:h-14 md:w-14",
-                "after:absolute after:inset-[-6px] after:rounded-full after:border after:border-[#B89545]/0 after:transition-colors after:duration-300 group-hover:after:border-[#B89545]/45",
+                // Layout slot stays within navbar height; crest scales up from md.
+                "relative flex h-10 w-10 shrink-0 items-center justify-center md:h-14 md:w-14",
+                "after:absolute after:inset-[-4px] after:rounded-full after:border after:border-[#B89545]/0 after:transition-colors after:duration-300 group-hover:after:border-[#B89545]/45 md:after:inset-[-6px]",
               )}
             >
               <Image
@@ -247,7 +247,7 @@ export function Navbar() {
                 alt=""
                 width={96}
                 height={96}
-                className="relative z-10 h-[4.75rem] w-[4.75rem] max-w-none object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition-transform duration-500 group-hover:scale-[1.04] md:h-[5.5rem] md:w-[5.5rem]"
+                className="relative z-10 h-12 w-12 max-w-none object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition-transform duration-500 group-hover:scale-[1.04] md:h-[4.75rem] md:w-[4.75rem] xl:h-[5.5rem] xl:w-[5.5rem]"
                 priority
               />
             </span>
@@ -498,14 +498,14 @@ export function Navbar() {
             transition={{ duration: 0.35, ease }}
             className="fixed inset-0 z-[60] flex flex-col bg-[#082B1D] xl:hidden"
           >
-            <div className="mx-auto flex h-[96px] w-full max-w-[1360px] items-center justify-between px-5 sm:px-8">
+            <div className="mx-auto flex h-16 w-full max-w-[1360px] items-center justify-between px-5 sm:px-8 md:h-[96px]">
               <Link href="/" aria-label="Bharwana Estates home" onClick={() => setOpen(false)} className="flex items-center gap-3">
                 <Image
                   src="/logo.png"
                   alt=""
                   width={72}
                   height={72}
-                  className="h-[4.25rem] w-[4.25rem] object-contain"
+                  className="h-12 w-12 object-contain md:h-[4.25rem] md:w-[4.25rem]"
                 />
                 <span className="font-display text-[14px] uppercase tracking-[0.28em] text-[#F5F1E8]">
                   Bharwana

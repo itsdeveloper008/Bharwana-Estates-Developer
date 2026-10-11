@@ -18,7 +18,9 @@ export function LegalPage({ eyebrow, title, intro, updated, sections }: LegalPag
   return (
     <article className="mx-auto max-w-3xl px-4 py-20 sm:px-6 sm:py-24">
       <p className="type-eyebrow">{eyebrow}</p>
-      <h1 className="mt-4 font-serif text-4xl text-forest sm:text-5xl sm:leading-[1.1]">{title}</h1>
+      <h1 className="mt-4 font-serif text-3xl text-forest sm:text-4xl sm:leading-[1.1] md:text-5xl">
+        {title}
+      </h1>
       <div className="mt-4 h-px w-14 bg-gold/60" />
       <p className="mt-6 text-sm leading-relaxed text-forest/80 sm:text-base">{intro}</p>
       <p className="mt-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
