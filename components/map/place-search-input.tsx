@@ -86,8 +86,15 @@ function mapGoogleResults(
     description: item.description,
   }));
 
+  const toPrediction = (item: (typeof mapped)[number]): Prediction => ({
+    placeId: item.placeId,
+    primary: item.primary,
+    secondary: item.secondary,
+    source: item.source,
+  });
+
   if (!cityScope || cityScope === "ALL") {
-    return mapped.map(({ description: _d, ...rest }) => rest);
+    return mapped.map(toPrediction);
   }
 
   const cityLower = cityScope.toLowerCase();
@@ -99,7 +106,7 @@ function mapGoogleResults(
     else withoutCity.push(item);
   }
   // Prefer rows that mention the selected city; still include biased leftovers.
-  return [...withCity, ...withoutCity].map(({ description: _d, ...rest }) => rest);
+  return [...withCity, ...withoutCity].map(toPrediction);
 }
 
 function getPlacePredictions(
