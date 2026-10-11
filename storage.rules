@@ -19,8 +19,16 @@ service firebase.storage {
         );
     }
 
+    // JPEG/PNG/WebP/HEIC only — never SVG (XSS if opened directly from Storage).
     function isImage() {
-      return request.resource.contentType.matches('image/.*')
+      return request.resource.contentType in [
+            'image/jpeg',
+            'image/jpg',
+            'image/png',
+            'image/webp',
+            'image/heic',
+            'image/heif',
+          ]
         && request.resource.size < 10 * 1024 * 1024;
     }
 
