@@ -186,10 +186,6 @@ export function PhoneOtpSection({
 
       // Transient identitytoolkit / ERR_CONNECTION_CLOSED - one automatic retry with a fresh reCAPTCHA.
       if (!result.ok && isNetworkAuthError(result.code ?? "", result.error)) {
-        console.warn("[phone-otp] network failure - retrying once after delay", {
-          code: result.code,
-          error: result.error,
-        });
         await delay(NETWORK_RETRY_DELAY_MS);
         await resetRecaptcha();
         verifier = await createFreshRecaptchaVerifier();
@@ -201,13 +197,12 @@ export function PhoneOtpSection({
               code: result.code ?? "auth/network-request-failed",
               message: result.error,
             },
-            { e164, retried: true },
+            { retried: true },
           );
         }
       }
 
       if (!result.ok) {
-        console.error("[phone-otp] send failed", result.error, result.code);
         applySendFailure(result.error, result.code);
         await resetRecaptcha();
         return false;
@@ -225,9 +220,8 @@ export function PhoneOtpSection({
       return true;
     } catch (err) {
       const { code, message } = firebaseErrorParts(err);
-      console.error("[phone-otp] send exception", { code, message, err });
       if (isNetworkAuthError(code, message)) {
-        logPersistentNetworkAuthFailure("phone-otp-send-exception", err, { e164, retried: false });
+        logPersistentNetworkAuthFailure("phone-otp-send-exception", err, { retried: false });
       }
       applySendFailure(
         isPhoneAlreadyRegisteredError(code, message)
@@ -280,7 +274,6 @@ export function PhoneOtpSection({
     try {
       const result = await verifyPhoneOtp(confirmation, values.otp);
       if (!result.ok) {
-        console.error("[phone-otp] verify failed", result.error);
         // Expired codes invalidate this confirmation; wrong codes keep it for retry.
         if (/expired/i.test(result.error)) {
           confirmationRef.current = null;
@@ -309,7 +302,6 @@ export function PhoneOtpSection({
       setStep("phone");
     } catch (err) {
       const { code, message } = firebaseErrorParts(err);
-      console.error("[phone-otp] verify exception", code, message, err);
       if (code === "auth/code-expired") {
         confirmationRef.current = null;
         otpExpiresAtRef.current = 0;

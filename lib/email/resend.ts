@@ -93,8 +93,7 @@ async function sendEmail(input: {
     }
     console.info("[email] Resend accepted", {
       id: data?.id,
-      to: input.to,
-      bcc: bccList?.[0] ?? null,
+      hasBcc: Boolean(bccList?.[0]),
       idempotencyKey: input.idempotencyKey,
     });
     return { sent: true };

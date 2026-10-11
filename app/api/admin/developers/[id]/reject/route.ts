@@ -185,7 +185,7 @@ export async function POST(request: Request, context: RouteContext) {
           console.warn("[api/admin/developers/reject] email skipped", {
             developerId,
             dealerUserId: dealerUserId || null,
-            to: to || null,
+            hasRecipient: Boolean(to),
             reason: emailResult.reason,
           });
         } else {
@@ -193,7 +193,7 @@ export async function POST(request: Request, context: RouteContext) {
           console.error("[api/admin/developers/reject] email failed (reject still committed)", {
             developerId,
             dealerUserId: dealerUserId || null,
-            to: to || null,
+            hasRecipient: Boolean(to),
             error: "error" in emailResult ? emailResult.error : "unknown",
           });
         }

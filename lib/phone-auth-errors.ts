@@ -60,58 +60,61 @@ export function isPhoneAlreadyRegisteredError(code: string, rawMessage = ""): bo
   );
 }
 
-/** Log the full Auth error so phone / reCAPTCHA failures are diagnosable without screenshots. */
-export function logFirebaseAuthError(context: string, error: unknown, extra?: Record<string, unknown>) {
-  const parts = firebaseErrorParts(error);
-  let stringified = "";
-  try {
-    stringified = JSON.stringify(error, Object.getOwnPropertyNames(error as object));
-  } catch {
-    stringified = String(error);
+function isDevDiagnosticsEnabled() {
+  return process.env.NODE_ENV === "development";
+}
+
+/** Strip phone numbers and other PII before any diagnostic logging. */
+function sanitizeAuthExtra(extra?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!extra) return undefined;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(extra)) {
+    const lower = key.toLowerCase();
+    if (
+      lower.includes("phone") ||
+      lower === "e164" ||
+      lower.includes("email") ||
+      lower.includes("token") ||
+      lower.includes("password")
+    ) {
+      out[key] = typeof value === "string" && value.length > 0 ? "[redacted]" : Boolean(value);
+      continue;
+    }
+    out[key] = value;
   }
-  const payload = {
+  return out;
+}
+
+/** Dev-only Auth diagnostics — never attach payloads to window or log PII in production. */
+export function logFirebaseAuthError(context: string, error: unknown, extra?: Record<string, unknown>) {
+  if (!isDevDiagnosticsEnabled()) return;
+  const parts = firebaseErrorParts(error);
+  console.error(`[${context}] Firebase Auth failure`, {
     context,
     code: parts.code,
     message: parts.message,
-    customData: parts.customData,
-    serverResponse: parts.serverResponse,
-    stringified,
-    ...extra,
-    raw: error,
-  };
-  console.error(`[${context}] Firebase Auth failure`, payload);
-  if (typeof window !== "undefined") {
-    (window as Window & { __BHARWANA_LAST_PHONE_AUTH_ERROR__?: unknown }).__BHARWANA_LAST_PHONE_AUTH_ERROR__ =
-      payload;
-  }
+    ...sanitizeAuthExtra(extra),
+  });
 }
 
 /**
  * After a network retry still fails - track frequency / browser / network class.
- * Does not change the user-facing message.
+ * Does not change the user-facing message. Dev-only; no PII.
  */
 export function logPersistentNetworkAuthFailure(
   context: string,
   error: unknown,
   extra?: Record<string, unknown>,
 ) {
+  if (!isDevDiagnosticsEnabled()) return;
   const parts = firebaseErrorParts(error);
-  const payload = {
+  console.error(`[${context}] Persistent phone-auth network failure`, {
     event: "phone_auth_network_request_failed_after_retry",
-    timestamp: new Date().toISOString(),
-    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "server",
     context,
     code: parts.code || "auth/network-request-failed",
     message: parts.message,
-    customData: parts.customData,
-    serverResponse: parts.serverResponse,
-    ...extra,
-  };
-  console.error(`[${context}] Persistent phone-auth network failure`, payload);
-  if (typeof window !== "undefined") {
-    (window as Window & { __BHARWANA_LAST_PHONE_NETWORK_FAILURE__?: unknown }).__BHARWANA_LAST_PHONE_NETWORK_FAILURE__ =
-      payload;
-  }
+    ...sanitizeAuthExtra(extra),
+  });
 }
 
 function messageHints(rawMessage: string): string {

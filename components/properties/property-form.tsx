@@ -1096,8 +1096,7 @@ export function PropertyForm({
           nextUrls.push(url);
           nextFiles.push(compressed);
           nextFingerprints.push(fingerprint);
-        } catch (error) {
-          console.error("[property-form] compress failed", error);
+        } catch {
           toast.error(`Could not compress ${file.name}. Try a JPG or PNG.`);
         }
       }
@@ -1290,10 +1289,6 @@ export function PropertyForm({
           return;
         }
         if (editingProperty.id !== targetId) {
-          console.error("[property-form] edit id mismatch — refusing to create", {
-            targetId,
-            editingPropertyId: editingProperty.id,
-          });
           toast.error("Edit session mismatch. Reload the page and try again.");
           return;
         }
@@ -1345,7 +1340,6 @@ export function PropertyForm({
             ? new URLSearchParams(window.location.search).get("edit")?.trim()
             : null;
         if (urlEdit) {
-          console.error("[property-form] refusing create while ?edit= is present", { urlEdit });
           toast.error("Edit session lost focus. Reload the page and try again.");
           return;
         }
@@ -1378,7 +1372,9 @@ export function PropertyForm({
         setSubmittedId(id);
       }
     } catch (error) {
-      console.error("Listing submit failed", error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Listing submit failed", error);
+      }
       const message = firestoreErrorMessage(
         error,
         "Could not submit listing. Check your photos and connection, then try again.",
@@ -1406,7 +1402,6 @@ export function PropertyForm({
   async function publish(values: PropertyFormValues) {
     // Block any non-CTA submit path (native Enter / file-picker quirks / accidental handleSubmit).
     if (!explicitSubmitRef.current) {
-      console.warn("[property-form] blocked non-explicit publish");
       return;
     }
     const normalized: PropertyFormValues = {

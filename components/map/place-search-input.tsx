@@ -301,7 +301,9 @@ export function PlaceSearchInput({
       .catch((err: unknown) => {
         if (cancelled) return;
         const next = err instanceof Error ? err : new Error(String(err));
-        console.error("[PlaceSearchInput] Google Maps load failed:", next.message);
+        if (process.env.NODE_ENV === "development") {
+          console.error("[PlaceSearchInput] Google Maps load failed:", next.message);
+        }
         setLoadError(next);
       });
     return () => {
