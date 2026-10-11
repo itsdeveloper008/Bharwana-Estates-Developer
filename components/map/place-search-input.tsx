@@ -406,11 +406,9 @@ export function PlaceSearchInput({
           CITY_COORDS[scope].latitude,
           CITY_COORDS[scope].longitude,
         );
+        // Bias (~30 km); city-name filter below drops out-of-city rows (e.g. DHA Lahore).
         request.location = center;
         request.radius = CITY_RADIUS_M;
-        // Classic AutocompleteService supports strictBounds; typings omit it.
-        (request as google.maps.places.AutocompletionRequest & { strictBounds?: boolean }).strictBounds =
-          true;
       }
 
       try {
