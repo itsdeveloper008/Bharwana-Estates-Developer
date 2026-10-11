@@ -66,14 +66,16 @@ export function HeroSearch({
   const [beds, setBeds] = useState("ALL");
   const [query, setQuery] = useState("");
 
-  // Keep hero type picker in sync when Featured section tabs change (skip mount).
-  const skipFeaturedSync = useRef(true);
+  // Sync hero type when Featured tabs change — not on initial mount (incl. Strict Mode remount).
+  const prevFeaturedCategory = useRef<PropertyCategory | undefined>(undefined);
   useEffect(() => {
     if (!featuredCategory) return;
-    if (skipFeaturedSync.current) {
-      skipFeaturedSync.current = false;
+    if (prevFeaturedCategory.current === undefined) {
+      prevFeaturedCategory.current = featuredCategory;
       return;
     }
+    if (prevFeaturedCategory.current === featuredCategory) return;
+    prevFeaturedCategory.current = featuredCategory;
     setCategory(featuredCategory);
     setTypeFilterActive(true);
     setSubtype("ALL");
@@ -169,6 +171,12 @@ export function HeroSearch({
               subtype={subtype}
               allTypes={!typeFilterActive}
               onChange={(next) => {
+                if ("allProperties" in next) {
+                  setTypeFilterActive(false);
+                  setSubtype("ALL");
+                  // Leave Featured section on its current tab — do not sync.
+                  return;
+                }
                 setTypeFilterActive(true);
                 setCategory(next.category);
                 setSubtype(next.subtype);

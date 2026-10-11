@@ -182,10 +182,19 @@ function FiltersForm({ compact }: { compact?: boolean }) {
               align="end"
               triggerClassName="px-1"
               onChange={(next) => {
+                if ("allProperties" in next) {
+                  patch({ category: null, subtype: null });
+                  return;
+                }
                 patch({
                   category: next.category,
                   subtype: next.subtype === "ALL" ? null : next.subtype,
-                  beds: next.category === "PLOTS" || next.category === "COMMERCIAL" ? null : beds === "ALL" ? null : beds,
+                  beds:
+                    next.category === "PLOTS" || next.category === "COMMERCIAL"
+                      ? null
+                      : beds === "ALL"
+                        ? null
+                        : beds,
                 });
               }}
             />

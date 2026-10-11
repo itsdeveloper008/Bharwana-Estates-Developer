@@ -41,7 +41,7 @@ export function filtersFromSearchParams(
     category:
       category === "HOME" || category === "PLOTS" || category === "COMMERCIAL"
         ? (category as PropertyCategory)
-        : undefined,
+        : undefined, // missing / "all" → All Properties (every category)
     subtype: subtype || undefined,
     minPrice: minPrice ? Number(minPrice) : undefined,
     maxPrice: maxPrice ? Number(maxPrice) : undefined,

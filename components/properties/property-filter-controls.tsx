@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   Building2,
+  Check,
   CheckSquare,
   ChevronDown,
   LayoutGrid,
@@ -426,6 +427,10 @@ export function RangeFilterPopover({
   );
 }
 
+export type PropertyTypePickerValue =
+  | { allProperties: true }
+  | { category: PropertyCategory; subtype: string | "ALL" };
+
 export function PropertyTypePicker({
   category,
   subtype,
@@ -436,10 +441,10 @@ export function PropertyTypePicker({
 }: {
   category: PropertyCategory;
   subtype: string | "ALL";
-  onChange: (next: { category: PropertyCategory; subtype: string | "ALL" }) => void;
+  onChange: (next: PropertyTypePickerValue) => void;
   triggerClassName?: string;
   align?: "start" | "center" | "end";
-  /** When true, show "All types" (no category filter applied in the URL). */
+  /** When true, show "All Properties" (no category filter in the URL). */
   allTypes?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -447,11 +452,12 @@ export function PropertyTypePicker({
   const AllIcon = ALL_ICONS[activeTab];
   const options = PROPERTY_SUBTYPES[activeTab];
   const triggerLabel = allTypes
-    ? "All types"
+    ? "All Properties"
     : subtype === "ALL"
       ? categoryPluralLabel(category)
       : PROPERTY_SUBTYPES[category].find((item) => item.id === subtype)?.label ??
         categoryPluralLabel(category);
+  const allCategorySelected = !allTypes && category === activeTab && subtype === "ALL";
 
   return (
     <Popover
@@ -479,6 +485,27 @@ export function PropertyTypePicker({
         align={align}
         className="w-[min(100vw-2rem,22rem)] border-forest/10 bg-ivory p-0 shadow-lift"
       >
+        <div className="border-b border-forest/10 p-3 pb-2">
+          <button
+            type="button"
+            onClick={() => {
+              onChange({ allProperties: true });
+              setOpen(false);
+            }}
+            className={cn(
+              "inline-flex w-full items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
+              allTypes
+                ? "border-forest bg-forest text-ivory"
+                : "border-forest/15 text-forest/80 hover:border-forest/30",
+            )}
+          >
+            <Check
+              className={cn("h-4 w-4 shrink-0", allTypes ? "text-ivory" : "text-forest/45")}
+              strokeWidth={1.75}
+            />
+            All Properties
+          </button>
+        </div>
         <div className="flex border-b border-forest/10">
           {PROPERTY_CATEGORIES.map((item) => {
             const active = activeTab === item.id;
@@ -507,7 +534,7 @@ export function PropertyTypePicker({
             }}
             className={cn(
               "inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
-              category === activeTab && subtype === "ALL"
+              allCategorySelected
                 ? "border-forest bg-forest text-ivory"
                 : "border-forest/15 text-forest/80 hover:border-forest/30",
             )}
@@ -515,7 +542,7 @@ export function PropertyTypePicker({
             <AllIcon
               className={cn(
                 "h-4 w-4 shrink-0",
-                category === activeTab && subtype === "ALL" ? "text-ivory" : "text-forest/45",
+                allCategorySelected ? "text-ivory" : "text-forest/45",
               )}
               strokeWidth={1.5}
             />
@@ -523,7 +550,7 @@ export function PropertyTypePicker({
           </button>
           {options.map((option) => {
             const Icon = option.icon;
-            const selected = category === activeTab && subtype === option.id;
+            const selected = !allTypes && category === activeTab && subtype === option.id;
             return (
               <button
                 key={option.id}
