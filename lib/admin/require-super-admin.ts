@@ -61,9 +61,12 @@ export async function loadAdminCaller(uid: string, emailFallback = ""): Promise<
     const active = data.active !== false;
     if (!active) return null;
 
+    // Deny by default: only explicit allow-listed roles are authorized.
     const rawRole = String(data.role ?? "");
-    const adminRole: AdminPanelRole =
-      rawRole === "staff" ? "staff" : rawRole === "super_admin" ? "super_admin" : "super_admin";
+    if (rawRole !== "staff" && rawRole !== "super_admin") {
+      return null;
+    }
+    const adminRole: AdminPanelRole = rawRole;
 
     if (adminRole === "staff") {
       return {
@@ -122,7 +125,8 @@ export async function requireVerifiedAdmin(
 
   let decoded: { uid: string; email?: string };
   try {
-    decoded = await getAdminAuth().verifyIdToken(token);
+    // Reject revoked sessions (e.g. after staff deactivate / password change).
+    decoded = await getAdminAuth().verifyIdToken(token, true);
   } catch (error) {
     console.error("[requireVerifiedAdmin] verifyIdToken failed", error);
     const message = errorMessage(error);

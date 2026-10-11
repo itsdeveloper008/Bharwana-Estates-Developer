@@ -70,6 +70,10 @@ export async function PATCH(request: Request, context: Ctx) {
     if (typeof body.active === "boolean") {
       patch.active = body.active;
       await getAdminAuth().updateUser(uid, { disabled: !body.active });
+      if (!body.active) {
+        // Invalidate existing ID tokens so checkRevoked rejects them immediately.
+        await getAdminAuth().revokeRefreshTokens(uid);
+      }
     }
 
     if (typeof patch.fullName === "string") {
