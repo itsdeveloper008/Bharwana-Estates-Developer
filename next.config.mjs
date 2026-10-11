@@ -21,6 +21,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "bharwana-estate-developer.firebasestorage.app",
       },
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com",
+      },
     ],
   },
   async headers() {

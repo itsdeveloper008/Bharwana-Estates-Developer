@@ -11,6 +11,7 @@ import { InquiryModal } from "@/components/inquiries/inquiry-modal";
 import { PropertyGallery } from "@/components/properties/property-gallery";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
 import { PropertyShareButton } from "@/components/properties/property-share-button";
+import { PropertyVideo } from "@/components/properties/property-video";
 import { useMockAuth } from "@/lib/mock-auth";
 import { formatArea, formatDate, formatPrice, formatPriceFull, listingBadge, statusLabel } from "@/lib/format";
 import { propertyHighlightDisplay } from "@/lib/property-features";
@@ -66,6 +67,7 @@ function PropertyDetailInner({ property }: { property: Property }) {
             <p className="type-eyebrow">The residence</p>
             <p className="mt-4 max-w-2xl text-lg leading-relaxed text-forest/80">{property.description}</p>
           </div>
+          <PropertyVideo youtubeVideoId={property.youtubeVideoId} />
           <div className="mt-10">
             <p className="mb-3 type-eyebrow">Location</p>
             <MiniMap property={property} />

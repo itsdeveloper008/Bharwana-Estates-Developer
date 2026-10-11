@@ -115,8 +115,8 @@ function WhyBharwanaSection() {
     <section className="relative overflow-hidden bg-[#F7F3EA] text-[#082B1D]">
       <div className="mx-auto max-w-[1280px] px-5 pb-24 pt-28 sm:px-8 sm:pb-28 sm:pt-32 lg:px-12">
         {/* Intro + photography - asymmetric */}
-        <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.35fr)] lg:gap-14 xl:gap-20">
-          <div className="relative z-10 max-w-[32rem] lg:pt-10">
+        <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.1fr)] lg:gap-14 xl:gap-16">
+          <div className="relative z-10 max-w-[40rem] lg:pt-10">
             <motion.p
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -132,13 +132,11 @@ function WhyBharwanaSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.5 }}
               transition={{ duration: 0.7, delay: 0.05, ease }}
-              className="mt-5 font-serif text-[2.5rem] leading-[1.1] tracking-tight text-[#082B1D] sm:text-5xl lg:text-[4.5rem] lg:leading-[1.05]"
+              className="mt-5 font-serif text-[2.35rem] leading-[1.12] tracking-tight text-[#082B1D] sm:text-[2.75rem] lg:text-[3.75rem] lg:leading-[1.08]"
             >
-              Homes deserve
-              <br />
-              a more thoughtful
-              <br />
-              introduction.
+              <span className="block whitespace-nowrap">Homes deserve</span>
+              <span className="block whitespace-nowrap">a more thoughtful</span>
+              <span className="block whitespace-nowrap">introduction.</span>
             </motion.h2>
 
             <motion.p

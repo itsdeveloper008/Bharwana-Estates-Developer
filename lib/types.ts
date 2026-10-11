@@ -130,6 +130,8 @@ export interface Property {
   developerId?: string;
   /** Seller contact for Admin follow-up on this listing */
   contactPhone?: string;
+  /** Optional YouTube video ID (exactly 11 chars). Never store a raw URL. */
+  youtubeVideoId?: string;
   createdAt: string;
   /** Set when status is REJECTED - latest reason for quick display */
   rejectionReason?: string;

@@ -23,7 +23,6 @@ const footerLinks = [
   { href: "/faq", label: "FAQ" },
   { href: "/team", label: "Team" },
   { href: "/owner/add-property", label: "List your property" },
-  { href: "/login", label: "Sign in" },
 ];
 
 const legalLinks = [
@@ -189,7 +188,7 @@ export function Footer() {
         width={720}
         height={720}
         aria-hidden
-        className="pointer-events-none absolute -bottom-16 -right-10 h-[18rem] w-[18rem] select-none object-contain opacity-[0.06] sm:-bottom-20 sm:right-0 sm:h-[24rem] sm:w-[24rem] lg:h-[28rem] lg:w-[28rem] lg:opacity-[0.07]"
+        className="pointer-events-none absolute bottom-2 -right-10 h-[18rem] w-[18rem] select-none object-contain opacity-[0.06] sm:bottom-4 sm:right-0 sm:h-[24rem] sm:w-[24rem] lg:h-[28rem] lg:w-[28rem] lg:opacity-[0.07]"
       />
 
       <div className="relative mx-auto max-w-[1320px] px-[7vw] pb-8 pt-28 sm:pt-36 lg:px-16">
@@ -294,7 +293,7 @@ export function Footer() {
           className="mt-20 grid gap-12 border-t border-[rgba(194,163,90,0.2)] pt-14 sm:grid-cols-2 lg:mt-24 lg:grid-cols-4 lg:gap-12 lg:pt-16"
         >
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white">Company</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E8C547]">Company</p>
             <ul className="mt-5 space-y-3">
               {footerLinks.map((link) => (
                 <li key={link.href}>
@@ -305,7 +304,7 @@ export function Footer() {
           </div>
 
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white">Legal</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E8C547]">Legal</p>
             <ul className="mt-5 space-y-3">
               {legalLinks.map((link) => (
                 <li key={link.href}>
@@ -316,7 +315,7 @@ export function Footer() {
           </div>
 
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white">Contact</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E8C547]">Contact</p>
             <address className="mt-5 not-italic text-[15px] leading-[1.75] text-white">
               {SITE_OFFICE_ADDRESS_LINES[0]}
               <br />
@@ -337,8 +336,8 @@ export function Footer() {
           </div>
 
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white">Follow</p>
-            <ul className="mt-5 flex flex-wrap items-center gap-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E8C547]">Follow</p>
+            <ul className="mt-5 grid w-max grid-cols-3 gap-3">
               {socials.map((social) => {
                 const ready = Boolean(social.href);
                 const className = cn(

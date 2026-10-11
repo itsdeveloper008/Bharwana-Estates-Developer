@@ -20,6 +20,7 @@ import { FIRESTORE_WRITE_TIMEOUT_MS, PHOTO_UPLOAD_TIMEOUT_MS } from "@/lib/fires
 import { normalizeFeatureTags, normalizeHighlightKeys } from "@/lib/property-features";
 import { isPersistedPropertyImageUrl } from "@/lib/property-images";
 import type { Property, PropertyHighlightKey, PropertyStatusHistoryEntry } from "@/lib/types";
+import { isYouTubeVideoId } from "@/lib/youtube";
 import {
   compressListingImage,
   LISTING_IMAGE_MAX_MB,
@@ -132,6 +133,9 @@ function toFirestorePayload(property: Property): Record<string, unknown> {
   if (property.ownerUserId) payload.ownerUserId = property.ownerUserId;
   if (property.developerId) payload.developerId = property.developerId;
   if (property.contactPhone?.trim()) payload.contactPhone = property.contactPhone.trim();
+  if (isYouTubeVideoId(property.youtubeVideoId)) {
+    payload.youtubeVideoId = property.youtubeVideoId;
+  }
   const highlights = normalizeHighlightKeys(property.highlightSpecs, property.category);
   payload.highlightSpecs = highlights;
   const tags = normalizeFeatureTags(property.featureTags);
@@ -334,6 +338,7 @@ function mapProperty(id: string, data: Record<string, unknown>): Property {
     ownerUserId: data.ownerUserId ? String(data.ownerUserId) : undefined,
     developerId: data.developerId ? String(data.developerId) : undefined,
     contactPhone: data.contactPhone ? String(data.contactPhone) : undefined,
+    youtubeVideoId: isYouTubeVideoId(data.youtubeVideoId) ? data.youtubeVideoId : undefined,
     createdAt: createdAtIso(data.createdAt),
     rejectionReason: data.rejectionReason ? String(data.rejectionReason) : undefined,
     statusUpdatedAt: data.statusUpdatedAt ? createdAtIso(data.statusUpdatedAt) : undefined,
@@ -557,6 +562,9 @@ export async function upsertProperty(
       payload.rejectionReason = deleteField();
       payload.rejectionEmailSentAt = deleteField();
       payload.rejectionEmailClaimedAt = deleteField();
+    }
+    if (!isYouTubeVideoId(next.youtubeVideoId)) {
+      payload.youtubeVideoId = deleteField();
     }
   }
 

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAdminModule } from "@/lib/admin/require-super-admin";
 import { getAdminDb } from "@/lib/firebase/admin";
 import type { Property, PropertyStatus } from "@/lib/types";
+import { isYouTubeVideoId } from "@/lib/youtube";
 
 export const runtime = "nodejs";
 
@@ -79,6 +80,11 @@ function toAdminPayload(raw: Record<string, unknown>): Record<string, unknown> {
   if (raw.areaValue != null && Number.isFinite(Number(raw.areaValue))) {
     payload.areaValue = Number(raw.areaValue);
   }
+  if (isYouTubeVideoId(raw.youtubeVideoId)) {
+    payload.youtubeVideoId = raw.youtubeVideoId;
+  } else {
+    payload.youtubeVideoId = FieldValue.delete();
+  }
   if (Array.isArray(raw.highlightSpecs)) payload.highlightSpecs = raw.highlightSpecs;
   if (typeof raw.statusUpdatedAt === "string") payload.statusUpdatedAt = raw.statusUpdatedAt;
   if (Array.isArray(raw.statusHistory)) payload.statusHistory = raw.statusHistory;
@@ -133,6 +139,10 @@ export async function PUT(request: Request) {
     if (!existing.exists) {
       payload.createdAt = FieldValue.serverTimestamp();
       delete payload.rejectionReason;
+      // deleteField() is invalid on create without merge
+      if (!isYouTubeVideoId(payload.youtubeVideoId)) {
+        delete payload.youtubeVideoId;
+      }
       await ref.set(payload);
     } else {
       if (payload.status !== "REJECTED") {

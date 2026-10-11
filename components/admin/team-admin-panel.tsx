@@ -83,7 +83,6 @@ function SortableRow({
         </div>
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">{member.role}</TableCell>
-      <TableCell className="text-sm text-muted-foreground">{member.email ?? "-"}</TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
           <Button type="button" variant="ghost" size="icon" onClick={onEdit} aria-label="Edit">
@@ -180,7 +179,6 @@ export function TeamAdminPanel() {
                   <TableHead className="w-10" />
                   <TableHead>Member</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Email</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>

@@ -64,9 +64,10 @@ const config: Config = {
         ring: "hsl(var(--ring))",
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "Montserrat", "system-ui", "sans-serif"],
-        serif: ["var(--font-serif)", "Playfair Display", "Georgia", "serif"],
-        display: ["var(--font-serif)", "Playfair Display", "Georgia", "serif"],
+        /** Body: Arial. Headings/display: Arial Black. */
+        sans: ["Arial", "Helvetica", "sans-serif"],
+        serif: ['"Arial Black"', "Arial", "Helvetica", "sans-serif"],
+        display: ['"Arial Black"', "Arial", "Helvetica", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",

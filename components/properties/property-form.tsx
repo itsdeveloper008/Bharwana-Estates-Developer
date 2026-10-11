@@ -68,6 +68,7 @@ import {
 } from "@/lib/area-units";
 import { RoomCountStepper } from "@/components/properties/room-count-stepper";
 import { formatRoomCount } from "@/lib/room-count";
+import { extractYouTubeId, getThumbnailUrl, getWatchUrl } from "@/lib/youtube";
 import { formatPakistanMobileE164, toPakistanMobileLocal } from "@/lib/phone-format";
 import {
   FULL_NAME_MAX_LENGTH,
@@ -611,6 +612,7 @@ export function PropertyForm({
       contactPhone: "",
       highlightSpecs: defaultHighlightKeys("HOME"),
       featureTags: [],
+      youtubeUrl: "",
     },
   });
 
@@ -649,6 +651,7 @@ export function PropertyForm({
     if (values.address?.trim()) return true;
     if (values.city?.trim()) return true;
     if ((values.featureTags?.length ?? 0) > 0) return true;
+    if (values.youtubeUrl?.trim()) return true;
     if (values.subtype && values.subtype !== defaultSubtypeFor(values.category)) return true;
 
     if (values.category === "HOME") {
@@ -695,6 +698,7 @@ export function PropertyForm({
       contactPhone,
       highlightSpecs: defaultHighlightKeys(category),
       featureTags: [],
+      youtubeUrl: "",
     });
     form.clearErrors();
     clearPropertyPhotos();
@@ -789,6 +793,9 @@ export function PropertyForm({
       contactPhone: toPakistanMobileLocal(editingProperty.contactPhone ?? ""),
       highlightSpecs: normalizeHighlightKeys(editingProperty.highlightSpecs, editingProperty.category),
       featureTags: normalizeFeatureTags(editingProperty.featureTags),
+      youtubeUrl: editingProperty.youtubeVideoId
+        ? getWatchUrl(editingProperty.youtubeVideoId)
+        : "",
     });
     const safeImages = (editingProperty.images ?? [])
       .filter((url) => isPersistedPropertyImageUrl(url))
@@ -1272,6 +1279,7 @@ export function PropertyForm({
         areaUnit: values.areaUnit,
         ...bedsBaths,
       };
+      const youtubeVideoId = extractYouTubeId(values.youtubeUrl ?? "") || undefined;
 
       // When editing, ALWAYS update that document — never mint a new id.
       // Use locked/query id so a shared Add/Edit form cannot fall through to create.
@@ -1320,6 +1328,7 @@ export function PropertyForm({
             ownerUserId: resolvedOwnerId ?? editingProperty.ownerUserId,
             highlightSpecs: normalizeHighlightKeys(values.highlightSpecs, values.category),
             featureTags: normalizeFeatureTags(values.featureTags),
+            youtubeVideoId,
             status,
             ...statusPatch,
             ...(status === "PUBLISHED" || status === "RESERVED" || !statusChanged
@@ -1361,6 +1370,7 @@ export function PropertyForm({
           contactPhone: values.contactPhone,
           highlightSpecs: normalizeHighlightKeys(values.highlightSpecs, values.category),
           featureTags: normalizeFeatureTags(values.featureTags),
+          ...(youtubeVideoId ? { youtubeVideoId } : {}),
         };
         if (developerId) listing.developerId = developerId;
         if (resolvedOwnerId) listing.ownerUserId = resolvedOwnerId;
@@ -1752,6 +1762,48 @@ export function PropertyForm({
                   <FormMessage />
                 </FormItem>
               )}
+            />
+            <FormField
+              control={form.control}
+              name="youtubeUrl"
+              render={({ field }) => {
+                const parsedId = extractYouTubeId(field.value ?? "");
+                return (
+                  <FormItem>
+                    <FormLabel className="mb-0.5">YouTube video link</FormLabel>
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      Walkthrough or tour video of the property.
+                    </p>
+                    <FormControl>
+                      <Input
+                        type="url"
+                        inputMode="url"
+                        autoComplete="off"
+                        placeholder="Paste a YouTube link (optional)"
+                        className={fieldFocus}
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    {parsedId ? (
+                      <div className="mt-3 flex items-center gap-3 rounded-xl border border-forest/10 bg-cream/50 p-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={getThumbnailUrl(parsedId)}
+                          alt=""
+                          className="h-14 w-24 shrink-0 rounded-lg object-cover"
+                          loading="lazy"
+                        />
+                        <p className="min-w-0 text-xs text-muted-foreground">
+                          Video ready · ID{" "}
+                          <span className="font-medium text-forest">{parsedId}</span>
+                        </p>
+                      </div>
+                    ) : null}
+                  </FormItem>
+                );
+              }}
             />
           </FormSection>
             </>

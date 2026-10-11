@@ -16,6 +16,7 @@ import {
 } from "@/lib/person-name";
 import { CITIES } from "@/lib/types";
 import { AREA_UNITS, toAreaSqft, type AreaUnitId } from "@/lib/area-units";
+import { extractYouTubeId } from "@/lib/youtube";
 
 /** Shared Full name: letters + spaces, max length, min 2 letters after normalize. */
 export const personNameSchema = z
@@ -135,8 +136,18 @@ export const propertyFormSchema = z
       .array(z.string().trim().min(1).max(40))
       .max(6, "Up to 6 custom features")
       .optional(),
+    /** Form paste field — empty OK; non-empty must parse to a YouTube ID. */
+    youtubeUrl: z.string().trim().optional(),
   })
   .superRefine((data, ctx) => {
+    const url = data.youtubeUrl?.trim() ?? "";
+    if (url && !extractYouTubeId(url)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["youtubeUrl"],
+        message: "Please enter a valid YouTube link.",
+      });
+    }
     const sqft = toAreaSqft(data.areaValue, data.areaUnit);
     if (sqft > 5_000_000) {
       ctx.addIssue({

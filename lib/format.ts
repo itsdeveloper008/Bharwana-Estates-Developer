@@ -1,4 +1,4 @@
-import { formatAreaValue, resolveListingArea, type AreaUnitId } from "@/lib/area-units";
+import { resolveListingArea, type AreaUnitId } from "@/lib/area-units";
 import type { CommissionStatus, InquiryStatus, ListingType, PropertyStatus } from "./types";
 
 export function formatPrice(amount: number) {
@@ -20,28 +20,27 @@ export function formatPriceFull(amount: number) {
 }
 
 /**
- * Display area for a listing.
- * - New listings: show the lister's chosen unit (e.g. "5 Marla").
- * - Legacy (no areaUnit): "X sqft (Y Marla)" fallback.
+ * Display area for a listing — always "X sqft (Y Marla)" from canonical sqft
+ * (1 Marla = 225 sqft). Works for legacy docs and new listings in any unit.
  */
 export function formatArea(
   sqft: number,
   options?: { areaValue?: number; areaUnit?: AreaUnitId | string },
 ) {
-  if (options?.areaUnit) {
-    const resolved = resolveListingArea({
-      areaSqft: sqft,
-      areaValue: options.areaValue,
-      areaUnit: options.areaUnit,
-    });
-    return formatAreaValue(resolved.areaValue, resolved.areaUnit);
-  }
-  const marla = sqft / 225;
+  const resolved = resolveListingArea({
+    areaSqft: sqft,
+    areaValue: options?.areaValue,
+    areaUnit: options?.areaUnit,
+  });
+  const canonical = resolved.areaSqft;
+  if (!Number.isFinite(canonical) || canonical <= 0) return "—";
+
+  const marla = canonical / 225;
   const marlaLabel =
     Number.isInteger(marla) || Math.abs(marla - Math.round(marla)) < 0.05
       ? marla.toFixed(0)
       : marla.toFixed(1).replace(/\.0$/, "");
-  return `${sqft.toLocaleString("en-PK")} sqft (${marlaLabel} Marla)`;
+  return `${canonical.toLocaleString("en-PK")} sqft (${marlaLabel} Marla)`;
 }
 
 export function listingBadge(type: ListingType) {
