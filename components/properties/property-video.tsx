@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Play, Youtube } from "lucide-react";
+import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getEmbedUrl, getThumbnailUrl, getWatchUrl, isYouTubeVideoId } from "@/lib/youtube";
 
@@ -10,25 +10,32 @@ type PropertyVideoProps = {
   className?: string;
 };
 
+function YouTubeGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden fill="currentColor">
+      <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8ZM9.75 15.5v-7l6.5 3.5-6.5 3.5Z" />
+    </svg>
+  );
+}
+
 export function PropertyVideo({ youtubeVideoId, className }: PropertyVideoProps) {
   const [playing, setPlaying] = useState(false);
   const [thumbFailed, setThumbFailed] = useState(false);
-
-  if (!isYouTubeVideoId(youtubeVideoId)) return null;
-
-  const id = youtubeVideoId;
-  const watchUrl = getWatchUrl(id);
+  const valid = isYouTubeVideoId(youtubeVideoId);
+  const id = valid ? youtubeVideoId : "";
+  const watchUrl = valid ? getWatchUrl(id) : "";
 
   const openOnYouTube = useCallback(
     (event: React.MouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
-      // Stop in-card playback so it doesn't keep playing in the background.
       setPlaying(false);
-      window.open(watchUrl, "_blank", "noopener,noreferrer");
+      if (watchUrl) window.open(watchUrl, "_blank", "noopener,noreferrer");
     },
     [watchUrl],
   );
+
+  if (!valid) return null;
 
   return (
     <div className={cn("mt-10", className)}>
@@ -42,7 +49,7 @@ export function PropertyVideo({ youtubeVideoId, className }: PropertyVideoProps)
           aria-label="Watch on YouTube"
           className="absolute right-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1.5 text-[11px] font-medium text-ivory backdrop-blur-sm transition hover:bg-black/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold sm:px-3"
         >
-          <Youtube className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <YouTubeGlyph className="h-3.5 w-3.5 shrink-0" />
           <span className="hidden sm:inline">Watch on YouTube</span>
         </a>
 
