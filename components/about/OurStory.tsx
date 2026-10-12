@@ -53,7 +53,7 @@ export function OurStory() {
           className="relative aspect-[4/3] overflow-hidden bg-cream shadow-[0_20px_50px_-28px_rgba(15,46,29,0.28)] sm:aspect-[5/4] lg:aspect-[4/3]"
         >
           <Image
-            src="/about.jpg"
+            src="/about.webp"
             alt="Bharwana Estates, about us"
             fill
             className="object-cover"

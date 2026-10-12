@@ -173,8 +173,7 @@ export async function resolveTeamPhotoUrl(
 
   const response = await fetch(photoUrl);
   const blob = await response.blob();
-  const extension = blob.type.includes("png") ? "png" : "jpg";
-  const storageRef = ref(storage, `team/${memberId}.${extension}`);
-  await uploadBytes(storageRef, blob, { contentType: blob.type || "image/jpeg" });
+  const storageRef = ref(storage, `team/${memberId}.webp`);
+  await uploadBytes(storageRef, blob, { contentType: "image/webp" });
   return getDownloadURL(storageRef);
 }

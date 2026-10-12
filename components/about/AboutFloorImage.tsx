@@ -15,7 +15,7 @@ export function AboutFloorImage() {
     >
       <div className="relative mx-auto aspect-[21/9] min-h-[200px] w-full max-w-[1400px] overflow-hidden rounded-2xl sm:min-h-[280px] sm:rounded-3xl lg:min-h-[380px]">
         <Image
-          src="/team-floor.png"
+          src="/team-floor.webp"
           alt="The Bharwana team floor"
           fill
           className="object-cover"

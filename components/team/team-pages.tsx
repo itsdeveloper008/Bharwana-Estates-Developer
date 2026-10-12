@@ -39,7 +39,7 @@ export function TeamProfile({ memberId }: { memberId: string }) {
     <div className="bg-ivory">
       <section className="relative overflow-hidden bg-forest">
         <Image
-          src="/logo.png"
+          src="/logo.webp"
           alt=""
           width={420}
           height={420}

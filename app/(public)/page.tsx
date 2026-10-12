@@ -17,7 +17,7 @@ const principles = [
     title: "Direct ownership",
     copy: "Homes presented by the people who know them best.",
     annotation: "Speak directly with the household behind the home.",
-    image: "/why-01.png",
+    image: "/why-01.webp",
     alt: "A composed modern residence at dusk",
   },
   {
@@ -26,7 +26,7 @@ const principles = [
     title: "Verified properties",
     copy: "Important property details are reviewed before presentation.",
     annotation: "Every listing earns its place through careful review.",
-    image: "/why-02.png",
+    image: "/why-02.webp",
     alt: "Architectural villa with garden light",
   },
   {
@@ -35,7 +35,7 @@ const principles = [
     title: "A quieter process",
     copy: "Clear communication and thoughtful viewings without pressure.",
     annotation: "Viewings that move at the pace of a decision.",
-    image: "/why-03.png",
+    image: "/why-03.webp",
     alt: "Calm interior light in a premium residence",
   },
 ] as const;
@@ -275,7 +275,7 @@ export default function HomePage() {
       {/* Pull hero under the sticky navbar — must match --site-header-height */}
       <section className="relative w-full min-h-svh overflow-hidden -mt-16 md:-mt-[96px] xl:-mt-[108px]">
         <Image
-          src="/hero.jpeg"
+          src="/hero.webp"
           alt=""
           fill
           className="object-cover"
@@ -289,7 +289,7 @@ export default function HomePage() {
             transition={{ duration: 0.7, ease: "easeOut" }}
             className="flex w-full flex-col items-center"
           >
-            <Image src="/logo.png" alt="Bharwana Estates" width={128} height={128} className="h-[128px] w-[128px] object-contain sm:h-[140px] sm:w-[140px]" />
+            <Image src="/logo.webp" alt="Bharwana Estates" width={128} height={128} className="h-[128px] w-[128px] object-contain sm:h-[140px] sm:w-[140px]" />
             <h1 className="mt-5 max-w-3xl font-serif text-4xl text-ivory sm:text-5xl sm:leading-[1.08]">
               Homes Held With The Gravity Of A Family Name.
             </h1>

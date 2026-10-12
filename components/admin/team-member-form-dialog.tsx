@@ -22,6 +22,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { compressListingImage } from "@/lib/compress-listing-image";
 import type { TeamMember } from "@/lib/mock-data/team";
 import { FULL_NAME_MAX_LENGTH, normalizePersonName } from "@/lib/person-name";
 import { teamMemberFormSchema, type TeamMemberFormValues } from "@/lib/schemas";
@@ -63,12 +64,19 @@ export function TeamMemberFormDialog({
     setPreview(member?.photoUrl ?? "");
   }, [open, member, form]);
 
-  function onFiles(files: FileList | null) {
+  async function onFiles(files: FileList | null) {
     const file = files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    form.setValue("photoUrl", url);
+    try {
+      const webp = await compressListingImage(file);
+      const url = URL.createObjectURL(webp);
+      setPreview(url);
+      form.setValue("photoUrl", url);
+    } catch {
+      const url = URL.createObjectURL(file);
+      setPreview(url);
+      form.setValue("photoUrl", url);
+    }
   }
 
   function onSubmit(values: TeamMemberFormValues) {

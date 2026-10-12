@@ -183,7 +183,7 @@ export function Footer() {
     <footer className="relative overflow-hidden bg-[#06291C] text-[#F4F0E6]">
       {/* Oversized crest watermark */}
       <Image
-        src="/logo.png"
+        src="/logo.webp"
         alt=""
         width={720}
         height={720}
@@ -202,7 +202,7 @@ export function Footer() {
           >
             <div className="flex items-center gap-3">
               <Image
-                src="/logo.png"
+                src="/logo.webp"
                 alt="Bharwana Estates"
                 width={40}
                 height={40}

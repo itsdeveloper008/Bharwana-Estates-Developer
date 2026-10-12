@@ -7,7 +7,7 @@ export function AboutHero() {
   return (
     <section className="relative overflow-hidden bg-forest py-24 sm:py-28">
       <Image
-        src="/logo.png"
+        src="/logo.webp"
         alt=""
         width={420}
         height={420}
@@ -21,7 +21,7 @@ export function AboutHero() {
           transition={{ duration: 0.65, ease: "easeOut" }}
         >
           <Image
-            src="/logo.png"
+            src="/logo.webp"
             alt="Bharwana Estates"
             width={64}
             height={64}

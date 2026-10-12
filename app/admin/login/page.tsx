@@ -24,7 +24,7 @@ export default function AdminLoginPage() {
       <div className="relative z-10 flex w-full max-w-[26rem] flex-col items-center sm:max-w-[27.5rem]">
         <header className="mb-6 w-full text-center">
           <Image
-            src="/logo.png"
+            src="/logo.webp"
             alt="Bharwana Estates"
             width={88}
             height={88}

@@ -243,7 +243,7 @@ export function Navbar() {
               )}
             >
               <Image
-                src="/logo.png"
+                src="/logo.webp"
                 alt=""
                 width={96}
                 height={96}
@@ -501,7 +501,7 @@ export function Navbar() {
             <div className="mx-auto flex h-16 w-full max-w-[1360px] items-center justify-between px-5 sm:px-8 md:h-[96px]">
               <Link href="/" aria-label="Bharwana Estates home" onClick={() => setOpen(false)} className="flex items-center gap-3">
                 <Image
-                  src="/logo.png"
+                  src="/logo.webp"
                   alt=""
                   width={72}
                   height={72}

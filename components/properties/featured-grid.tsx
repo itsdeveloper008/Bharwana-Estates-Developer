@@ -164,7 +164,7 @@ export function FeaturedSection({
           }}
         />
         <Image
-          src="/logo.png"
+          src="/logo.webp"
           alt=""
           width={520}
           height={520}

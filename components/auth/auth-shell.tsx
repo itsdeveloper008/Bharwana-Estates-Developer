@@ -19,7 +19,7 @@ export function AuthBrandPanel() {
   return (
     <div className="relative hidden h-dvh overflow-hidden lg:block">
       <Image
-        src="/auth-brand.jpeg"
+        src="/auth-brand.webp"
         alt=""
         fill
         priority
@@ -47,7 +47,7 @@ export function AuthFormHeader() {
   return (
     <Link href="/" className="mb-4 flex items-center justify-center gap-3.5 text-left">
       <Image
-        src="/logo.png"
+        src="/logo.webp"
         alt="Bharwana"
         width={72}
         height={72}

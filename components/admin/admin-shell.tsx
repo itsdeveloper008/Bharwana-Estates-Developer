@@ -100,7 +100,7 @@ function AdminBrand({ compact = false }: { compact?: boolean }) {
         )}
       >
         <Image
-          src="/logo.png"
+          src="/logo.webp"
           alt="Bharwana Estates"
           width={compact ? 36 : 42}
           height={compact ? 36 : 42}

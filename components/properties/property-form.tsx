@@ -362,7 +362,7 @@ function FormSection({
           className="pointer-events-none absolute -right-1 top-1/2 h-20 w-20 -translate-y-1/2 opacity-[0.28] sm:-right-2 sm:h-28 sm:w-28 sm:opacity-[0.32]"
         >
           <Image
-            src="/lion-bharwana.png"
+            src="/lion-bharwana.webp"
             alt=""
             fill
             sizes="112px"
