@@ -8,6 +8,8 @@ const nextConfig = {
     serverComponentsExternalPackages: ["firebase-admin"],
   },
   images: {
+    // Serve Firebase Storage / static URLs as-is — no Vercel/Next image optimizer.
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
