@@ -6,7 +6,7 @@ export const MAX_PROPERTY_PHOTOS = 10;
 /** Longest edge after resize - enough for web listings, cuts multi-MB originals. */
 export const LISTING_IMAGE_MAX_EDGE = 2200;
 
-/** Starting JPEG quality; library may lower further to hit maxSizeMB. */
+/** Starting WebP quality; library may lower further to hit maxSizeMB. */
 export const LISTING_IMAGE_QUALITY = 0.82;
 
 /**
@@ -17,20 +17,20 @@ export const LISTING_IMAGE_MAX_MB = 0.25;
 
 /**
  * Compress a listing photo client-side (Web Worker when available) before Storage upload.
- * Preserves aspect ratio; outputs JPEG.
+ * Preserves aspect ratio; outputs WebP for Firebase Storage (no Vercel image optimizer).
  */
-export async function compressListingImage(input: File | Blob, fileName = "photo.jpg"): Promise<File> {
+export async function compressListingImage(input: File | Blob, fileName = "photo.webp"): Promise<File> {
   const source =
     input instanceof File
       ? input
-      : new File([input], fileName, { type: input.type || "image/jpeg" });
+      : new File([input], fileName, { type: input.type || "image/webp" });
 
   try {
     const compressed = await imageCompression(source, {
       maxSizeMB: LISTING_IMAGE_MAX_MB,
       maxWidthOrHeight: LISTING_IMAGE_MAX_EDGE,
       useWebWorker: true,
-      fileType: "image/jpeg",
+      fileType: "image/webp",
       initialQuality: LISTING_IMAGE_QUALITY,
       // Avoid upscaling tiny images.
       alwaysKeepResolution: false,
@@ -38,13 +38,15 @@ export async function compressListingImage(input: File | Blob, fileName = "photo
 
     const blob = compressed instanceof Blob ? compressed : source;
     const name = source.name.replace(/\.\w+$/i, "") || "photo";
-    return new File([blob], `${name}.jpg`, {
-      type: "image/jpeg",
+    return new File([blob], `${name}.webp`, {
+      type: "image/webp",
       lastModified: Date.now(),
     });
   } catch (error) {
     // HEIC / odd formats: fall back to canvas path below.
-    console.warn("[compressListingImage] browser-image-compression failed, trying canvas", error);
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[compressListingImage] browser-image-compression failed, trying canvas", error);
+    }
     return canvasCompressFallback(source);
   }
 }
@@ -70,7 +72,7 @@ async function canvasCompressFallback(file: File): Promise<File> {
     for (let attempt = 0; attempt < 6; attempt += 1) {
       ctx.drawImage(bitmap, 0, 0, width, height);
       blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((next) => resolve(next), "image/jpeg", quality);
+        canvas.toBlob((next) => resolve(next), "image/webp", quality);
       });
       if (!blob?.size) break;
       if (blob.size <= targetBytes || quality <= 0.45) break;
@@ -78,7 +80,7 @@ async function canvasCompressFallback(file: File): Promise<File> {
     }
     if (!blob?.size) return file;
     const name = file.name.replace(/\.\w+$/i, "") || "photo";
-    return new File([blob], `${name}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+    return new File([blob], `${name}.webp`, { type: "image/webp", lastModified: Date.now() });
   } finally {
     bitmap.close();
   }

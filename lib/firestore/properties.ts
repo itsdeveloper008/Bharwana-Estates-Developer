@@ -52,26 +52,22 @@ const PHOTO_UPLOAD_CONCURRENCY = 3;
 
 /**
  * Shrink listing photos before Storage upload.
- * Skips a second pass when the form already compressed to JPEG under the soft size target.
+ * Skips a second pass when the form already compressed to WebP under the soft size target.
  */
 async function compressImageBlob(blob: Blob): Promise<Blob> {
-  if (
-    (blob.type === "image/jpeg" || blob.type === "image/jpg") &&
-    blob.size > 0 &&
-    blob.size <= ALREADY_COMPRESSED_BYTES
-  ) {
+  if (blob.type === "image/webp" && blob.size > 0 && blob.size <= ALREADY_COMPRESSED_BYTES) {
     return blob;
   }
   try {
     const file = await compressListingImage(blob);
     if (file.size > MAX_UPLOAD_BYTES) {
-      throw new Error("Photo is still too large after compression. Try a smaller JPG or PNG.");
+      throw new Error("Photo is still too large after compression. Try a smaller JPG, PNG, or WebP.");
     }
     return file;
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("Photo")) throw error;
-    if (blob.type === "image/jpeg" && blob.size <= MAX_UPLOAD_BYTES) return blob;
-    throw new Error("Could not process photo. On iPhone, choose “Most Compatible” or use JPG/PNG.");
+    if (blob.type === "image/webp" && blob.size <= MAX_UPLOAD_BYTES) return blob;
+    throw new Error("Could not process photo. On iPhone, choose “Most Compatible” or use JPG/PNG/WebP.");
   }
 }
 
@@ -235,11 +231,11 @@ async function resolvePropertyImages(
       throw new Error(`Photo ${index + 1} could not be processed. Try a JPG or PNG.`);
     }
 
-    const storageRef = ref(storage, `listings/${uid}/${propertyId}/${index}.jpg`);
+    const storageRef = ref(storage, `listings/${uid}/${propertyId}/${index}.webp`);
 
     try {
       await withTimeout(
-        uploadBytes(storageRef, blob, { contentType: "image/jpeg" }),
+        uploadBytes(storageRef, blob, { contentType: "image/webp" }),
         PHOTO_UPLOAD_TIMEOUT_MS,
         `Photo ${index + 1} upload`,
       );
