@@ -4,17 +4,5 @@
   },
   "storage": {
     "rules": "storage.rules"
-  },
-  "apphosting": {
-    "backendId": "bharwana-web",
-    "rootDir": "/",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**",
-      ".responsive-shots/**",
-      ".next/**",
-      "scripts/**"
-    ]
   }
 }
