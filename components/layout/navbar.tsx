@@ -253,14 +253,14 @@ export function Navbar() {
             </span>
             <span
               className={cn(
-                "hidden font-display text-[14px] font-bold uppercase leading-none tracking-[0.3em] transition-colors duration-300 sm:block",
+                "hidden font-display text-[14px] font-bold uppercase leading-none tracking-[0.08em] transition-colors duration-300 sm:block",
                 overHero ? "text-[#F5F1E8]" : "text-[#06291C]",
               )}
             >
               Bharwana
               <span
                 className={cn(
-                  "mt-1.5 block font-medium tracking-[0.34em] transition-colors duration-300",
+                  "mt-1.5 block font-medium tracking-[0.1em] transition-colors duration-300",
                   overHero ? "text-[#F5F1E8]/90" : "text-[#06291C]/90",
                 )}
               >
@@ -507,7 +507,7 @@ export function Navbar() {
                   height={72}
                   className="h-12 w-12 object-contain md:h-[4.25rem] md:w-[4.25rem]"
                 />
-                <span className="font-display text-[14px] uppercase tracking-[0.28em] text-[#F5F1E8]">
+                <span className="font-display text-[14px] uppercase tracking-[0.08em] text-[#F5F1E8]">
                   Bharwana
                 </span>
               </Link>
