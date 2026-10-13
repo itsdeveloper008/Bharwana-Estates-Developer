@@ -21,7 +21,7 @@ export const SITE_OFFICE_ADDRESS =
  * Footer social profiles. Empty string keeps the icon disabled until a URL is set.
  */
 export const SITE_SOCIAL = {
-  facebook: "https://www.facebook.com/share/1Hnf1jSJ7q/?mibextid=wwXIfr",
+  facebook: "https://www.facebook.com/share/1CDUm6Aj5n/",
   instagram: "https://www.instagram.com/bharwanaestates",
   linkedin: "https://www.linkedin.com/company/bharwana-estates-developer/",
   youtube: "https://www.youtube.com/@bharwanaestates",
