@@ -234,7 +234,7 @@ export function RangeFilterPopover({
         <button
           type="button"
           className={cn(
-            "flex h-11 w-full items-center justify-between rounded-xl border bg-white px-3 text-left text-sm text-forest transition-colors",
+            "flex h-11 w-full items-center justify-between rounded-xl border bg-white px-3 text-left text-sm font-normal text-forest transition-colors",
             accentBorder ? "border-gold/50" : "border-input",
             open && "border-forest/30",
           )}
@@ -471,7 +471,7 @@ export function PropertyTypePicker({
         <button
           type="button"
           className={cn(
-            "flex h-11 w-full items-center justify-between gap-2 text-left text-sm text-forest outline-none",
+            "flex h-11 w-full items-center justify-between gap-2 text-left text-sm font-normal text-forest outline-none",
             triggerClassName,
           )}
         >

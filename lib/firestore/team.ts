@@ -36,13 +36,18 @@ function mapDoc(id: string, data: Record<string, unknown>): TeamMemberDoc {
     photoUrl: (() => {
       const fromData = data.photoUrl != null ? String(data.photoUrl) : "";
       const fromSeed = seed?.photoUrl ?? "";
-      // Prefer seed originals when Firestore still points at removed cutouts
+      // Prefer seed when Firestore still points at removed cutouts or deleted JPG/PNG locals.
       if (
-        fromData.includes("-cutout") &&
         fromSeed.startsWith("/team/") &&
-        !fromSeed.includes("-cutout")
+        (fromData.includes("-cutout") ||
+          /\.(jpe?g|png)$/i.test(fromData) ||
+          !fromData)
       ) {
         return fromSeed;
+      }
+      // Local /team assets were migrated to WebP.
+      if (fromData.startsWith("/team/")) {
+        return fromData.replace(/\.(jpe?g|png)$/i, ".webp");
       }
       return fromData || fromSeed || "";
     })(),

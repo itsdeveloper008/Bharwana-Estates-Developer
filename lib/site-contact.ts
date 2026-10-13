@@ -18,13 +18,12 @@ export const SITE_OFFICE_ADDRESS =
   "House #F698, Buch Villas Phase 2, Multan, Pakistan, 60000";
 
 /**
- * Footer social profiles. Set YouTube / TikTok when URLs are ready
- * (empty string hides the target="_blank" open until filled).
+ * Footer social profiles. Empty string keeps the icon disabled until a URL is set.
  */
 export const SITE_SOCIAL = {
   facebook: "https://www.facebook.com/share/1Hnf1jSJ7q/?mibextid=wwXIfr",
   instagram: "https://www.instagram.com/bharwanaestates",
   linkedin: "https://www.linkedin.com/company/bharwana-estates-developer/",
-  youtube: "",
+  youtube: "https://www.youtube.com/@bharwanaestates",
   tiktok: "",
 } as const;

@@ -136,7 +136,7 @@ export function HeroSearch({
           <div className="flex items-center gap-2 border-b border-forest/10 px-4 py-3 lg:border-b-0 lg:border-r">
             <MapPin className="h-4 w-4 shrink-0 text-forest" />
             <Select value={city} onValueChange={setCity}>
-              <SelectTrigger className="h-11 border-0 bg-transparent shadow-none focus:ring-0">
+              <SelectTrigger className="h-11 border-0 bg-transparent text-forest shadow-none focus:ring-0 data-[placeholder]:text-forest">
                 <SelectValue placeholder="Pakistan" />
               </SelectTrigger>
               <SelectContent>
@@ -158,7 +158,7 @@ export function HeroSearch({
               hideActions
               placeholder="Search by location"
               className="min-w-0 flex-1 space-y-0"
-              inputClassName="h-11 border-0 bg-transparent px-0 shadow-none focus-visible:border-transparent focus-visible:ring-0"
+              inputClassName="h-11 border-0 bg-transparent px-0 text-forest shadow-none placeholder:text-forest/55 focus-visible:border-transparent focus-visible:ring-0"
               onPlaceSelected={(result) => {
                 setQuery(result.label ?? "");
               }}
@@ -213,7 +213,7 @@ export function HeroSearch({
             onValueChange={setBeds}
             disabled={category === "PLOTS" || category === "COMMERCIAL"}
           >
-            <SelectTrigger className="h-11 bg-white disabled:opacity-50">
+            <SelectTrigger className="h-11 bg-white text-forest disabled:opacity-50 data-[placeholder]:text-forest [&>span]:text-forest">
               <SelectValue placeholder="Beds" />
             </SelectTrigger>
             <SelectContent>
