@@ -1,7 +1,7 @@
 /** Pakistani listing area units. Canonical compare unit is always sqft. */
 
 export const AREA_UNITS = [
-  { id: "sqft", label: "Sq. Ft.", shortLabel: "sqft", toSqft: 1 },
+  { id: "sqft", label: "Sqft.", shortLabel: "sqft", toSqft: 1 },
   /** Punjab / Lahore standard (already used across filters). */
   { id: "marla", label: "Marla", shortLabel: "Marla", toSqft: 225 },
   { id: "kanal", label: "Kanal", shortLabel: "Kanal", toSqft: 4500 },
