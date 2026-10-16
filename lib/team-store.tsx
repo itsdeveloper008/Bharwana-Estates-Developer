@@ -23,7 +23,7 @@ import {
 } from "@/lib/firestore/team";
 import { teamMembers as localSeedTeam, type TeamMember } from "@/lib/mock-data/team";
 
-const STORAGE_KEY = "bharwana_team_members_v6";
+const STORAGE_KEY = "bharwana_team_members_v7";
 
 export type TeamMemberInput = Omit<TeamMember, "id">;
 
@@ -48,8 +48,9 @@ function persistLocal(members: TeamMember[]) {
 }
 
 export function TeamStoreProvider({ children }: { children: ReactNode }) {
-  const [members, setMembers] = useState<TeamMember[]>(localSeedTeam);
-  const [isReady, setIsReady] = useState(true);
+  // Start empty so seed names (e.g. old Talal) never flash before Firestore.
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [isReady, setIsReady] = useState(false);
   const [usingFirestore, setUsingFirestore] = useState(false);
   /** Once Firestore has returned any docs, never re-substitute local seed for an empty list. */
   const remoteHasDataRef = useRef(false);
@@ -60,11 +61,17 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw) as TeamMember[];
-          if (Array.isArray(parsed) && parsed.length > 0) setMembers(parsed);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMembers(parsed);
+            setUsingFirestore(false);
+            setIsReady(true);
+            return;
+          }
         }
       } catch {
         localStorage.removeItem(STORAGE_KEY);
       }
+      setMembers(localSeedTeam);
       setUsingFirestore(false);
       setIsReady(true);
       return;
@@ -98,7 +105,15 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
 
   const addMember = useCallback(async (input: TeamMemberInput) => {
     const id = crypto.randomUUID();
-    const photoUrl = await resolveTeamPhotoUrl(id, input.photoUrl).catch(() => input.photoUrl);
+    const photoUrl = await resolveTeamPhotoUrl(id, input.photoUrl).catch((error) => {
+      // Never persist ephemeral blob/data previews — they die on refresh.
+      if (input.photoUrl.startsWith("blob:") || input.photoUrl.startsWith("data:")) {
+        throw error instanceof Error
+          ? error
+          : new Error("Could not upload team photo. Please try again.");
+      }
+      return input.photoUrl;
+    });
     const next: TeamMember = { id, ...input, photoUrl };
 
     if (isFirebaseConfigured()) {
@@ -123,7 +138,19 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateMember = useCallback(async (id: string, input: TeamMemberInput) => {
-    const photoUrl = await resolveTeamPhotoUrl(id, input.photoUrl).catch(() => input.photoUrl);
+    const previousPhoto = members.find((member) => member.id === id)?.photoUrl ?? "";
+    const photoUrl = await resolveTeamPhotoUrl(id, input.photoUrl).catch((error) => {
+      // Never persist ephemeral blob/data previews — they die on refresh.
+      if (input.photoUrl.startsWith("blob:") || input.photoUrl.startsWith("data:")) {
+        if (previousPhoto && !previousPhoto.startsWith("blob:") && !previousPhoto.startsWith("data:")) {
+          return previousPhoto;
+        }
+        throw error instanceof Error
+          ? error
+          : new Error("Could not upload team photo. Please try again.");
+      }
+      return input.photoUrl;
+    });
     const sortOrder = Math.max(
       0,
       members.findIndex((member) => member.id === id),

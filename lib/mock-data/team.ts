@@ -65,17 +65,17 @@ export const teamMembers: TeamMember[] = [
   },
   {
     id: "team-talal",
-    fullName: "Talal Mirza",
+    fullName: "Iqra Qadeer",
     role: "Managing Director",
     department: "Operations",
     location: "Lahore, Pakistan",
     yearsExperience: 10,
     bio: "Steers day-to-day operations and partnerships so buyers and owners meet on equal ground.",
     about:
-      "Talal Mirza is Managing Director at Bharwana Estates. He turns strategy into a working floor, coordinating listings, sales stewardship, and the operational detail that keeps introductions precise.\n\nFrom possession checks to handover timelines, Talal keeps owners, buyers, and internal teams aligned. He is the person who makes sure a site visit is prepared, a file is complete, and a conversation ends with a clear next step.",
+      "Iqra Qadeer is Managing Director at Bharwana Estates. She turns strategy into a working floor, coordinating listings, sales stewardship, and the operational detail that keeps introductions precise.\n\nFrom possession checks to handover timelines, Iqra keeps owners, buyers, and internal teams aligned. She is the person who makes sure a site visit is prepared, a file is complete, and a conversation ends with a clear next step.",
     quote: "Equal footing between buyer and owner is not a slogan, it is an operating standard.",
-    photoUrl: "/team/talal-mirza.webp",
-    email: "talal@bharwana.example",
+    photoUrl: "/team/iqra-qadeer.webp",
+    email: "iqra@bharwana.example",
     phone: "+92 300 000 1002",
     expertise: [
       "Operations management",

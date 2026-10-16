@@ -26,6 +26,17 @@ function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String) : [];
 }
 
+/** Reject expired blob previews and other non-loadable photo values. */
+function isUsableTeamPhotoUrl(url: string): boolean {
+  if (!url) return false;
+  if (url.startsWith("blob:") || url.startsWith("data:")) return false;
+  return (
+    url.startsWith("/") ||
+    url.startsWith("http://") ||
+    url.startsWith("https://")
+  );
+}
+
 function mapDoc(id: string, data: Record<string, unknown>): TeamMemberDoc {
   const seed = seedTeam.find((member) => member.id === id);
   const mapped: TeamMemberDoc = {
@@ -36,12 +47,14 @@ function mapDoc(id: string, data: Record<string, unknown>): TeamMemberDoc {
     photoUrl: (() => {
       const fromData = data.photoUrl != null ? String(data.photoUrl) : "";
       const fromSeed = seed?.photoUrl ?? "";
-      // Prefer seed when Firestore still points at removed cutouts or deleted JPG/PNG locals.
+      // Prefer seed when Firestore still points at removed cutouts, dead blob
+      // previews, deleted JPG/PNG locals, or missing photos.
       if (
         fromSeed.startsWith("/team/") &&
-        (fromData.includes("-cutout") ||
+        (!isUsableTeamPhotoUrl(fromData) ||
+          fromData.includes("-cutout") ||
           /\.(jpe?g|png)$/i.test(fromData) ||
-          !fromData)
+          fromData.includes("talal-mirza"))
       ) {
         return fromSeed;
       }
@@ -49,7 +62,7 @@ function mapDoc(id: string, data: Record<string, unknown>): TeamMemberDoc {
       if (fromData.startsWith("/team/")) {
         return fromData.replace(/\.(jpe?g|png)$/i, ".webp");
       }
-      return fromData || fromSeed || "";
+      return isUsableTeamPhotoUrl(fromData) ? fromData : fromSeed || "";
     })(),
     linkedinUrl: data.linkedinUrl ? String(data.linkedinUrl) : seed?.linkedinUrl,
     email: data.email ? String(data.email) : seed?.email,
@@ -177,6 +190,9 @@ export async function resolveTeamPhotoUrl(
   }
 
   const response = await fetch(photoUrl);
+  if (!response.ok) {
+    throw new Error("Could not read the selected team photo");
+  }
   const blob = await response.blob();
   const storageRef = ref(storage, `team/${memberId}.webp`);
   await uploadBytes(storageRef, blob, { contentType: "image/webp" });
