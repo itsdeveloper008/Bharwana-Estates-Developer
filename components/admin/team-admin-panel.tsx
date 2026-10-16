@@ -115,21 +115,28 @@ export function TeamAdminPanel() {
     setFormOpen(true);
   }
 
-  function handleSave(input: TeamMemberInput) {
-    void (async () => {
-      try {
-        if (editing) {
-          await updateMember(editing.id, input);
-          toast.success("Team member updated.");
-        } else {
-          await addMember(input);
-          toast.success("Team member added.");
-        }
-      } catch (error) {
-        console.error(error);
-        toast.error("Could not save team member.");
+  async function handleSave(input: TeamMemberInput) {
+    try {
+      if (editing) {
+        await updateMember(editing.id, input);
+        toast.success("Team member updated.");
+      } else {
+        await addMember(input);
+        toast.success("Team member added.");
       }
-    })();
+    } catch (error) {
+      console.error(error);
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Could not save team member.";
+      toast.error(
+        message.includes("photo") || message.includes("storage") || message.includes("Storage")
+          ? "Photo upload failed. Check you are signed in as admin and try again."
+          : "Could not save team member.",
+      );
+      throw error;
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {

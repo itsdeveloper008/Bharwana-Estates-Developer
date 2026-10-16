@@ -40,9 +40,10 @@ export function TeamMemberFormDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   member?: TeamMember | null;
-  onSave: (input: TeamMemberInput) => void;
+  onSave: (input: TeamMemberInput) => void | Promise<void>;
 }) {
   const [preview, setPreview] = useState<string>("");
+  const [saving, setSaving] = useState(false);
   const isEdit = Boolean(member);
 
   const form = useForm<TeamMemberFormValues>({
@@ -79,25 +80,30 @@ export function TeamMemberFormDialog({
     }
   }
 
-  function onSubmit(values: TeamMemberFormValues) {
-    onSave({
-      fullName: normalizePersonName(values.fullName),
-      role: values.role.trim(),
-      bio: member?.bio?.trim() || "Team member at Bharwana Estates.",
-      email: member?.email,
-      linkedinUrl: member?.linkedinUrl,
-      photoUrl: values.photoUrl?.trim() || preview || DEFAULT_AVATAR,
-      about: member?.about?.trim() || "Team member at Bharwana Estates.",
-      expertise: member?.expertise ?? [],
-      responsibilities: member?.responsibilities ?? [],
-      highlights: member?.highlights ?? [],
-      phone: member?.phone,
-      location: member?.location,
-      department: member?.department,
-      yearsExperience: member?.yearsExperience,
-      quote: member?.quote,
-    });
-    onOpenChange(false);
+  async function onSubmit(values: TeamMemberFormValues) {
+    setSaving(true);
+    try {
+      await onSave({
+        fullName: normalizePersonName(values.fullName),
+        role: values.role.trim(),
+        bio: member?.bio?.trim() || "Team member at Bharwana Estates.",
+        email: member?.email,
+        linkedinUrl: member?.linkedinUrl,
+        photoUrl: values.photoUrl?.trim() || preview || DEFAULT_AVATAR,
+        about: member?.about?.trim() || "Team member at Bharwana Estates.",
+        expertise: member?.expertise ?? [],
+        responsibilities: member?.responsibilities ?? [],
+        highlights: member?.highlights ?? [],
+        phone: member?.phone,
+        location: member?.location,
+        department: member?.department,
+        yearsExperience: member?.yearsExperience,
+        quote: member?.quote,
+      });
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -183,10 +189,17 @@ export function TeamMemberFormDialog({
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={saving}
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit">{isEdit ? "Save changes" : "Add member"}</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving…" : isEdit ? "Save changes" : "Add member"}
+              </Button>
             </div>
           </form>
         </Form>

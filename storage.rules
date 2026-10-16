@@ -5,6 +5,24 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function adminDocExists() {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    function adminDoc() {
+      return firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data;
+    }
+
+    function adminActive() {
+      // Missing `active` must default to true — reading .active when undefined DENYs.
+      return adminDocExists()
+        && (
+          !('active' in adminDoc())
+          || adminDoc().active != false
+        );
+    }
+
     function isAdmin() {
       return isSignedIn()
         && (
@@ -12,9 +30,20 @@ service firebase.storage {
             firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
             && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
           )
+          || adminActive()
+        );
+    }
+
+    function canManageTeamPhotos() {
+      return isAdmin()
+        && (
+          !adminDocExists()
+          || !('role' in adminDoc())
+          || adminDoc().role != 'staff'
           || (
-            firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
-            && firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.active != false
+            'permissions' in adminDoc()
+            && adminDoc().permissions is list
+            && 'team' in adminDoc().permissions
           )
         );
     }
@@ -35,11 +64,11 @@ service firebase.storage {
         && (request.auth.uid == userId || isAdmin());
     }
 
-    // Team headshots — admin only.
+    // Team headshots — super admin or staff with team permission.
     match /team/{fileName} {
       allow read: if true;
-      allow write: if isAdmin() && isImage();
-      allow delete: if isAdmin();
+      allow write: if canManageTeamPhotos() && isImage();
+      allow delete: if canManageTeamPhotos();
     }
 
     // Legacy listing path under team/listings — read OK; no new public writes.

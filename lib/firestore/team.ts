@@ -63,11 +63,13 @@ function resolvePhotoUrl(
   }
 
   // Managing-director seed slot: keep a working local headshot unless Admin
-  // uploaded a fresh file to Storage at team/{id}.webp.
+  // uploaded a fresh file to Storage (any team/{id}-*.webp path).
   if (id === "team-talal" && fromSeed.startsWith("/team/")) {
     const isFreshUpload =
+      normalizedLocal.includes("firebasestorage.googleapis.com") ||
+      normalizedLocal.includes("firebasestorage.app") ||
       normalizedLocal.includes(`team%2F${id}`) ||
-      normalizedLocal.includes(`team/${id}.`);
+      normalizedLocal.includes(`team/${id}`);
     const isCurrentLocal =
       normalizedLocal.startsWith("/team/") &&
       !normalizedLocal.includes("talal-mirza");
@@ -311,7 +313,8 @@ export async function resolveTeamPhotoUrl(
     throw new Error("Could not read the selected team photo");
   }
   const blob = await response.blob();
-  const storageRef = ref(storage, `team/${memberId}.webp`);
+  // Unique path so browsers/CDN do not keep showing the previous headshot.
+  const storageRef = ref(storage, `team/${memberId}-${Date.now()}.webp`);
   await uploadBytes(storageRef, blob, { contentType: "image/webp" });
   return getDownloadURL(storageRef);
 }

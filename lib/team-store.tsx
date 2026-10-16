@@ -147,13 +147,9 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateMember = useCallback(async (id: string, input: TeamMemberInput) => {
-    const previousPhoto = members.find((member) => member.id === id)?.photoUrl ?? "";
     const photoUrl = await resolveTeamPhotoUrl(id, input.photoUrl).catch((error) => {
-      // Never persist ephemeral blob/data previews — they die on refresh.
+      // Never persist ephemeral blob/data previews — and never silently keep the old photo.
       if (input.photoUrl.startsWith("blob:") || input.photoUrl.startsWith("data:")) {
-        if (previousPhoto && !previousPhoto.startsWith("blob:") && !previousPhoto.startsWith("data:")) {
-          return previousPhoto;
-        }
         throw error instanceof Error
           ? error
           : new Error("Could not upload team photo. Please try again.");
