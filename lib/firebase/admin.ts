@@ -74,6 +74,10 @@ export function getFirebaseAdminApp(): App {
     );
   }
 
+  const storageBucket =
+    readEnv("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET") ||
+    `${projectId}.firebasestorage.app`;
+
   try {
     app = initializeApp({
       credential: cert({
@@ -82,6 +86,7 @@ export function getFirebaseAdminApp(): App {
         privateKey,
       }),
       projectId,
+      storageBucket,
     });
   } catch (error) {
     console.error("[firebase-admin] initializeApp/cert failed", error);

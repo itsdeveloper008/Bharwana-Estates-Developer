@@ -10,8 +10,7 @@ import {
   writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { getDb, getFirebaseStorage, isFirebaseConfigured } from "@/lib/firebase/client";
+import { getDb, getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { teamMembers as seedTeam, type TeamMember } from "@/lib/mock-data/team";
 
 const COLLECTION = "teamMembers";
@@ -303,9 +302,14 @@ export async function resolveTeamPhotoUrl(
     return photoUrl;
   }
 
-  const storage = getFirebaseStorage();
-  if (!storage || !isFirebaseConfigured()) {
-    throw new Error("Firebase Storage is not configured for photo uploads");
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase is not configured for photo uploads");
+  }
+
+  const auth = getFirebaseAuth();
+  const token = await auth?.currentUser?.getIdToken();
+  if (!token) {
+    throw new Error("Sign in as admin to upload a team photo.");
   }
 
   const response = await fetch(photoUrl);
@@ -313,8 +317,19 @@ export async function resolveTeamPhotoUrl(
     throw new Error("Could not read the selected team photo");
   }
   const blob = await response.blob();
-  // Unique path so browsers/CDN do not keep showing the previous headshot.
-  const storageRef = ref(storage, `team/${memberId}-${Date.now()}.webp`);
-  await uploadBytes(storageRef, blob, { contentType: "image/webp" });
-  return getDownloadURL(storageRef);
+  const form = new FormData();
+  form.append("memberId", memberId);
+  form.append("file", blob, `${memberId}.webp`);
+
+  // Upload via Admin API (service account) — avoids client Storage rule 403s.
+  const upload = await fetch("/api/admin/team/photo", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const data = (await upload.json().catch(() => ({}))) as { url?: string; error?: string };
+  if (!upload.ok || !data.url) {
+    throw new Error(data.error || "Could not upload team photo.");
+  }
+  return data.url;
 }

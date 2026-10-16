@@ -34,20 +34,6 @@ service firebase.storage {
         );
     }
 
-    function canManageTeamPhotos() {
-      return isAdmin()
-        && (
-          !adminDocExists()
-          || !('role' in adminDoc())
-          || adminDoc().role != 'staff'
-          || (
-            'permissions' in adminDoc()
-            && adminDoc().permissions is list
-            && 'team' in adminDoc().permissions
-          )
-        );
-    }
-
     function isImage() {
       return request.resource.contentType.matches('image/.*')
         && request.resource.size < 10 * 1024 * 1024;
@@ -64,11 +50,11 @@ service firebase.storage {
         && (request.auth.uid == userId || isAdmin());
     }
 
-    // Team headshots — super admin or staff with team permission.
+    // Team headshots — any active admin / staff (client path; Admin API also uploads).
     match /team/{fileName} {
       allow read: if true;
-      allow write: if canManageTeamPhotos() && isImage();
-      allow delete: if canManageTeamPhotos();
+      allow write: if isAdmin() && isImage();
+      allow delete: if isAdmin();
     }
 
     // Legacy listing path under team/listings — read OK; no new public writes.
