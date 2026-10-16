@@ -17,6 +17,7 @@ import {
   fetchTeamMembers,
   reorderTeamMembers as reorderTeamMembersDoc,
   resolveTeamPhotoUrl,
+  repairStaleTalalTeamDocs,
   seedTeamMembers,
   subscribeTeamMembers,
   upsertTeamMember,
@@ -54,6 +55,7 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
   const [usingFirestore, setUsingFirestore] = useState(false);
   /** Once Firestore has returned any docs, never re-substitute local seed for an empty list. */
   const remoteHasDataRef = useRef(false);
+  const repairedRef = useRef(false);
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
@@ -83,6 +85,13 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
         if (next.length > 0) {
           remoteHasDataRef.current = true;
           setMembers(next);
+          // Persist Talal → Iqra + fix broken MD photo when the signed-in user can write.
+          if (!repairedRef.current) {
+            repairedRef.current = true;
+            void repairStaleTalalTeamDocs().catch(() => {
+              // Public visitors cannot write team docs — display mapping still covers them.
+            });
+          }
         } else if (!remoteHasDataRef.current) {
           // Provisional UI only - seed is not yet in Firestore.
           setMembers(localSeedTeam);

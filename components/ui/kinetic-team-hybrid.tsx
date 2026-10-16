@@ -22,6 +22,43 @@ export interface KineticTeamMember {
   quote?: string;
 }
 
+function TeamHoverImage({
+  src,
+  alt,
+  memberId,
+  priority,
+  sizes,
+}: {
+  src: string;
+  alt: string;
+  memberId: string;
+  priority?: boolean;
+  sizes: string;
+}) {
+  const fallback =
+    memberId === "team-talal" || /talal|iqra/i.test(alt)
+      ? "/team/iqra-qadeer.webp"
+      : "/logo.webp";
+  const [current, setCurrent] = useState(src);
+  useEffect(() => {
+    setCurrent(src);
+  }, [src]);
+
+  return (
+    <Image
+      src={current}
+      alt={alt}
+      fill
+      priority={priority}
+      className="object-cover object-top"
+      sizes={sizes}
+      onError={() => {
+        if (current !== fallback) setCurrent(fallback);
+      }}
+    />
+  );
+}
+
 export default function KineticTeamHybrid({
   members,
   eyebrow = "Bharwana",
@@ -137,12 +174,11 @@ export default function KineticTeamHybrid({
                 transition={{ type: "spring", stiffness: 260, damping: 24 }}
                 className="relative h-[540px] w-[420px] overflow-hidden border border-[#F5F1E8]/12 bg-[#0c2418] shadow-[0_40px_100px_rgba(0,0,0,0.55)]"
               >
-                <Image
+                <TeamHoverImage
                   src={activeMember.image}
                   alt={activeMember.name}
-                  fill
+                  memberId={activeMember.id}
                   priority
-                  className="object-cover object-top"
                   sizes="420px"
                 />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#082B1D]/95 via-[#082B1D]/50 to-transparent px-7 pb-7 pt-20">
@@ -240,11 +276,10 @@ function TeamRow({
           >
             <div className="px-3 pb-6 pt-1">
               <div className="relative h-[520px] w-full overflow-hidden sm:h-[580px]">
-                <Image
+                <TeamHoverImage
                   src={data.image}
                   alt={data.name}
-                  fill
-                  className="object-cover object-top"
+                  memberId={data.id}
                   sizes="100vw"
                   priority
                 />

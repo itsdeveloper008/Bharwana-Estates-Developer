@@ -37,33 +37,96 @@ function isUsableTeamPhotoUrl(url: string): boolean {
   );
 }
 
+function resolveSeed(id: string, data: Record<string, unknown>) {
+  const byId = seedTeam.find((member) => member.id === id);
+  if (byId) return byId;
+  // Legacy Firestore docs still named Talal after the MD role moved to Iqra.
+  if (String(data.fullName ?? "") === "Talal Mirza") {
+    return seedTeam.find((member) => member.id === "team-talal");
+  }
+  return undefined;
+}
+
+function resolvePhotoUrl(
+  id: string,
+  fromData: string,
+  fromSeed: string,
+  forceSeedPhoto = false,
+): string {
+  // Local /team assets were migrated to WebP.
+  const normalizedLocal = fromData.startsWith("/team/")
+    ? fromData.replace(/\.(jpe?g|png)$/i, ".webp")
+    : fromData;
+
+  if (forceSeedPhoto && fromSeed.startsWith("/team/")) {
+    return fromSeed;
+  }
+
+  // Managing-director seed slot: keep a working local headshot unless Admin
+  // uploaded a fresh file to Storage at team/{id}.webp.
+  if (id === "team-talal" && fromSeed.startsWith("/team/")) {
+    const isFreshUpload =
+      normalizedLocal.includes(`team%2F${id}`) ||
+      normalizedLocal.includes(`team/${id}.`);
+    const isCurrentLocal =
+      normalizedLocal.startsWith("/team/") &&
+      !normalizedLocal.includes("talal-mirza");
+    if (isFreshUpload || isCurrentLocal) return normalizedLocal;
+    return fromSeed;
+  }
+
+  if (
+    fromSeed.startsWith("/team/") &&
+    (!isUsableTeamPhotoUrl(fromData) ||
+      fromData.includes("-cutout") ||
+      /\.(jpe?g|png)$/i.test(fromData) ||
+      fromData.includes("talal-mirza"))
+  ) {
+    return fromSeed;
+  }
+
+  if (normalizedLocal.startsWith("/team/")) return normalizedLocal;
+  return isUsableTeamPhotoUrl(fromData) ? fromData : fromSeed || "";
+}
+
 function mapDoc(id: string, data: Record<string, unknown>): TeamMemberDoc {
-  const seed = seedTeam.find((member) => member.id === id);
-  const mapped: TeamMemberDoc = {
+  const seed = resolveSeed(id, data);
+  const rawName = String(data.fullName ?? "");
+  const fromDataPhoto = data.photoUrl != null ? String(data.photoUrl) : "";
+  const fromSeedPhoto = seed?.photoUrl ?? "";
+
+  // Firestore can still hold the old Talal profile — replace it with Iqra for display.
+  if (seed && rawName === "Talal Mirza") {
+    return {
+      id,
+      fullName: seed.fullName,
+      role: String(data.role ?? seed.role),
+      bio: seed.bio,
+      photoUrl: resolvePhotoUrl(id, fromDataPhoto, fromSeedPhoto, true),
+      linkedinUrl: data.linkedinUrl ? String(data.linkedinUrl) : seed.linkedinUrl,
+      email: seed.email,
+      phone: data.phone ? String(data.phone) : seed.phone,
+      location: data.location ? String(data.location) : seed.location,
+      department: data.department ? String(data.department) : seed.department,
+      yearsExperience:
+        typeof data.yearsExperience === "number"
+          ? data.yearsExperience
+          : seed.yearsExperience,
+      quote: seed.quote,
+      about: seed.about,
+      expertise: seed.expertise,
+      responsibilities: seed.responsibilities,
+      highlights: seed.highlights,
+      sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : 0,
+    };
+  }
+
+  return {
     id,
-    fullName: String(data.fullName ?? seed?.fullName ?? ""),
+    fullName: rawName || seed?.fullName || "",
     role: String(data.role ?? seed?.role ?? ""),
     bio: String(data.bio ?? seed?.bio ?? ""),
-    photoUrl: (() => {
-      const fromData = data.photoUrl != null ? String(data.photoUrl) : "";
-      const fromSeed = seed?.photoUrl ?? "";
-      // Prefer seed when Firestore still points at removed cutouts, dead blob
-      // previews, deleted JPG/PNG locals, or missing photos.
-      if (
-        fromSeed.startsWith("/team/") &&
-        (!isUsableTeamPhotoUrl(fromData) ||
-          fromData.includes("-cutout") ||
-          /\.(jpe?g|png)$/i.test(fromData) ||
-          fromData.includes("talal-mirza"))
-      ) {
-        return fromSeed;
-      }
-      // Local /team assets were migrated to WebP.
-      if (fromData.startsWith("/team/")) {
-        return fromData.replace(/\.(jpe?g|png)$/i, ".webp");
-      }
-      return isUsableTeamPhotoUrl(fromData) ? fromData : fromSeed || "";
-    })(),
+    photoUrl: resolvePhotoUrl(id, fromDataPhoto, fromSeedPhoto),
     linkedinUrl: data.linkedinUrl ? String(data.linkedinUrl) : seed?.linkedinUrl,
     email: data.email ? String(data.email) : seed?.email,
     phone: data.phone ? String(data.phone) : seed?.phone,
@@ -86,7 +149,6 @@ function mapDoc(id: string, data: Record<string, unknown>): TeamMemberDoc {
       : seed?.highlights ?? [],
     sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : 0,
   };
-  return mapped;
 }
 
 function toFirestorePayload(member: TeamMemberInput, sortOrder: number) {
@@ -158,6 +220,61 @@ export async function reorderTeamMembers(orderedIds: string[]): Promise<void> {
     batch.set(doc(db, COLLECTION, id), { sortOrder: index }, { merge: true });
   });
   await batch.commit();
+}
+
+/**
+ * Rewrite legacy "Talal Mirza" Firestore docs (and broken MD photos) to the
+ * current Iqra seed. Safe to call from the client — no-ops without team write access.
+ */
+export async function repairStaleTalalTeamDocs(): Promise<number> {
+  const db = getDb();
+  if (!db) return 0;
+  const seed = seedTeam.find((member) => member.id === "team-talal");
+  if (!seed) return 0;
+
+  const snap = await getDocs(collection(db, COLLECTION));
+  let repaired = 0;
+
+  for (const item of snap.docs) {
+    const data = item.data() as Record<string, unknown>;
+    const name = String(data.fullName ?? "");
+    const photo = data.photoUrl != null ? String(data.photoUrl) : "";
+    const isLegacyName = name === "Talal Mirza";
+    const isMdSeat = item.id === "team-talal";
+    const photoBroken =
+      !photo ||
+      photo.startsWith("blob:") ||
+      photo.startsWith("data:") ||
+      photo.includes("talal-mirza") ||
+      /\.(jpe?g|png)$/i.test(photo);
+
+    if (!isLegacyName && !(isMdSeat && photoBroken)) continue;
+
+    await setDoc(
+      doc(db, COLLECTION, item.id),
+      {
+        ...(isLegacyName
+          ? {
+              fullName: seed.fullName,
+              bio: seed.bio,
+              about: seed.about,
+              quote: seed.quote ?? null,
+              email: seed.email ?? null,
+              expertise: seed.expertise,
+              responsibilities: seed.responsibilities,
+              highlights: seed.highlights,
+              role: data.role ?? seed.role,
+            }
+          : {}),
+        ...(photoBroken || isLegacyName ? { photoUrl: seed.photoUrl } : {}),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+    repaired += 1;
+  }
+
+  return repaired;
 }
 
 export async function seedTeamMembers(members: TeamMember[], force = false): Promise<number> {
