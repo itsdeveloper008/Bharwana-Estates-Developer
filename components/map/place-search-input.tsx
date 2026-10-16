@@ -196,6 +196,8 @@ export function PlaceSearchInput({
   const debounceRef = useRef<number | null>(null);
   /** Skip autocomplete after a programmatic selection (must stay true across the next query effect). */
   const justSelectedRef = useRef(false);
+  /** Only open suggestions after the user types — not on focus or URL/defaultValue sync. */
+  const userEditedRef = useRef(false);
   const requestIdRef = useRef(0);
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
 
@@ -286,7 +288,9 @@ export function PlaceSearchInput({
 
   useEffect(() => {
     if (justSelectedRef.current) return;
+    userEditedRef.current = false;
     setQuery(defaultValue);
+    setOpen(false);
   }, [defaultValue]);
 
   useEffect(() => {
@@ -441,10 +445,13 @@ export function PlaceSearchInput({
     [buildLocalPredictions, ensureSessionToken, positionMenu, scope],
   );
 
-  // Typing → debounced fetch (skipped right after a selection).
+  // Typing → debounced fetch (skipped after selection, focus, or URL/defaultValue sync).
   useEffect(() => {
     if (justSelectedRef.current) {
       justSelectedRef.current = false;
+      return;
+    }
+    if (!userEditedRef.current) {
       return;
     }
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
@@ -464,14 +471,14 @@ export function PlaceSearchInput({
     };
   }, [query, fetchPredictions]);
 
-  // City scope change: clear + re-query current input.
+  // City scope change: clear cached suggestions; only re-fetch if the user is typing.
   useEffect(() => {
     predictionCache.clear();
     setPredictions([]);
     setEmptyMessage(null);
     setHighlight(-1);
     setOpen(false);
-    if (justSelectedRef.current) return;
+    if (justSelectedRef.current || !userEditedRef.current) return;
     const trimmed = query.trim();
     if (!trimmed) return;
     void fetchPredictions(query);
@@ -664,17 +671,9 @@ export function PlaceSearchInput({
           aria-expanded={showMenu ? "true" : "false"}
           aria-controls={listId}
           aria-autocomplete="list"
-          onFocus={() => {
-            if (justSelectedRef.current) return;
-            if (predictions.length || loadingPredictions || emptyMessage) {
-              positionMenu();
-              setOpen(true);
-            } else if (query.trim().length >= 1) {
-              void fetchPredictions(query);
-            }
-          }}
           onChange={(event) => {
             justSelectedRef.current = false;
+            userEditedRef.current = true;
             updateQuery(event.target.value);
             if (error) setError(null);
           }}
