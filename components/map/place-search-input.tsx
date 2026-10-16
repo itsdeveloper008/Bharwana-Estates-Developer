@@ -194,10 +194,8 @@ export function PlaceSearchInput({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const debounceRef = useRef<number | null>(null);
-  /** Skip autocomplete after a programmatic selection (must stay true across the next query effect). */
+  /** Skip autocomplete after a programmatic selection. */
   const justSelectedRef = useRef(false);
-  /** Only open suggestions after the user types — not on focus or URL/defaultValue sync. */
-  const userEditedRef = useRef(false);
   const requestIdRef = useRef(0);
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
 
@@ -287,10 +285,24 @@ export function PlaceSearchInput({
   }, []);
 
   useEffect(() => {
-    if (justSelectedRef.current) return;
-    userEditedRef.current = false;
+    // After a pick/clear, consume the flag so the next keystroke can suggest again.
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
+      if (defaultValue !== query) setQuery(defaultValue);
+      setOpen(false);
+      return;
+    }
+    // Sync from parent/URL only when the value actually changed externally.
+    // Hero mirrors typing into defaultValue — ignore the echo when it matches.
+    if (defaultValue === query) return;
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
     setQuery(defaultValue);
     setOpen(false);
+    setPredictions([]);
+    setEmptyMessage(null);
+    setHighlight(-1);
+    setLoadingPredictions(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync from parent defaultValue only
   }, [defaultValue]);
 
   useEffect(() => {
@@ -445,44 +457,33 @@ export function PlaceSearchInput({
     [buildLocalPredictions, ensureSessionToken, positionMenu, scope],
   );
 
-  // Typing → debounced fetch (skipped after selection, focus, or URL/defaultValue sync).
-  useEffect(() => {
-    if (justSelectedRef.current) {
-      justSelectedRef.current = false;
-      return;
-    }
-    if (!userEditedRef.current) {
-      return;
-    }
-    if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setPredictions([]);
-      setOpen(false);
-      setLoadingPredictions(false);
-      setEmptyMessage(null);
-      return;
-    }
-    debounceRef.current = window.setTimeout(() => {
-      void fetchPredictions(query);
-    }, DEBOUNCE_MS);
-    return () => {
+  /** Debounced fetch — call only from onChange (typing), never from focus or defaultValue sync. */
+  const schedulePredictions = useCallback(
+    (raw: string) => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    };
-  }, [query, fetchPredictions]);
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        setPredictions([]);
+        setOpen(false);
+        setLoadingPredictions(false);
+        setEmptyMessage(null);
+        return;
+      }
+      debounceRef.current = window.setTimeout(() => {
+        void fetchPredictions(raw);
+      }, DEBOUNCE_MS);
+    },
+    [fetchPredictions],
+  );
 
-  // City scope change: clear cached suggestions; only re-fetch if the user is typing.
+  // City scope change: clear cached suggestions (do not auto-open).
   useEffect(() => {
     predictionCache.clear();
     setPredictions([]);
     setEmptyMessage(null);
     setHighlight(-1);
     setOpen(false);
-    if (justSelectedRef.current || !userEditedRef.current) return;
-    const trimmed = query.trim();
-    if (!trimmed) return;
-    void fetchPredictions(query);
-    // Only react to scope changes, not every query edit.
+    setLoadingPredictions(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: cityScope only
   }, [scope]);
 
@@ -673,8 +674,9 @@ export function PlaceSearchInput({
           aria-autocomplete="list"
           onChange={(event) => {
             justSelectedRef.current = false;
-            userEditedRef.current = true;
-            updateQuery(event.target.value);
+            const next = event.target.value;
+            updateQuery(next);
+            schedulePredictions(next);
             if (error) setError(null);
           }}
           onKeyDown={(event) => {

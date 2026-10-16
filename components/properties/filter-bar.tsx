@@ -42,12 +42,19 @@ function LocationQueryField({
 }: {
   value: string;
   cityScope: string;
-  onApply: (q: string | null) => void;
+  onApply: (next: {
+    q: string | null;
+    lat?: number | null;
+    lng?: number | null;
+  }) => void;
 }) {
   return (
     <>
       <Search className="h-4 w-4 shrink-0 text-forest/50" />
       <PlaceSearchInput
+        // Remount when URL q changes (e.g. landing → /properties) so the field
+        // shows the hand-off text but typing still opens suggestions immediately.
+        key={`place-q:${value}`}
         defaultValue={value}
         cityScope={cityScope}
         hideLeadingIcon
@@ -56,10 +63,14 @@ function LocationQueryField({
         className="min-w-0 flex-1 space-y-0"
         inputClassName="h-10 border-0 bg-transparent px-0 shadow-none focus-visible:border-transparent focus-visible:ring-0"
         onPlaceSelected={(result) => {
-          onApply(result.label ?? null);
+          onApply({
+            q: result.label ?? null,
+            lat: result.latitude,
+            lng: result.longitude,
+          });
         }}
         onQueryChange={(next) => {
-          if (!next.trim()) onApply(null);
+          if (!next.trim()) onApply({ q: null, lat: null, lng: null });
         }}
       />
     </>
@@ -171,7 +182,13 @@ function FiltersForm({ compact }: { compact?: boolean }) {
             <LocationQueryField
               value={query}
               cityScope={city}
-              onApply={(q) => patch({ q })}
+              onApply={({ q, lat, lng }) =>
+                patch({
+                  q,
+                  lat: lat != null && Number.isFinite(lat) ? String(lat) : null,
+                  lng: lng != null && Number.isFinite(lng) ? String(lng) : null,
+                })
+              }
             />
           </div>
           <div className="px-3 py-1.5">

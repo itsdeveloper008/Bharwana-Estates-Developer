@@ -65,6 +65,40 @@ export function HeroSearch({
   const [priceMax, setPriceMax] = useState("");
   const [beds, setBeds] = useState("ALL");
   const [query, setQuery] = useState("");
+  const [placeLat, setPlaceLat] = useState<number | null>(null);
+  const [placeLng, setPlaceLng] = useState<number | null>(null);
+
+  const HERO_STATE_KEY = "bharwana_hero_search_v1";
+
+  // Restore hero filters when returning via browser Back.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(HERO_STATE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as Record<string, unknown>;
+      if (typeof saved.query === "string") setQuery(saved.query);
+      if (typeof saved.city === "string") setCity(saved.city);
+      if (saved.purpose === "buy" || saved.purpose === "rent") setPurpose(saved.purpose);
+      if (saved.source === "ALL" || saved.source === "owner" || saved.source === "dealer") {
+        setSource(saved.source);
+      }
+      if (typeof saved.listingType === "string") setListingType(saved.listingType);
+      if (saved.category === "HOME" || saved.category === "PLOTS" || saved.category === "COMMERCIAL") {
+        setCategory(saved.category);
+      }
+      if (typeof saved.subtype === "string") setSubtype(saved.subtype);
+      if (typeof saved.typeFilterActive === "boolean") setTypeFilterActive(saved.typeFilterActive);
+      if (typeof saved.beds === "string") setBeds(saved.beds);
+      if (typeof saved.areaMin === "string") setAreaMin(saved.areaMin);
+      if (typeof saved.areaMax === "string") setAreaMax(saved.areaMax);
+      if (typeof saved.priceMin === "string") setPriceMin(saved.priceMin);
+      if (typeof saved.priceMax === "string") setPriceMax(saved.priceMax);
+      if (typeof saved.placeLat === "number") setPlaceLat(saved.placeLat);
+      if (typeof saved.placeLng === "number") setPlaceLng(saved.placeLng);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Sync hero type when Featured tabs change — not on initial mount (incl. Strict Mode remount).
   const prevFeaturedCategory = useRef<PropertyCategory | undefined>(undefined);
@@ -94,7 +128,9 @@ export function HeroSearch({
 
   function search() {
     const params = new URLSearchParams();
-    if (query) params.set("q", query);
+    if (query.trim()) params.set("q", query.trim());
+    if (placeLat != null && Number.isFinite(placeLat)) params.set("lat", String(placeLat));
+    if (placeLng != null && Number.isFinite(placeLng)) params.set("lng", String(placeLng));
     if (city !== "ALL") params.set("city", city);
     if (listingType !== "ALL") params.set("listingType", listingType);
     // Only apply category when the user chose a type (default was forcing HOME and hiding plots).
@@ -117,6 +153,30 @@ export function HeroSearch({
     if (minPricePkr) params.set("minPrice", String(minPricePkr));
     if (maxPricePkr) params.set("maxPrice", String(maxPricePkr));
     params.set("intent", purpose === "rent" ? "rental" : "buy");
+    try {
+      sessionStorage.setItem(
+        HERO_STATE_KEY,
+        JSON.stringify({
+          query,
+          city,
+          purpose,
+          source,
+          listingType,
+          category,
+          subtype,
+          typeFilterActive,
+          beds,
+          areaMin,
+          areaMax,
+          priceMin,
+          priceMax,
+          placeLat,
+          placeLng,
+        }),
+      );
+    } catch {
+      // ignore
+    }
     router.push(`/properties?${params.toString()}`);
   }
 
@@ -161,8 +221,15 @@ export function HeroSearch({
               inputClassName="h-11 border-0 bg-transparent px-0 text-forest shadow-none placeholder:text-forest/55 focus-visible:border-transparent focus-visible:ring-0"
               onPlaceSelected={(result) => {
                 setQuery(result.label ?? "");
+                setPlaceLat(result.latitude);
+                setPlaceLng(result.longitude);
               }}
-              onQueryChange={(next) => setQuery(next)}
+              onQueryChange={(next) => {
+                setQuery(next);
+                // Typing freely clears a prior place pin until they pick again.
+                setPlaceLat(null);
+                setPlaceLng(null);
+              }}
             />
           </div>
           <div className="px-4 py-2.5">
