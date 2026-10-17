@@ -40,6 +40,106 @@ const TRUST = [
   { icon: Sparkles, label: "Quiet process" },
 ] as const;
 
+/** Written only on Search click; restored only on browser Back/Forward. */
+export const HERO_SEARCH_SESSION_KEY = "bharwana_hero_search_v1";
+/** Set by popstate when history lands on `/` (Next.js client Back misses navigation.type). */
+const HERO_SEARCH_BF_FLAG = "bharwana_hero_bf_v1";
+const HERO_SEARCH_TTL_MS = 30 * 60 * 1000;
+
+type HeroSearchSaved = {
+  savedAt: number;
+  query: string;
+  city: string;
+  purpose: PurposeId;
+  source: SourceId;
+  listingType: string;
+  category: PropertyCategory;
+  subtype: string | "ALL";
+  typeFilterActive: boolean;
+  beds: string;
+  areaMin: string;
+  areaMax: string;
+  priceMin: string;
+  priceMax: string;
+  placeLat: number | null;
+  placeLng: number | null;
+};
+
+/** Survives React Strict Mode remount so Back restore is not wiped in dev. */
+let lastRestoredPayload: HeroSearchSaved | null = null;
+
+export function clearHeroSearchSession() {
+  lastRestoredPayload = null;
+  try {
+    sessionStorage.removeItem(HERO_SEARCH_SESSION_KEY);
+    sessionStorage.removeItem(HERO_SEARCH_BF_FLAG);
+  } catch {
+    // ignore
+  }
+}
+
+function isDocumentBackForwardNavigation() {
+  if (typeof performance === "undefined") return false;
+  const entry = performance.getEntriesByType("navigation")[0] as
+    | PerformanceNavigationTiming
+    | undefined;
+  if (entry?.type === "back_forward") return true;
+  // Legacy PerformanceNavigation (Safari / older browsers).
+  const legacy = (performance as Performance & { navigation?: { type?: number } }).navigation;
+  return legacy?.type === 2;
+}
+
+function consumeClientBackForwardFlag() {
+  try {
+    if (sessionStorage.getItem(HERO_SEARCH_BF_FLAG) === "1") {
+      sessionStorage.removeItem(HERO_SEARCH_BF_FLAG);
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+}
+
+function shouldRestoreHeroSearch() {
+  // Full document Back/Forward, or SPA Back/Forward onto `/` (see popstate below).
+  return isDocumentBackForwardNavigation() || consumeClientBackForwardFlag();
+}
+
+// Next.js App Router uses history.pushState; Back fires popstate without updating
+// PerformanceNavigationTiming.type. Mark Back/Forward onto the landing path early,
+// before HeroSearch mounts, so restore can run in useEffect.
+if (typeof window !== "undefined") {
+  window.addEventListener("popstate", () => {
+    try {
+      const path = window.location.pathname;
+      if (path === "/" || path === "") {
+        sessionStorage.setItem(HERO_SEARCH_BF_FLAG, "1");
+      } else {
+        sessionStorage.removeItem(HERO_SEARCH_BF_FLAG);
+      }
+    } catch {
+      // ignore
+    }
+  });
+}
+
+function readHeroSearchSession(): HeroSearchSaved | null {
+  try {
+    const raw = sessionStorage.getItem(HERO_SEARCH_SESSION_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as Partial<HeroSearchSaved>;
+    if (typeof saved.savedAt !== "number" || Date.now() - saved.savedAt > HERO_SEARCH_TTL_MS) {
+      clearHeroSearchSession();
+      return null;
+    }
+    return saved as HeroSearchSaved;
+  } catch {
+    clearHeroSearchSession();
+    return null;
+  }
+}
+
 export function HeroSearch({
   featuredCategory,
   onFeaturedCategoryChange,
@@ -68,14 +168,9 @@ export function HeroSearch({
   const [placeLat, setPlaceLat] = useState<number | null>(null);
   const [placeLng, setPlaceLng] = useState<number | null>(null);
 
-  const HERO_STATE_KEY = "bharwana_hero_search_v1";
-
-  // Restore hero filters when returning via browser Back.
+  // Restore only after browser Back/Forward — never on first visit or refresh.
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(HERO_STATE_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as Record<string, unknown>;
+    function applySaved(saved: HeroSearchSaved) {
       if (typeof saved.query === "string") setQuery(saved.query);
       if (typeof saved.city === "string") setCity(saved.city);
       if (saved.purpose === "buy" || saved.purpose === "rent") setPurpose(saved.purpose);
@@ -93,11 +188,50 @@ export function HeroSearch({
       if (typeof saved.areaMax === "string") setAreaMax(saved.areaMax);
       if (typeof saved.priceMin === "string") setPriceMin(saved.priceMin);
       if (typeof saved.priceMax === "string") setPriceMax(saved.priceMax);
-      if (typeof saved.placeLat === "number") setPlaceLat(saved.placeLat);
-      if (typeof saved.placeLng === "number") setPlaceLng(saved.placeLng);
-    } catch {
-      // ignore
+      if (typeof saved.placeLat === "number" || saved.placeLat === null) setPlaceLat(saved.placeLat);
+      if (typeof saved.placeLng === "number" || saved.placeLng === null) setPlaceLng(saved.placeLng);
     }
+
+    function restoreFromBackNavigation() {
+      if (lastRestoredPayload) {
+        applySaved(lastRestoredPayload);
+        return;
+      }
+      if (!shouldRestoreHeroSearch()) return;
+      const saved = readHeroSearchSession();
+      if (!saved) return;
+      lastRestoredPayload = saved;
+      applySaved(saved);
+      try {
+        sessionStorage.removeItem(HERO_SEARCH_SESSION_KEY);
+        sessionStorage.removeItem(HERO_SEARCH_BF_FLAG);
+      } catch {
+        // ignore
+      }
+    }
+
+    restoreFromBackNavigation();
+
+    function onPageShow(event: PageTransitionEvent) {
+      // bfcache restore also counts as returning via Back/Forward.
+      if (!event.persisted) return;
+      if (lastRestoredPayload) {
+        applySaved(lastRestoredPayload);
+        return;
+      }
+      const saved = readHeroSearchSession();
+      if (!saved) return;
+      lastRestoredPayload = saved;
+      applySaved(saved);
+      try {
+        sessionStorage.removeItem(HERO_SEARCH_SESSION_KEY);
+        sessionStorage.removeItem(HERO_SEARCH_BF_FLAG);
+      } catch {
+        // ignore
+      }
+    }
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
   // Sync hero type when Featured tabs change — not on initial mount (incl. Strict Mode remount).
@@ -153,27 +287,28 @@ export function HeroSearch({
     if (minPricePkr) params.set("minPrice", String(minPricePkr));
     if (maxPricePkr) params.set("maxPrice", String(maxPricePkr));
     params.set("intent", purpose === "rent" ? "rental" : "buy");
+    // Persist only at Search time (not on keystroke / unmount) for Back restore.
+    lastRestoredPayload = null;
     try {
-      sessionStorage.setItem(
-        HERO_STATE_KEY,
-        JSON.stringify({
-          query,
-          city,
-          purpose,
-          source,
-          listingType,
-          category,
-          subtype,
-          typeFilterActive,
-          beds,
-          areaMin,
-          areaMax,
-          priceMin,
-          priceMax,
-          placeLat,
-          placeLng,
-        }),
-      );
+      const payload: HeroSearchSaved = {
+        savedAt: Date.now(),
+        query,
+        city,
+        purpose,
+        source,
+        listingType,
+        category,
+        subtype,
+        typeFilterActive,
+        beds,
+        areaMin,
+        areaMax,
+        priceMin,
+        priceMax,
+        placeLat,
+        placeLng,
+      };
+      sessionStorage.setItem(HERO_SEARCH_SESSION_KEY, JSON.stringify(payload));
     } catch {
       // ignore
     }

@@ -238,6 +238,12 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setAdminCache(null, true);
     setAdmin(null);
+    try {
+      sessionStorage.removeItem("bharwana_hero_search_v1");
+      sessionStorage.removeItem("bharwana_hero_bf_v1");
+    } catch {
+      // ignore
+    }
     const auth = getFirebaseAuth();
     if (auth) void signOut(auth).catch(() => undefined);
   }, []);
