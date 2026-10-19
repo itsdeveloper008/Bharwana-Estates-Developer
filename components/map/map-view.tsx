@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { GoogleMap, OverlayViewF, OverlayView, useJsApiLoader } from "@react-google-maps/api";
 import Supercluster from "supercluster";
 import { AnimatePresence, motion } from "framer-motion";
-import { PropertyPin } from "@/components/map/property-pin";
+import { MapPinLegendSwatch, PropertyPin } from "@/components/map/property-pin";
 import { MapPreviewCard } from "@/components/map/map-fallback";
 import { Button } from "@/components/ui/button";
 import { PlaceSearchInput, type PlaceSearchResult } from "@/components/map/place-search-input";
@@ -120,15 +120,42 @@ export function MapView({
   const [zoom, setZoom] = useState(DEFAULT_MAP_VIEW.zoom);
   const [bounds, setBounds] = useState<[number, number, number, number] | null>(null);
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
-  const [hoverPinId, setHoverPinId] = useState<string | null>(null);
   const [showSearchArea, setShowSearchArea] = useState(false);
   const [styleLoaded, setStyleLoaded] = useState(false);
   const [mapTypeId, setMapTypeId] = useState<MapModeId>("roadmap");
   const [authFailed, setAuthFailed] = useState(false);
+  const [mapsReady, setMapsReady] = useState(false);
   const [searchMarker, setSearchMarker] = useState<PlaceSearchResult | null>(null);
   const suppressMapClick = useRef(false);
 
   const { isLoaded, loadError } = useJsApiLoader(GOOGLE_MAPS_JS_API_LOADER_PROPS);
+
+  // Weekly Maps loader can expose places before `google.maps.Map` is constructible.
+  useEffect(() => {
+    if (!isLoaded) {
+      setMapsReady(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const mapsApi = google.maps as typeof google.maps & {
+          importLibrary?: (name: string) => Promise<unknown>;
+        };
+        if (typeof mapsApi.importLibrary === "function") {
+          await mapsApi.importLibrary("maps");
+        }
+      } catch {
+        // Fall through — constructor check below is the gate.
+      }
+      if (!cancelled && typeof google.maps?.Map === "function") {
+        setMapsReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded]);
 
   useEffect(() => {
     const win = window as Window & { gm_authFailure?: () => void };
@@ -338,7 +365,7 @@ export function MapView({
       </div>
     );
   }
-  if (!isLoaded) return <MapLoadingSkeleton />;
+  if (!isLoaded || !mapsReady) return <MapLoadingSkeleton />;
 
   return (
     <div ref={mapShellRef} className="relative h-full min-h-0 w-full">
@@ -403,14 +430,13 @@ export function MapView({
               <PropertyPin
                 count={count}
                 listingType={property?.listingType}
+                category={property?.category}
                 price={property?.price}
-                showPrice={Boolean(
-                  propertyId &&
-                    !count &&
-                    (hoverPinId === propertyId || hoveredId === propertyId || selectedId === propertyId),
+                city={property?.city}
+                compact={!count && zoom < 13}
+                active={Boolean(
+                  propertyId && (propertyId === hoveredId || propertyId === selectedId),
                 )}
-                active={propertyId === hoveredId || propertyId === selectedId}
-                onHoverChange={(hovered) => setHoverPinId(hovered && propertyId ? propertyId : null)}
                 onClick={(event) => {
                   event?.stopPropagation?.();
                   if (count && clusterId != null && mapRef.current) {
@@ -545,17 +571,17 @@ export function MapView({
       )}
 
       {/* Bottom-left — clear of Google +/- (RIGHT_CENTER) and attribution strip */}
-      <div className="pointer-events-none absolute bottom-6 left-3 z-20 flex items-center gap-3 rounded-xl bg-ivory/95 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-forest shadow-lift">
+      <div className="pointer-events-none absolute bottom-6 left-3 z-20 flex max-w-[calc(100%-5.5rem)] flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-ivory/95 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-forest shadow-lift">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full border border-gold bg-forest" />
+          <MapPinLegendSwatch variant="owner" />
           Owner
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full border border-forest bg-gold" />
+          <MapPinLegendSwatch variant="dealer" />
           Dealer
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full border border-ivory bg-[#C45C26] ring-1 ring-[#C45C26]/40" />
+          <MapPinLegendSwatch variant="search" />
           Search
         </span>
       </div>
@@ -615,7 +641,12 @@ export function MiniMap({ property }: { property: Property }) {
           mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
           getPixelPositionOffset={(width, height) => ({ x: -(width / 2), y: -height })}
         >
-          <PropertyPin listingType={property.listingType} />
+          <PropertyPin
+            listingType={property.listingType}
+            category={property.category}
+            price={property.price}
+            city={property.city}
+          />
         </OverlayViewF>
       </GoogleMap>
       <Button

@@ -81,7 +81,7 @@ export function MapPicker({
                 getPixelPositionOffset={(width, height) => ({ x: -(width / 2), y: -height })}
               >
                 <div className="cursor-grab active:cursor-grabbing">
-                  <PropertyPin />
+                  <PropertyPin compact />
                 </div>
               </OverlayViewF>
             </GoogleMap>

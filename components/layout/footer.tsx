@@ -175,10 +175,6 @@ export function Footer() {
     }
   }
 
-  function scrollTop() {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
   return (
     <footer className="relative overflow-hidden bg-[#06291C] text-[#F4F0E6]">
       {/* Oversized crest watermark */}
@@ -392,20 +388,6 @@ export function Footer() {
                 {link.label}
               </Link>
             ))}
-            <button
-              type="button"
-              onClick={scrollTop}
-              className="group inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white transition-colors duration-300 hover:text-[#C2A35A]"
-              aria-label="Back to top"
-            >
-              <span
-                aria-hidden
-                className="inline-block transition-transform duration-300 group-hover:-translate-y-0.5"
-              >
-                ↑
-              </span>
-              Top
-            </button>
           </div>
         </div>
       </div>

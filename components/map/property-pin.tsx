@@ -1,30 +1,53 @@
 "use client";
 
 import type { MouseEvent } from "react";
+import { Building2, Home, Landmark } from "lucide-react";
 import { formatPrice } from "@/lib/format";
-import type { ListingType } from "@/lib/types";
+import type { ListingType, PropertyCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-function clusterSize(count: number) {
-  if (count >= 10) return "h-11 min-w-11 text-base";
-  if (count >= 5) return "h-10 min-w-10 text-sm";
-  return "h-9 min-w-9 text-sm";
+function shortPrice(amount: number) {
+  return formatPrice(amount).replace(/^PKR\s*/, "");
+}
+
+function categoryLabel(category?: PropertyCategory) {
+  if (category === "PLOTS") return "Plot";
+  if (category === "COMMERCIAL") return "Commercial";
+  return "House";
+}
+
+function CategoryIcon({ category }: { category?: PropertyCategory }) {
+  const className = "map-pin__icon";
+  if (category === "PLOTS") return <Landmark className={className} strokeWidth={2.25} aria-hidden />;
+  if (category === "COMMERCIAL") return <Building2 className={className} strokeWidth={2.25} aria-hidden />;
+  return <Home className={className} strokeWidth={2.25} aria-hidden />;
+}
+
+function clusterBadgeSize(count: number) {
+  if (count >= 25) return "h-14 min-w-14 text-base";
+  if (count >= 10) return "h-12 min-w-12 text-[15px]";
+  return "h-10 min-w-10 text-sm";
 }
 
 export function PropertyPin({
   count,
   active,
+  compact,
   listingType,
+  category,
   price,
-  showPrice,
+  city,
   onClick,
   onHoverChange,
 }: {
   count?: number;
   active?: boolean;
+  /** Low zoom: color dots only (no price text). */
+  compact?: boolean;
   listingType?: ListingType;
+  category?: PropertyCategory;
   price?: number;
-  showPrice?: boolean;
+  city?: string;
   onClick?: (event?: MouseEvent<HTMLButtonElement>) => void;
   onHoverChange?: (hovered: boolean) => void;
 }) {
@@ -32,14 +55,15 @@ export function PropertyPin({
     return (
       <button
         type="button"
+        aria-label={`${count} properties in this area`}
         onClick={(event) => {
           event.stopPropagation();
           onClick?.(event);
         }}
         className={cn(
-          "flex items-center justify-center rounded-full border-2 border-forest bg-gold px-2 font-display text-forest shadow-lift transition-transform hover:scale-110",
-          clusterSize(count),
-          active && "scale-110 ring-2 ring-gold/60",
+          "map-cluster flex items-center justify-center rounded-full font-semibold tabular-nums",
+          clusterBadgeSize(count),
+          active && "map-cluster--active",
         )}
       >
         {count}
@@ -47,47 +71,52 @@ export function PropertyPin({
     );
   }
 
-  const isDeveloper = listingType === "BUSINESS";
+  const isDealer = listingType === "BUSINESS";
+  const priceLabel = typeof price === "number" ? shortPrice(price) : "";
+  const fullPrice = typeof price === "number" ? formatPrice(price) : "";
+  const aria = [categoryLabel(category), fullPrice, city].filter(Boolean).join(", ");
 
   return (
     <button
       type="button"
+      aria-label={aria || "Property pin"}
       onClick={(event) => {
         event.stopPropagation();
         onClick?.(event);
       }}
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
-      className="relative block"
-      aria-label="Property pin"
+      className={cn(
+        "map-pin",
+        isDealer ? "map-pin--dealer" : "map-pin--owner",
+        compact && "map-pin--compact",
+        active && "map-pin--active",
+      )}
     >
-      {showPrice && typeof price === "number" ? (
-        <span className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-forest px-2 py-1 text-[10px] font-medium text-gold shadow-lift">
-          {formatPrice(price)}
+      <span className="map-pin__hit">
+        <span className="map-pin__dot" aria-hidden />
+        <span className="map-pin__pill">
+          <CategoryIcon category={category} />
+          <span className="map-pin__price">{priceLabel || "—"}</span>
         </span>
-      ) : null}
-      <span
-        className={cn(
-          "relative mx-auto block h-7 w-7 transition-transform duration-200",
-          (active || showPrice) && "scale-125",
-        )}
-      >
-        <span
-          className={cn(
-            "absolute inset-0 rounded-full border-2 shadow-lift",
-            isDeveloper ? "border-forest bg-gold" : "border-gold bg-forest",
-          )}
-        />
-        <span
-          className={cn(
-            "absolute left-1/2 top-[78%] h-0 w-0 -translate-x-1/2 border-x-[7px] border-t-[9px] border-x-transparent",
-            isDeveloper ? "border-t-gold" : "border-t-forest",
-          )}
-        />
-        {!isDeveloper ? (
-          <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-[60%] rounded-full bg-gold" />
-        ) : null}
+        <span className="map-pin__tail" aria-hidden />
       </span>
     </button>
+  );
+}
+
+/** Mini pill swatch for the map legend (non-interactive). */
+export function MapPinLegendSwatch({ variant }: { variant: "owner" | "dealer" | "search" }) {
+  if (variant === "search") {
+    return <span className="map-legend-search" aria-hidden />;
+  }
+  return (
+    <span
+      className={cn("map-legend-pill", variant === "dealer" ? "map-pin--dealer" : "map-pin--owner")}
+      aria-hidden
+    >
+      <Home className="map-legend-pill__icon" strokeWidth={2.5} />
+      <span className="map-legend-pill__bar" />
+    </span>
   );
 }

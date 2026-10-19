@@ -29,6 +29,15 @@
     --radius-panel: 1.25rem;
     --forest: 152 51% 12%;
     --gold: 43 54% 54%;
+    /* Map price-tag pins (PropertyPin / SearchLocationPin / legend) */
+    --map-pin-owner-bg: #0f3d2e;
+    --map-pin-owner-fg: #c9a24b;
+    --map-pin-dealer-bg: #c9a24b;
+    --map-pin-dealer-fg: #0f3d2e;
+    --map-pin-search: #c45c26;
+    --map-pin-stroke: #ffffff;
+    --map-pin-glow: rgba(201, 162, 75, 0.35);
+    --map-pin-shadow: 0 2px 4px rgba(15, 46, 29, 0.18), 0 6px 14px rgba(15, 46, 29, 0.22);
     --chart-1: 43 54% 54%;
     --chart-2: 152 51% 12%;
     --chart-3: 40 18% 70%;
@@ -120,6 +129,295 @@
 
   .type-subheading-on-dark {
     @apply mt-5 max-w-xl font-sans text-base font-light leading-[1.65] text-ivory/85 sm:text-lg;
+  }
+
+  /* Map markers — brand price-tag pins, clusters, search pulse. */
+
+  .map-pin {
+    position: relative;
+    display: block;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    z-index: 1;
+    transform: translateZ(0);
+    transition: transform 160ms ease, filter 160ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .map-pin:hover {
+    transform: translateY(-2px) scale(1.06);
+    z-index: 3;
+  }
+
+  .map-pin:focus-visible {
+    outline: none;
+  }
+
+  .map-pin:focus-visible .map-pin__pill,
+  .map-pin:focus-visible .map-pin__dot {
+    box-shadow: var(--map-pin-shadow), 0 0 0 3px var(--map-pin-glow);
+  }
+
+  .map-pin--active {
+    z-index: 5;
+    transform: scale(1.15);
+  }
+
+  .map-pin--active:hover {
+    transform: translateY(-2px) scale(1.15);
+  }
+
+  .map-pin--active .map-pin__pill,
+  .map-pin--active .map-pin__dot {
+    box-shadow: var(--map-pin-shadow), 0 0 0 4px var(--map-pin-glow);
+    animation: map-pin-pulse 1.8s ease-in-out infinite;
+  }
+
+  .map-pin__hit {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px 4px 0;
+  }
+
+  .map-pin__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 30px;
+    padding: 0 10px 0 8px;
+    border-radius: 999px;
+    border: 1.5px solid;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: var(--map-pin-shadow), 0 0 0 1.5px var(--map-pin-stroke);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .map-pin__icon {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+  }
+
+  .map-pin__price {
+    letter-spacing: 0.01em;
+  }
+
+  .map-pin__tail {
+    width: 0;
+    height: 0;
+    margin-top: -1px;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top-width: 7px;
+    border-top-style: solid;
+    filter: drop-shadow(0 1px 1px rgba(15, 46, 29, 0.2));
+    transition: opacity 180ms ease;
+  }
+
+  .map-pin__dot {
+    display: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    border: 1.5px solid;
+    box-shadow: var(--map-pin-shadow), 0 0 0 1.5px var(--map-pin-stroke);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .map-pin--compact .map-pin__pill,
+  .map-pin--compact .map-pin__tail {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.85);
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    border: 0;
+  }
+
+  .map-pin--compact .map-pin__dot {
+    display: block;
+  }
+
+  .map-pin--owner {
+    --map-pin-bg: var(--map-pin-owner-bg);
+    --map-pin-fg: var(--map-pin-owner-fg);
+  }
+
+  .map-pin--dealer {
+    --map-pin-bg: var(--map-pin-dealer-bg);
+    --map-pin-fg: var(--map-pin-dealer-fg);
+  }
+
+  .map-pin--owner .map-pin__pill,
+  .map-pin--owner .map-pin__dot,
+  .map-legend-pill.map-pin--owner {
+    background: var(--map-pin-bg);
+    color: var(--map-pin-fg);
+    border-color: var(--map-pin-fg);
+  }
+
+  .map-pin--dealer .map-pin__pill,
+  .map-pin--dealer .map-pin__dot,
+  .map-legend-pill.map-pin--dealer {
+    background: var(--map-pin-bg);
+    color: var(--map-pin-fg);
+    border-color: var(--map-pin-fg);
+  }
+
+  .map-pin--owner .map-pin__tail {
+    border-top-color: var(--map-pin-owner-bg);
+  }
+
+  .map-pin--dealer .map-pin__tail {
+    border-top-color: var(--map-pin-dealer-bg);
+  }
+
+  .map-cluster {
+    position: relative;
+    border: 2px solid var(--map-pin-owner-fg);
+    background: var(--map-pin-owner-bg);
+    color: var(--map-pin-owner-fg);
+    box-shadow: var(--map-pin-shadow), 0 0 0 1.5px var(--map-pin-stroke),
+      0 0 0 5px rgba(15, 61, 46, 0.18);
+    transition: transform 160ms ease;
+    cursor: pointer;
+    z-index: 2;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .map-cluster:hover,
+  .map-cluster--active {
+    transform: scale(1.08);
+  }
+
+  .map-cluster:focus-visible {
+    outline: none;
+    box-shadow: var(--map-pin-shadow), 0 0 0 1.5px var(--map-pin-stroke),
+      0 0 0 4px var(--map-pin-glow);
+  }
+
+  .map-legend-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 16px;
+    padding: 0 6px 0 4px;
+    border-radius: 999px;
+    border: 1.5px solid;
+    box-shadow: 0 0 0 1px var(--map-pin-stroke);
+  }
+
+  .map-legend-pill__icon {
+    width: 9px;
+    height: 9px;
+  }
+
+  .map-legend-pill__bar {
+    display: block;
+    width: 14px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.85;
+  }
+
+  .map-legend-search {
+    position: relative;
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: var(--map-pin-search);
+    box-shadow: 0 0 0 2px var(--map-pin-stroke), 0 0 0 3.5px rgba(196, 92, 38, 0.35);
+  }
+
+  .map-search-pin {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .map-search-pin__dot {
+    position: relative;
+    z-index: 1;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: var(--map-pin-search);
+    box-shadow: 0 2px 6px rgba(15, 46, 29, 0.28);
+  }
+
+  .map-search-pin__ring {
+    position: absolute;
+    inset: 6px;
+    border-radius: 999px;
+    border: 2px solid var(--map-pin-stroke);
+    box-shadow: 0 0 0 1px rgba(196, 92, 38, 0.35);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .map-search-pin__pulse {
+    position: absolute;
+    inset: 2px;
+    border-radius: 999px;
+    background: var(--map-pin-search);
+    opacity: 0.35;
+    animation: map-search-pulse 1.6s ease-out infinite;
+  }
+
+  @keyframes map-pin-pulse {
+    0%,
+    100% {
+      box-shadow: var(--map-pin-shadow), 0 0 0 4px var(--map-pin-glow);
+    }
+    50% {
+      box-shadow: var(--map-pin-shadow), 0 0 0 7px rgba(201, 162, 75, 0.18);
+    }
+  }
+
+  @keyframes map-search-pulse {
+    0% {
+      transform: scale(0.7);
+      opacity: 0.45;
+    }
+    100% {
+      transform: scale(1.55);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .map-pin,
+    .map-pin__pill,
+    .map-pin__dot,
+    .map-pin__tail,
+    .map-cluster {
+      transition: none !important;
+    }
+
+    .map-pin--active .map-pin__pill,
+    .map-pin--active .map-pin__dot,
+    .map-search-pin__pulse {
+      animation: none !important;
+    }
   }
 }
 

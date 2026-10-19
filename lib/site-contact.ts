@@ -25,5 +25,5 @@ export const SITE_SOCIAL = {
   instagram: "https://www.instagram.com/bharwanaestates",
   linkedin: "https://www.linkedin.com/company/bharwana-estates-developer/",
   youtube: "https://www.youtube.com/@bharwanaestates",
-  tiktok: "",
+  tiktok: "https://www.tiktok.com/@bharwanaestates",
 } as const;
