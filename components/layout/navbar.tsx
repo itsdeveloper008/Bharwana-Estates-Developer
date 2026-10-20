@@ -14,9 +14,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useMockAuth } from "@/lib/mock-auth";
-import { useAdminAuth } from "@/lib/admin-auth";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockAuth } from "@/lib/mock-auth-context";
+import { useAdminAuth } from "@/lib/admin-auth-context";
+import { useMockStore } from "@/lib/mock-store-context";
 import {
   LISTINGS_VIEWED_EVENT,
   ensureListingsViewedBaseline,

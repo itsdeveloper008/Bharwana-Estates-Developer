@@ -229,10 +229,17 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
   return <TeamStoreContext.Provider value={value}>{children}</TeamStoreContext.Provider>;
 }
 
+const BOOTSTRAP_TEAM: TeamStoreContextValue = {
+  members: [],
+  isReady: false,
+  usingFirestore: false,
+  addMember: async (input) => ({ id: "bootstrap", ...input }),
+  updateMember: async () => undefined,
+  deleteMember: async () => undefined,
+  reorderMembers: async () => undefined,
+};
+
 export function useTeamStore() {
   const context = useContext(TeamStoreContext);
-  if (!context) {
-    throw new Error("useTeamStore must be used within TeamStoreProvider");
-  }
-  return context;
+  return context ?? BOOTSTRAP_TEAM;
 }

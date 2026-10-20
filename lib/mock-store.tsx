@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -11,7 +9,9 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/lib/admin-auth-context";
+import { MockStoreContext } from "@/lib/mock-store-context";
+export { useMockStore } from "@/lib/mock-store-context";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { whenFirebaseUserReady } from "@/lib/firebase/when-auth-ready";
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
@@ -39,7 +39,7 @@ import {
   PUBLIC_MARKETPLACE_STATUSES,
 } from "@/lib/firestore/properties";
 import { createUserDoc, subscribeUsers, updateUserRole } from "@/lib/firestore/users";
-import { useMockAuth } from "@/lib/mock-auth";
+import { useMockAuth } from "@/lib/mock-auth-context";
 import { developers as seedDevelopers } from "@/lib/mock-data/developers";
 import { inquiries as seedInquiries } from "@/lib/mock-data/inquiries";
 import { properties as seedPropertiesList } from "@/lib/mock-data/properties";
@@ -71,39 +71,6 @@ function purgeMockLocalStorage() {
     // ignore quota / private mode
   }
 }
-
-interface MockStoreContextValue {
-  properties: Property[];
-  inquiries: Inquiry[];
-  developers: Developer[];
-  transactions: Transaction[];
-  users: User[];
-  inquiriesLoading: boolean;
-  inquiriesError: string | null;
-  /** True after a successful admin inquiries snapshot (empty list is still "ready"). */
-  inquiriesReady: boolean;
-  usingFirestoreInquiries: boolean;
-  usingFirestoreProperties: boolean;
-  usingFirestoreUsers: boolean;
-  usingFirestoreDevelopers: boolean;
-  propertiesLoading: boolean;
-  propertiesError: string | null;
-  storeReady: boolean;
-  addProperty: (property: Property, options?: UpsertPropertyOptions) => Promise<void>;
-  updateProperty: (id: string, patch: Partial<Property>, options?: UpsertPropertyOptions) => Promise<void>;
-  deleteProperty: (id: string) => Promise<void>;
-  addInquiry: (input: InquiryInput) => Promise<string>;
-  updateInquiryStatus: (id: string, status: InquiryStatus) => Promise<void>;
-  removeInquiry: (id: string) => Promise<void>;
-  addDeveloper: (developer: Developer) => Promise<void>;
-  updateDeveloper: (id: string, patch: Partial<Developer>) => Promise<void>;
-  deleteDeveloper: (id: string) => Promise<void>;
-  updateTransaction: (id: string, patch: Partial<Transaction>) => Promise<void>;
-  getDeveloperForUser: (userId: string) => Developer | undefined;
-  addUser: (user: User) => Promise<void>;
-}
-
-const MockStoreContext = createContext<MockStoreContextValue | undefined>(undefined);
 
 function readJsonArray<T>(key: string): T[] | null {
   if (typeof window === "undefined") return null;
@@ -972,12 +939,4 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   );
 
   return <MockStoreContext.Provider value={value}>{children}</MockStoreContext.Provider>;
-}
-
-export function useMockStore() {
-  const context = useContext(MockStoreContext);
-  if (!context) {
-    throw new Error("useMockStore must be used within MockStoreProvider");
-  }
-  return context;
 }

@@ -12,15 +12,21 @@
  *   session so admin accounts do not appear as buyers/sellers on public pages.
  */
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
+import {
+  MockAuthContext,
+  type AccountAuthMethod,
+  type DeleteAccountResult,
+  type GoogleSignupDraft,
+} from "@/lib/mock-auth-context";
+export type { AccountAuthMethod, DeleteAccountResult, GoogleSignupDraft } from "@/lib/mock-auth-context";
+export { useMockAuth } from "@/lib/mock-auth-context";
 import {
   EmailAuthProvider,
   FacebookAuthProvider,
@@ -83,14 +89,6 @@ const PENDING_GOOGLE_KEY = "bharwana_pending_google_signup";
 const PENDING_REGISTER_KEY = "bharwana_pending_register_profile";
 const GOOGLE_RETURN_KEY = "bharwana_google_auth_return";
 
-export type GoogleSignupDraft = {
-  id: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  avatarUrl?: string;
-};
-
 type StoredAccount = User & { password: string };
 
 type GoogleLoginResult =
@@ -98,107 +96,6 @@ type GoogleLoginResult =
   | { ok: true; isNewUser: true; draft: GoogleSignupDraft }
   | { ok: true; redirecting: true }
   | { ok: false; error: string };
-
-type PhoneLoginResult =
-  | { ok: true; isNewUser: false; user: User }
-  | { ok: true; isNewUser: true; draft: GoogleSignupDraft }
-  | { ok: false; error: string };
-
-export type AccountAuthMethod = "password" | "google" | "facebook" | "phone";
-
-export type DeleteAccountResult =
-  | { ok: true }
-  | { ok: false; error: string; needsReauth?: boolean; authMethod?: AccountAuthMethod };
-
-interface MockAuthContextValue {
-  user: User | null;
-  isAuthenticated: boolean;
-  isReady: boolean;
-  pendingGoogleSignup: GoogleSignupDraft | null;
-  login: (email: string, password: string) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
-  loginWithGoogle: () => Promise<GoogleLoginResult>;
-  loginWithFacebook: () => Promise<GoogleLoginResult>;
-  consumeGoogleReturn: () => boolean;
-  /** Dismiss incomplete Google/Facebook signup so email/phone login can proceed. */
-  cancelPendingOAuthSignup: () => Promise<void>;
-  sendPhoneOtp: (
-    phone: string,
-    verifier: RecaptchaVerifier,
-  ) => Promise<
-    | { ok: true; confirmation: ConfirmationResult }
-    | { ok: false; error: string; code?: string }
-  >;
-  verifyPhoneOtp: (
-    confirmation: ConfirmationResult,
-    code: string,
-  ) => Promise<PhoneLoginResult>;
-  /** Forgot-password phone OTP: requires an existing Auth account (fail closed). */
-  sendPhoneResetOtp: (
-    phone: string,
-    recaptchaToken: string,
-  ) => Promise<
-    | { ok: true; sessionInfo: string }
-    | { ok: false; error: string; code?: string }
-  >;
-  /**
-   * Confirm reset OTP without committing an app session.
-   * Returns a fresh Firebase ID token for the Admin password-update API.
-   */
-  verifyPhoneResetOtp: (
-    sessionInfo: string,
-    code: string,
-  ) => Promise<{ ok: true; idToken: string } | { ok: false; error: string }>;
-  /** Send OTP to a new number while signed in (does not switch sessions). */
-  sendChangePhoneOtp: (
-    phone: string,
-    verifier: RecaptchaVerifier,
-  ) => Promise<{ ok: true; verificationId: string; phone: string } | { ok: false; error: string }>;
-  /** Confirm OTP and update Auth + Firestore phone on the current user. */
-  confirmChangePhone: (input: {
-    verificationId: string;
-    code: string;
-    phone: string;
-  }) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
-  completeGoogleSignup: (input: {
-    draft: GoogleSignupDraft;
-    role: UserRole;
-    agencyName?: string;
-    registrationNumber?: string;
-    /** When true, save profile but leave app session unset until adoptSession (phone password prompt). */
-    skipCommit?: boolean;
-  }) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
-  /** Commit an already-created profile into the app session. */
-  adoptSession: (user: User) => void;
-  register: (input: {
-    fullName: string;
-    email: string;
-    phone: string;
-    password: string;
-    role?: UserRole;
-    agencyName?: string;
-    registrationNumber?: string;
-  }) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
-  loginAs: (user: User) => void;
-  loginAsRole: (role: UserRole) => void;
-  logout: () => void;
-  deleteAccount: () => Promise<DeleteAccountResult>;
-  reauthenticateForDeletion: (input?: {
-    password?: string;
-  }) => Promise<{ ok: true } | { ok: false; error: string }>;
-  submitDeletionRequest: (note?: string) => Promise<{ ok: true } | { ok: false; error: string }>;
-  getAccountAuthMethod: () => AccountAuthMethod | null;
-  /** True when the signed-in Firebase user has an email/password provider linked. */
-  hasPasswordProvider: () => boolean;
-  /** Link a password to the current Firebase account (phone users keep their hidden internal email). */
-  linkEmailPassword: (input: {
-    email?: string;
-    password: string;
-    /** When app session is not committed yet (post-phone signup), pass the pending profile. */
-    profile?: User;
-  }) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
-}
-
-const MockAuthContext = createContext<MockAuthContextValue | undefined>(undefined);
 
 function readRegistered(): StoredAccount[] {
   try {
@@ -1916,12 +1813,4 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   );
 
   return <MockAuthContext.Provider value={value}>{children}</MockAuthContext.Provider>;
-}
-
-export function useMockAuth() {
-  const context = useContext(MockAuthContext);
-  if (!context) {
-    throw new Error("useMockAuth must be used within MockAuthProvider");
-  }
-  return context;
 }

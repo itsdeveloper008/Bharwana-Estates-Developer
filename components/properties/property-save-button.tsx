@@ -1,11 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Heart } from "lucide-react";
 import { useState } from "react";
 import { SaveAuthDialog } from "@/components/properties/save-auth-dialog";
-import { useFavorites } from "@/lib/favorites-context";
-import { useMockAuth } from "@/lib/mock-auth";
+import { useFavorites } from "@/lib/favorites-hook";
+import { useMockAuth } from "@/lib/mock-auth-context";
 import { cn } from "@/lib/utils";
 
 export function PropertySaveButton({
@@ -38,18 +37,14 @@ export function PropertySaveButton({
   }
 
   const heart = (
-    <motion.span
-      animate={pulse ? { scale: [1, 1.25, 1] } : { scale: 1 }}
-      transition={{ duration: 0.28, ease: "easeOut" }}
-      className="inline-flex"
-    >
+    <span className={cn("inline-flex transition-transform duration-200", pulse && "scale-125")}>
       <Heart
         className={cn(
           "h-4 w-4 transition-colors",
           saved ? "fill-gold text-gold" : variant === "card" ? "text-ivory" : "text-forest",
         )}
       />
-    </motion.span>
+    </span>
   );
 
   if (variant === "card") {

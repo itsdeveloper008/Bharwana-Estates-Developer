@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
 
 /**
@@ -28,27 +27,19 @@ export function WhatsAppFloat() {
 
   return (
     <div className="pointer-events-none fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] right-[calc(1.25rem+env(safe-area-inset-right,0px))] z-[45] sm:bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:right-6">
-      <motion.span
+      <span
         aria-hidden
-        className="absolute inset-0 rounded-full bg-[#25D366]"
-        initial={{ scale: 1, opacity: 0.28 }}
-        animate={{ scale: [1, 1.45], opacity: [0.28, 0] }}
-        transition={{ duration: 2.6, repeat: Infinity, ease: "easeOut" }}
+        className="absolute inset-0 animate-ping rounded-full bg-[#25D366] opacity-25"
       />
-      <motion.a
+      <a
         href={WHATSAPP_HREF}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat with us on WhatsApp"
         className="pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_10px_28px_rgba(0,0,0,0.25)] sm:h-[58px] sm:w-[58px]"
-        initial={{ opacity: 0, scale: 0.92 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.98 }}
       >
         <WhatsAppGlyph className="h-[28px] w-[28px] sm:h-[30px] sm:w-[30px]" />
-      </motion.a>
+      </a>
     </div>
   );
 }

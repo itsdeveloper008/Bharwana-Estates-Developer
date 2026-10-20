@@ -6,6 +6,7 @@ const nextConfig = {
   // Keep firebase-admin out of the webpack bundle on Vercel (Next 14).
   experimental: {
     serverComponentsExternalPackages: ["firebase-admin"],
+    optimizePackageImports: ["lucide-react", "framer-motion", "@radix-ui/react-icons"],
   },
   images: {
     // Serve Firebase Storage / static URLs as-is — no Vercel/Next image optimizer.

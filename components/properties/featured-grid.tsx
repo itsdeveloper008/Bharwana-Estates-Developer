@@ -1,20 +1,17 @@
 "use client";
 
-import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { PropertyCard } from "@/components/properties/property-card";
 import { Button } from "@/components/ui/button";
 import {
   categoryToFeaturedKey,
-  fetchPropertiesByIds,
   resolveFeaturedList,
-  subscribeFeaturedSettings,
   type FeaturedSettings,
   EMPTY_FEATURED,
-} from "@/lib/firestore/featured";
-import { useMockStore } from "@/lib/mock-store";
+} from "@/lib/featured-shared";
+import { useMockStore } from "@/lib/mock-store-context";
 import { PROPERTY_CATEGORIES } from "@/lib/property-taxonomy";
 import type { Property, PropertyCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -76,7 +73,8 @@ export function FeaturedGrid({
       return;
     }
     setLoadingPicks(true);
-    void fetchPropertiesByIds(ids)
+    void import("@/lib/firestore/featured")
+      .then(({ fetchPropertiesByIds }) => fetchPropertiesByIds(ids))
       .then((list) => {
         if (cancelled) return;
         const byId = new Map(list.map((property) => [property.id, property]));
@@ -119,20 +117,11 @@ export function FeaturedGrid({
 
   return (
     <div className="min-h-[28rem]">
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={category}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          {featured.map((property, index) => (
-            <PropertyCard key={property.id} property={property} priority={index < 2} />
-          ))}
-        </motion.div>
-      </AnimatePresence>
+      <div key={category} className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        {featured.map((property, index) => (
+          <PropertyCard key={property.id} property={property} priority={index < 2} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -148,28 +137,26 @@ export function FeaturedSection({
   initialSettings?: FeaturedSettings;
   initialFeaturedByCategory?: Record<PropertyCategory, Property[]>;
 }) {
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-  const y = useTransform(scrollYProgress, [0, 1], [0, 28]);
   const [settings, setSettings] = useState<FeaturedSettings>(
     () => initialSettings ?? { ...EMPTY_FEATURED },
   );
 
   useEffect(() => {
-    const unsub = subscribeFeaturedSettings(setSettings);
-    return () => unsub?.();
+    let unsub: (() => void) | null | undefined;
+    let cancelled = false;
+    void import("@/lib/firestore/featured").then(({ subscribeFeaturedSettings }) => {
+      if (cancelled) return;
+      unsub = subscribeFeaturedSettings(setSettings);
+    });
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
   }, []);
 
   return (
-    <section ref={ref} className="relative overflow-hidden py-20 sm:py-24">
-      <motion.div
-        style={{ y }}
-        className="pointer-events-none absolute inset-0"
-        aria-hidden
-      >
+    <section className="relative overflow-hidden py-20 sm:py-24">
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div
           className="absolute inset-0"
           style={{
@@ -184,7 +171,7 @@ export function FeaturedSection({
           height={520}
           className="absolute -right-16 bottom-0 h-64 w-64 object-contain opacity-[0.07] sm:h-80 sm:w-80"
         />
-      </motion.div>
+      </div>
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

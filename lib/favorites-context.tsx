@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -16,7 +14,9 @@ import {
   removeSavedProperty,
   subscribeUser,
 } from "@/lib/firestore/users";
-import { useMockAuth } from "@/lib/mock-auth";
+import { useMockAuth } from "@/lib/mock-auth-context";
+import { FavoritesContext } from "@/lib/favorites-hook";
+export { useFavorites } from "@/lib/favorites-hook";
 
 const SAVED_KEY = "bharwana_saved_properties";
 
@@ -34,15 +34,6 @@ function readAllSaved(): Record<string, string[]> {
 function writeAllSaved(map: Record<string, string[]>) {
   localStorage.setItem(SAVED_KEY, JSON.stringify(map));
 }
-
-interface FavoritesContextValue {
-  ids: string[];
-  isSaved: (propertyId: string) => boolean;
-  toggle: (propertyId: string) => boolean;
-  save: (propertyId: string) => void;
-}
-
-const FavoritesContext = createContext<FavoritesContextValue | undefined>(undefined);
 
 export function FavoritesProvider({ children }: { children: ReactNode }) {
   const { user, isReady } = useMockAuth();
@@ -136,12 +127,4 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({ ids, isSaved, toggle, save }), [ids, isSaved, toggle, save]);
 
   return <FavoritesContext.Provider value={value}>{children}</FavoritesContext.Provider>;
-}
-
-export function useFavorites() {
-  const context = useContext(FavoritesContext);
-  if (!context) {
-    throw new Error("useFavorites must be used within FavoritesProvider");
-  }
-  return context;
 }

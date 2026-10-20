@@ -9,44 +9,20 @@
  * to `users.role === ADMIN` via `resolveAdminAuthorization`.
  */
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User as FirebaseUser } from "firebase/auth";
-import { ALL_ADMIN_MODULES, type AdminModule, type AdminPanelRole } from "@/lib/admin/modules";
+import { ALL_ADMIN_MODULES, type AdminModule } from "@/lib/admin/modules";
+import { AdminAuthContext, type AdminSession } from "@/lib/admin-auth-context";
+export type { AdminSession } from "@/lib/admin-auth-context";
+export { useAdminAuth } from "@/lib/admin-auth-context";
 import { forceRefreshIdToken, noteAuthNetworkFailure } from "@/lib/firebase/auth-network";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { resolveAdminAuthorization } from "@/lib/firestore/admin-access";
-
-export interface AdminSession {
-  uid: string;
-  email: string;
-  fullName: string;
-  /** Legacy marketplace flag - always ADMIN for panel sessions. */
-  role: "ADMIN";
-  adminRole: AdminPanelRole;
-  permissions: AdminModule[];
-  avatarUrl?: string;
-}
-
-interface AdminAuthContextValue {
-  admin: AdminSession | null;
-  isAuthenticated: boolean;
-  isReady: boolean;
-  isSuperAdmin: boolean;
-  hasModule: (module: AdminModule) => boolean;
-  login: (email: string, password: string) => Promise<{ ok: true } | { ok: false; error: string }>;
-  logout: () => void;
-  refreshSession: () => Promise<void>;
-  getIdToken: () => Promise<string | null>;
-}
-
-const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefined);
 
 const NOT_ADMIN_ERROR = "This account does not have admin access.";
 const INACTIVE_ERROR = "This staff account has been deactivated.";
@@ -298,12 +274,4 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   );
 
   return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>;
-}
-
-export function useAdminAuth() {
-  const context = useContext(AdminAuthContext);
-  if (!context) {
-    throw new Error("useAdminAuth must be used within AdminAuthProvider");
-  }
-  return context;
 }
