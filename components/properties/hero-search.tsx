@@ -330,7 +330,15 @@ export function HeroSearch({
         <div className="grid gap-0 border-b border-forest/10 lg:grid-cols-[0.9fr_1.4fr_0.9fr]">
           <div className="flex items-center gap-2 border-b border-forest/10 px-4 py-3 lg:border-b-0 lg:border-r">
             <MapPin className="h-4 w-4 shrink-0 text-forest" />
-            <Select value={city} onValueChange={setCity}>
+            <Select
+              value={city}
+              onValueChange={(next) => {
+                setCity(next);
+                // Changing city clears prior place coords (and suggestions via PlaceSearchInput).
+                setPlaceLat(null);
+                setPlaceLng(null);
+              }}
+            >
               <SelectTrigger className="h-11 border-0 bg-transparent text-forest shadow-none focus:ring-0 data-[placeholder]:text-forest">
                 <SelectValue placeholder="Pakistan" />
               </SelectTrigger>
@@ -358,7 +366,9 @@ export function HeroSearch({
                 setQuery(result.label ?? "");
                 setPlaceLat(result.latitude);
                 setPlaceLng(result.longitude);
+                if (result.city) setCity(result.city);
               }}
+              onCityDetected={(detected) => setCity(detected)}
               onQueryChange={(next) => {
                 setQuery(next);
                 // Typing freely clears a prior place pin until they pick again.

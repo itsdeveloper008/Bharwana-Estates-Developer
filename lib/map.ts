@@ -125,6 +125,61 @@ export const CITY_COORDS: Record<string, { latitude: number; longitude: number; 
   Multan: { latitude: 30.1575, longitude: 71.5249, zoom: 11.4 },
 };
 
+/** Hard search scope rectangles [south, west, north, east] in degrees. */
+export type CityBoundsLiteral = {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+};
+
+const CITY_BOUNDS_OVERRIDE: Partial<Record<string, CityBoundsLiteral>> = {
+  // Multan metro — explicit so DHA Sector M Lahore cannot win under Multan scope.
+  Multan: { south: 29.95, west: 71.3, north: 30.35, east: 71.75 },
+};
+
+/** ±0.2° around city center when no override is defined. */
+const CITY_BOUNDS_PAD_DEG = 0.2;
+
+export function cityBoundsLiteral(city: string): CityBoundsLiteral | null {
+  const override = CITY_BOUNDS_OVERRIDE[city];
+  if (override) return override;
+  const center = CITY_COORDS[city];
+  if (!center) return null;
+  return {
+    south: center.latitude - CITY_BOUNDS_PAD_DEG,
+    west: center.longitude - CITY_BOUNDS_PAD_DEG,
+    north: center.latitude + CITY_BOUNDS_PAD_DEG,
+    east: center.longitude + CITY_BOUNDS_PAD_DEG,
+  };
+}
+
+export function pointInCityBounds(lat: number, lng: number, city: string): boolean {
+  const b = cityBoundsLiteral(city);
+  if (!b) return true;
+  return lat >= b.south && lat <= b.north && lng >= b.west && lng <= b.east;
+}
+
+/** Append city for Geocoder retries: `"DHA Sector M, Multan"`. */
+export function formatScopedAddress(text: string, city: string | null | undefined): string {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  if (!city || city === "ALL") return trimmed;
+  const lower = trimmed.toLowerCase();
+  if (lower.includes(city.toLowerCase())) return trimmed;
+  return `${trimmed}, ${city}`;
+}
+
+/** Match a Google locality string to one of our city keys. */
+export function matchKnownCity(raw: string | null | undefined): string | null {
+  if (!raw?.trim()) return null;
+  const lower = raw.trim().toLowerCase();
+  for (const name of Object.keys(CITY_COORDS)) {
+    if (lower === name.toLowerCase() || lower.includes(name.toLowerCase())) return name;
+  }
+  return null;
+}
+
 /** [west, south, east, north] */
 export function boundsFromProperties(
   properties: Pick<Property, "latitude" | "longitude">[],

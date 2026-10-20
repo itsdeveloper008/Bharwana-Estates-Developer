@@ -188,6 +188,9 @@ export interface PropertyFilters {
   minArea?: number;
   maxArea?: number;
   bounds?: MapBounds;
+  /** Chosen place pin — list/map stay aligned when present. */
+  nearLat?: number;
+  nearLng?: number;
 }
 
 export const CITIES = [

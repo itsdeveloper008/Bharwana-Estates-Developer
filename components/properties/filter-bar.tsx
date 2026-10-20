@@ -46,15 +46,15 @@ function LocationQueryField({
     q: string | null;
     lat?: number | null;
     lng?: number | null;
+    city?: string | null;
   }) => void;
 }) {
   return (
     <>
       <Search className="h-4 w-4 shrink-0 text-forest/50" />
       <PlaceSearchInput
-        // Remount when URL q changes (e.g. landing → /properties) so the field
-        // shows the hand-off text but typing still opens suggestions immediately.
-        key={`place-q:${value}`}
+        // Remount when URL q or city scope changes so suggestions/coords reset.
+        key={`place-q:${cityScope}:${value}`}
         defaultValue={value}
         cityScope={cityScope}
         hideLeadingIcon
@@ -67,8 +67,10 @@ function LocationQueryField({
             q: result.label ?? null,
             lat: result.latitude,
             lng: result.longitude,
+            city: result.city ?? null,
           });
         }}
+        onCityDetected={(detected) => onApply({ q: value || null, city: detected })}
         onQueryChange={(next) => {
           if (!next.trim()) onApply({ q: null, lat: null, lng: null });
         }}
@@ -164,7 +166,17 @@ function FiltersForm({ compact }: { compact?: boolean }) {
         <div className="grid gap-0 border-b border-forest/10 lg:grid-cols-[0.9fr_1.4fr_0.9fr]">
           <div className="flex items-center gap-2 border-b border-forest/10 px-3 py-2 lg:border-b-0 lg:border-r">
             <MapPin className="h-4 w-4 shrink-0 text-forest" />
-            <Select value={city} onValueChange={(value) => patch({ city: value })}>
+            <Select
+              value={city}
+              onValueChange={(value) =>
+                patch({
+                  city: value,
+                  // New city scope invalidates prior place coordinates.
+                  lat: null,
+                  lng: null,
+                })
+              }
+            >
               <SelectTrigger className="h-10 border-0 bg-transparent shadow-none focus:ring-0">
                 <SelectValue placeholder="Pakistan" />
               </SelectTrigger>
@@ -182,11 +194,12 @@ function FiltersForm({ compact }: { compact?: boolean }) {
             <LocationQueryField
               value={query}
               cityScope={city}
-              onApply={({ q, lat, lng }) =>
+              onApply={({ q, lat, lng, city: detectedCity }) =>
                 patch({
                   q,
                   lat: lat != null && Number.isFinite(lat) ? String(lat) : null,
                   lng: lng != null && Number.isFinite(lng) ? String(lng) : null,
+                  ...(detectedCity ? { city: detectedCity } : {}),
                 })
               }
             />

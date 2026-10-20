@@ -4,7 +4,16 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom";
 import { Loader2, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { CITY_COORDS, hasGoogleMapsKey, loadGoogleMapsScript } from "@/lib/map";
+import {
+  CITY_COORDS,
+  cityBoundsLiteral,
+  formatScopedAddress,
+  hasGoogleMapsKey,
+  loadGoogleMapsScript,
+  matchKnownCity,
+  pointInCityBounds,
+  type CityBoundsLiteral,
+} from "@/lib/map";
 import { useMockStore } from "@/lib/mock-store";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +21,9 @@ export type PlaceSearchResult = {
   latitude: number;
   longitude: number;
   label?: string;
+  /** Detected city when scope is Pakistan-wide. */
+  city?: string;
+  viewport?: CityBoundsLiteral;
 };
 
 const fieldClass =
@@ -19,8 +31,82 @@ const fieldClass =
 
 const DEBOUNCE_MS = 150;
 const MAX_RESULTS = 10;
-/** ~30 km around a selected city. */
-const CITY_RADIUS_M = 30_000;
+
+function logPlaceSearch(message: string, data?: Record<string, unknown>) {
+  if (process.env.NODE_ENV !== "development") return;
+  console.info(`[PlaceSearch] ${message}`, data ?? "");
+}
+
+function toLatLngBounds(bounds: CityBoundsLiteral): google.maps.LatLngBounds {
+  return new google.maps.LatLngBounds(
+    { lat: bounds.south, lng: bounds.west },
+    { lat: bounds.north, lng: bounds.east },
+  );
+}
+
+function cityFromAddressComponents(
+  components: google.maps.GeocoderAddressComponent[] | undefined,
+  formatted?: string,
+): string | null {
+  if (components?.length) {
+    for (const component of components) {
+      const types = component.types ?? [];
+      if (
+        types.includes("locality") ||
+        types.includes("administrative_area_level_2") ||
+        types.includes("administrative_area_level_3")
+      ) {
+        const hit = matchKnownCity(component.long_name) ?? matchKnownCity(component.short_name);
+        if (hit) return hit;
+      }
+    }
+  }
+  return matchKnownCity(formatted ?? null);
+}
+
+function fetchPlaceDetails(placeId: string): Promise<{
+  lat: number;
+  lng: number;
+  city: string | null;
+  viewport?: CityBoundsLiteral;
+} | null> {
+  return new Promise((resolve) => {
+    const places = window.google?.maps?.places;
+    if (!places?.PlacesService) {
+      resolve(null);
+      return;
+    }
+    const anchor = document.createElement("div");
+    const service = new places.PlacesService(anchor);
+    service.getDetails(
+      {
+        placeId,
+        fields: ["geometry", "address_components", "formatted_address", "name"],
+      },
+      (place, status) => {
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !place?.geometry?.location) {
+          resolve(null);
+          return;
+        }
+        const loc = place.geometry.location;
+        const vp = place.geometry.viewport;
+        resolve({
+          lat: loc.lat(),
+          lng: loc.lng(),
+          city: cityFromAddressComponents(place.address_components, place.formatted_address),
+          viewport: vp
+            ? {
+                south: vp.getSouthWest().lat(),
+                west: vp.getSouthWest().lng(),
+                north: vp.getNorthEast().lat(),
+                east: vp.getNorthEast().lng(),
+              }
+            : undefined,
+        });
+      },
+    );
+  });
+}
 
 type Prediction = {
   placeId?: string;
@@ -168,6 +254,7 @@ function HighlightMatch({ text, query }: { text: string; query: string }) {
 export function PlaceSearchInput({
   onPlaceSelected,
   onQueryChange,
+  onCityDetected,
   cityScope = "ALL",
   placeholder = "Search by location",
   className,
@@ -179,7 +266,9 @@ export function PlaceSearchInput({
 }: {
   onPlaceSelected: (result: PlaceSearchResult) => void;
   onQueryChange?: (query: string) => void;
-  /** "ALL" / empty = Pakistan-wide; otherwise bias + prefer that city (e.g. "Multan"). */
+  /** When Pakistan-wide, sync the city dropdown to the picked place's city. */
+  onCityDetected?: (city: string) => void;
+  /** "ALL" / empty = Pakistan-wide; otherwise hard-restrict to that city's bounds. */
   cityScope?: string;
   placeholder?: string;
   className?: string;
@@ -419,15 +508,17 @@ export function PlaceSearchInput({
         sessionToken: token,
       };
 
-      if (scope !== "ALL" && CITY_COORDS[scope]) {
-        const center = new google.maps.LatLng(
-          CITY_COORDS[scope].latitude,
-          CITY_COORDS[scope].longitude,
-        );
-        // Bias (~30 km); city-name filter below drops out-of-city rows (e.g. DHA Lahore).
-        request.location = center;
-        request.radius = CITY_RADIUS_M;
+      const scopeBounds = scope !== "ALL" ? cityBoundsLiteral(scope) : null;
+      if (scopeBounds) {
+        // Hard rectangle — not soft radius bias (prevents DHA Sector M → Lahore).
+        request.locationRestriction = scopeBounds;
       }
+
+      logPlaceSearch("autocomplete.request", {
+        input: trimmed,
+        scope,
+        locationRestriction: scopeBounds,
+      });
 
       try {
         const rawResults = await getPlacePredictions(service, request);
@@ -435,6 +526,11 @@ export function PlaceSearchInput({
 
         const googleMapped = mapGoogleResults(rawResults, scope);
         const merged = mergePredictions(locals, googleMapped, MAX_RESULTS);
+        logPlaceSearch("autocomplete.response", {
+          raw: rawResults.length,
+          kept: googleMapped.length,
+          merged: merged.length,
+        });
         predictionCache.set(key, merged);
         setPredictions(merged);
         setHighlight(-1);
@@ -522,12 +618,36 @@ export function PlaceSearchInput({
     setLoadingPredictions(false);
   }, []);
 
+  const emitPlace = useCallback(
+    (result: PlaceSearchResult) => {
+      if (scope !== "ALL" && !pointInCityBounds(result.latitude, result.longitude, scope)) {
+        setError(`No match for that address in ${scope}`);
+        logPlaceSearch("reject.out_of_scope", {
+          scope,
+          lat: result.latitude,
+          lng: result.longitude,
+        });
+        return;
+      }
+      if (result.city && scope === "ALL") {
+        onCityDetected?.(result.city);
+      } else if (result.city && scope !== "ALL" && result.city !== scope) {
+        // Scoped search must not switch cities silently.
+        setError(`No match for that address in ${scope}`);
+        return;
+      }
+      setError(null);
+      onPlaceSelected(result);
+    },
+    [onCityDetected, onPlaceSelected, scope],
+  );
+
   const selectPrediction = useCallback(
     async (prediction: Prediction) => {
-      // Selection is final: visible text = suggestion main text only (never geocoded address).
+      // Visible text stays exactly as picked — resolve geometry by place_id only.
       justSelectedRef.current = true;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
-      requestIdRef.current += 1; // discard in-flight Google responses
+      requestIdRef.current += 1;
       setQuery(prediction.primary);
       onQueryChange?.(prediction.primary);
       closeMenu();
@@ -540,32 +660,48 @@ export function PlaceSearchInput({
         Number.isFinite(prediction.latitude) &&
         Number.isFinite(prediction.longitude)
       ) {
-        onPlaceSelected({
+        const city =
+          matchKnownCity(prediction.secondary) ??
+          (scope !== "ALL" ? scope : matchKnownCity(prediction.primary));
+        logPlaceSearch("select.local", {
+          label: prediction.primary,
+          lat: prediction.latitude,
+          lng: prediction.longitude,
+          city,
+        });
+        emitPlace({
           latitude: prediction.latitude,
           longitude: prediction.longitude,
           label: prediction.primary,
+          city: city ?? undefined,
         });
         return;
       }
 
-      if (!prediction.placeId || !window.google?.maps?.Geocoder) {
+      if (!prediction.placeId) {
+        setError(`No results found for “${prediction.primary}”.`);
         return;
       }
 
       setPending(true);
       try {
-        const geocoder = new google.maps.Geocoder();
-        const response = await geocoder.geocode({ placeId: prediction.placeId });
-        const loc = response.results?.[0]?.geometry?.location;
-        if (!loc) {
+        const details = await fetchPlaceDetails(prediction.placeId);
+        logPlaceSearch("select.place_id", {
+          placeId: prediction.placeId,
+          label: prediction.primary,
+          details,
+          scope,
+        });
+        if (!details) {
           setError(`No results found for “${prediction.primary}”.`);
           return;
         }
-        // Keep input as prediction.primary — coords only for map/filter.
-        onPlaceSelected({
-          latitude: loc.lat(),
-          longitude: loc.lng(),
+        emitPlace({
+          latitude: details.lat,
+          longitude: details.lng,
           label: prediction.primary,
+          city: details.city ?? undefined,
+          viewport: details.viewport,
         });
       } catch {
         setError(`No results found for “${prediction.primary}”.`);
@@ -573,7 +709,42 @@ export function PlaceSearchInput({
         setPending(false);
       }
     },
-    [closeMenu, onPlaceSelected, onQueryChange, refreshSessionToken],
+    [closeMenu, emitPlace, onQueryChange, refreshSessionToken, scope],
+  );
+
+  const geocodeScoped = useCallback(
+    async (address: string, useCityBounds: boolean) => {
+      const geocoder = new google.maps.Geocoder();
+      const request: google.maps.GeocoderRequest = {
+        address,
+        region: "pk",
+        componentRestrictions: { country: "PK" },
+      };
+      const scopeBounds = useCityBounds && scope !== "ALL" ? cityBoundsLiteral(scope) : null;
+      if (scopeBounds) {
+        request.bounds = toLatLngBounds(scopeBounds);
+      }
+      logPlaceSearch("geocode.request", { address, scope, bounds: scopeBounds });
+      const response = await geocoder.geocode(request);
+      const first = response.results?.[0];
+      const loc = first?.geometry?.location;
+      if (!loc || !first) return null;
+      const vp = first.geometry.viewport;
+      return {
+        lat: loc.lat(),
+        lng: loc.lng(),
+        city: cityFromAddressComponents(first.address_components, first.formatted_address),
+        viewport: vp
+          ? {
+              south: vp.getSouthWest().lat(),
+              west: vp.getSouthWest().lng(),
+              north: vp.getNorthEast().lat(),
+              east: vp.getNorthEast().lng(),
+            }
+          : undefined,
+      };
+    },
+    [scope],
   );
 
   const applyPlainText = useCallback(
@@ -584,43 +755,53 @@ export function PlaceSearchInput({
       closeMenu();
       if (!trimmed) return;
 
-      // Keep typed text; geocode only for map centering when Maps is available.
+      // Keep typed text visible; do not rewrite the input from Geocoder labels.
+      setQuery(trimmed);
+      onQueryChange?.(trimmed);
+
       if (!window.google?.maps?.Geocoder) {
-        onQueryChange?.(trimmed);
         return;
       }
       setPending(true);
       setError(null);
       try {
-        const geocoder = new google.maps.Geocoder();
-        const request: google.maps.GeocoderRequest = {
-          address: trimmed,
-          componentRestrictions: { country: "PK" },
-        };
-        if (scope !== "ALL" && CITY_COORDS[scope]) {
-          request.bounds = new google.maps.Circle({
-            center: {
-              lat: CITY_COORDS[scope].latitude,
-              lng: CITY_COORDS[scope].longitude,
-            },
-            radius: CITY_RADIUS_M,
-          }).getBounds()!;
+        let hit = await geocodeScoped(trimmed, true);
+        if (hit && scope !== "ALL" && !pointInCityBounds(hit.lat, hit.lng, scope)) {
+          hit = null;
         }
-        const response = await geocoder.geocode(request);
-        const loc = response.results?.[0]?.geometry?.location;
-        if (!loc) return;
-        onPlaceSelected({
-          latitude: loc.lat(),
-          longitude: loc.lng(),
+        if (!hit && scope !== "ALL") {
+          const retryAddress = formatScopedAddress(trimmed, scope);
+          hit = await geocodeScoped(retryAddress, true);
+          if (hit && !pointInCityBounds(hit.lat, hit.lng, scope)) {
+            hit = null;
+          }
+        }
+        if (!hit) {
+          if (scope !== "ALL") {
+            setError(`No match for that address in ${scope}`);
+          } else {
+            setError(`No results found for “${trimmed}”.`);
+          }
+          logPlaceSearch("geocode.miss", { trimmed, scope });
+          return;
+        }
+        logPlaceSearch("geocode.hit", { trimmed, scope, hit });
+        emitPlace({
+          latitude: hit.lat,
+          longitude: hit.lng,
           label: trimmed,
+          city: hit.city ?? undefined,
+          viewport: hit.viewport,
         });
       } catch {
-        // Plain text filter still stands via onQueryChange from typing.
+        if (scope !== "ALL") {
+          setError(`No match for that address in ${scope}`);
+        }
       } finally {
         setPending(false);
       }
     },
-    [closeMenu, onPlaceSelected, onQueryChange, scope],
+    [closeMenu, emitPlace, geocodeScoped, onQueryChange, scope],
   );
 
   function onEnterOrSearch() {

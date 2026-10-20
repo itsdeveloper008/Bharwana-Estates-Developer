@@ -30,6 +30,8 @@ export function filtersFromSearchParams(
   // so Sell and Rent listings never mix when browsing /properties or /map.
   const purpose: ListingPurpose =
     intent === "rental" || intent === "rent" ? "RENT" : "SALE";
+  const nearLat = get("lat");
+  const nearLng = get("lng");
   return {
     query: get("q") || undefined,
     city: get("city") || undefined,
@@ -49,7 +51,22 @@ export function filtersFromSearchParams(
     bathrooms: bathrooms ? Number(bathrooms) : undefined,
     minArea: minArea ? Number(minArea) : undefined,
     maxArea: maxArea ? Number(maxArea) : undefined,
+    nearLat: nearLat && Number.isFinite(Number(nearLat)) ? Number(nearLat) : undefined,
+    nearLng: nearLng && Number.isFinite(Number(nearLng)) ? Number(nearLng) : undefined,
   };
+}
+
+/** Approximate km between two WGS84 points (for place-scoped listing filters). */
+function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const lat1 = toRad(aLat);
+  const lat2 = toRad(bLat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
 const PUBLIC_STATUSES: Property["status"][] = ["PUBLISHED", "RESERVED"];
@@ -63,10 +80,26 @@ export function filterProperties(
     if (!options.includeUnlisted && !PUBLIC_STATUSES.includes(property.status)) {
       return false;
     }
-    if (filters.query) {
-      const q = filters.query.toLowerCase();
-      const haystack = `${property.title} ${property.address} ${property.city} ${property.description}`.toLowerCase();
-      if (!haystack.includes(q)) return false;
+    const haystack =
+      `${property.title} ${property.address} ${property.city} ${property.description}`.toLowerCase();
+    const q = filters.query?.toLowerCase();
+    const textMatch = q ? haystack.includes(q) : false;
+    const hasNear =
+      filters.nearLat != null &&
+      filters.nearLng != null &&
+      Number.isFinite(filters.nearLat) &&
+      Number.isFinite(filters.nearLng);
+    if (hasNear) {
+      const nearKm = distanceKm(
+        filters.nearLat!,
+        filters.nearLng!,
+        property.latitude,
+        property.longitude,
+      );
+      // Place pin scope (~4 km) or text match — pins, list, and count stay aligned.
+      if (nearKm > 4 && !textMatch) return false;
+    } else if (q && !textMatch) {
+      return false;
     }
     if (filters.city && property.city !== filters.city) return false;
     if (filters.listingType && filters.listingType !== "ALL" && property.listingType !== filters.listingType) {

@@ -17,8 +17,10 @@ import {
   GOOGLE_MAPS_JS_API_LOADER_PROPS,
   PLACE_SEARCH_ZOOM,
   boundsFromProperties,
+  cityBoundsLiteral,
   googleBoundsTuple,
   hasGoogleMapsKey,
+  pointInCityBounds,
   warnMissingMapKeys,
 } from "@/lib/map";
 import type { MapBounds, Property } from "@/lib/types";
@@ -300,6 +302,21 @@ export function MapView({
     mapRef.current.setZoom(Math.max(z, 16));
   }, [focusId, focusKey, byId, setSelectedId]);
 
+  // URL lat/lng from hero or /properties — keep map marker aligned with list filters.
+  useEffect(() => {
+    if (!styleLoaded || !mapRef.current) return;
+    const lat = Number(searchParams.get("lat"));
+    const lng = Number(searchParams.get("lng"));
+    const q = searchParams.get("q")?.trim() || undefined;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const scopeCity = city && city !== "ALL" ? city : undefined;
+    if (scopeCity && !pointInCityBounds(lat, lng, scopeCity)) return;
+    setSearchMarker({ latitude: lat, longitude: lng, label: q });
+    mapRef.current.panTo({ lat, lng });
+    const z = mapRef.current.getZoom() ?? PLACE_SEARCH_ZOOM;
+    if (z < PLACE_SEARCH_ZOOM - 0.5) mapRef.current.setZoom(PLACE_SEARCH_ZOOM);
+  }, [searchParams, styleLoaded, city]);
+
   useEffect(() => {
     return () => {
       if (dirtyTimer.current) clearTimeout(dirtyTimer.current);
@@ -476,12 +493,56 @@ export function MapView({
             cityScope={city && city !== "ALL" ? city : "ALL"}
             inputClassName="bg-ivory/95 shadow-lift"
             onPlaceSelected={(result) => {
+              const scopeCity = city && city !== "ALL" ? city : result.city;
+              if (
+                scopeCity &&
+                scopeCity !== "ALL" &&
+                !pointInCityBounds(result.latitude, result.longitude, scopeCity)
+              ) {
+                return;
+              }
               setSearchMarker(result);
               const map = mapRef.current;
-              if (!map) return;
+              if (!map || !window.google) return;
               userMoved.current = true;
-              map.panTo({ lat: result.latitude, lng: result.longitude });
-              map.setZoom(PLACE_SEARCH_ZOOM);
+              if (result.viewport) {
+                const placeBounds = new google.maps.LatLngBounds(
+                  { lat: result.viewport.south, lng: result.viewport.west },
+                  { lat: result.viewport.north, lng: result.viewport.east },
+                );
+                const cityBox = scopeCity ? cityBoundsLiteral(scopeCity) : null;
+                if (cityBox) {
+                  const cityBounds = new google.maps.LatLngBounds(
+                    { lat: cityBox.south, lng: cityBox.west },
+                    { lat: cityBox.north, lng: cityBox.east },
+                  );
+                  // Never zoom out past the selected city.
+                  const clamped = new google.maps.LatLngBounds();
+                  const sw = placeBounds.getSouthWest();
+                  const ne = placeBounds.getNorthEast();
+                  clamped.extend({
+                    lat: Math.max(sw.lat(), cityBox.south),
+                    lng: Math.max(sw.lng(), cityBox.west),
+                  });
+                  clamped.extend({
+                    lat: Math.min(ne.lat(), cityBox.north),
+                    lng: Math.min(ne.lng(), cityBox.east),
+                  });
+                  if (!clamped.isEmpty() && cityBounds.contains(clamped.getCenter())) {
+                    map.fitBounds(clamped, 48);
+                  } else {
+                    map.panTo({ lat: result.latitude, lng: result.longitude });
+                    map.setZoom(PLACE_SEARCH_ZOOM);
+                  }
+                } else {
+                  map.fitBounds(placeBounds, 48);
+                }
+                const z = map.getZoom();
+                if (typeof z === "number" && z > 17) map.setZoom(17);
+              } else {
+                map.panTo({ lat: result.latitude, lng: result.longitude });
+                map.setZoom(PLACE_SEARCH_ZOOM);
+              }
             }}
             onQueryChange={(query) => {
               if (!query.trim()) setSearchMarker(null);
