@@ -45,13 +45,16 @@ function fallbackPublished(
 export function FeaturedGrid({
   category,
   settings,
+  initialFeatured,
 }: {
   category: PropertyCategory;
   settings: FeaturedSettings;
+  /** SSR featured list for first paint / crawlers. */
+  initialFeatured?: Property[];
 }) {
   const { properties, propertiesLoading } = useMockStore();
-  const [picked, setPicked] = useState<Property[]>([]);
-  const [loadingPicks, setLoadingPicks] = useState(true);
+  const [picked, setPicked] = useState<Property[]>(() => initialFeatured ?? []);
+  const [loadingPicks, setLoadingPicks] = useState(() => !(initialFeatured && initialFeatured.length > 0));
 
   const idsKey = settings[categoryToFeaturedKey(category)].join("|");
   const ids = useMemo(
@@ -132,9 +135,13 @@ export function FeaturedGrid({
 export function FeaturedSection({
   category,
   onCategoryChange,
+  initialSettings,
+  initialFeaturedByCategory,
 }: {
   category: PropertyCategory;
   onCategoryChange: (next: PropertyCategory) => void;
+  initialSettings?: FeaturedSettings;
+  initialFeaturedByCategory?: Record<PropertyCategory, Property[]>;
 }) {
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
@@ -142,7 +149,9 @@ export function FeaturedSection({
     offset: ["start end", "end start"],
   });
   const y = useTransform(scrollYProgress, [0, 1], [0, 28]);
-  const [settings, setSettings] = useState<FeaturedSettings>({ ...EMPTY_FEATURED });
+  const [settings, setSettings] = useState<FeaturedSettings>(
+    () => initialSettings ?? { ...EMPTY_FEATURED },
+  );
 
   useEffect(() => {
     const unsub = subscribeFeaturedSettings(setSettings);
@@ -198,7 +207,11 @@ export function FeaturedSection({
             ))}
           </div>
         </div>
-        <FeaturedGrid category={category} settings={settings} />
+        <FeaturedGrid
+          category={category}
+          settings={settings}
+          initialFeatured={initialFeaturedByCategory?.[category]}
+        />
         <div className="mt-10 flex justify-center pb-2 sm:mt-12">
           <Button asChild className="rounded-full px-8">
             <Link href={viewAllHref(category)}>View All Properties</Link>

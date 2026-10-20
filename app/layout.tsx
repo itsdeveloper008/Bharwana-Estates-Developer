@@ -1,6 +1,21 @@
 import type { Metadata, Viewport } from "next";
+import { Cormorant_Garamond, Source_Sans_3 } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { absoluteUrl, DEFAULT_OG_IMAGE, SITE_NAME, SITE_ORIGIN } from "@/lib/seo/site";
 import "./globals.css";
+
+const sans = Source_Sans_3({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sans",
+});
+
+const serif = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-serif",
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -9,25 +24,29 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  applicationName: "Bharwana Estates",
+  metadataBase: new URL(SITE_ORIGIN),
+  applicationName: SITE_NAME,
   title: {
-    default: "Bharwana Estates",
-    template: "%s · Bharwana Estates",
+    default: SITE_NAME,
+    template: `%s | ${SITE_NAME}`,
   },
   description:
-    "A considered marketplace for private homes and Dealer-verified residences across Pakistan.",
+    "A considered marketplace for private homes and Dealer-verified residences across Multan and Pakistan.",
   openGraph: {
     type: "website",
-    siteName: "Bharwana Estates",
-    title: "Bharwana Estates",
+    locale: "en_PK",
+    siteName: SITE_NAME,
+    title: SITE_NAME,
     description:
-      "A considered marketplace for private homes and Dealer-verified residences across Pakistan.",
+      "A considered marketplace for private homes and Dealer-verified residences across Multan and Pakistan.",
+    images: [{ url: absoluteUrl(DEFAULT_OG_IMAGE), width: 1200, height: 630, alt: SITE_NAME }],
   },
   twitter: {
-    card: "summary",
-    title: "Bharwana Estates",
+    card: "summary_large_image",
+    title: SITE_NAME,
     description:
-      "A considered marketplace for private homes and Dealer-verified residences across Pakistan.",
+      "A considered marketplace for private homes and Dealer-verified residences across Multan and Pakistan.",
+    images: [absoluteUrl(DEFAULT_OG_IMAGE)],
   },
   icons: {
     icon: [
@@ -46,7 +65,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en-PK" className={`${sans.variable} ${serif.variable}`}>
       <head>
         <link rel="preconnect" href="https://maps.googleapis.com" />
         <link rel="preconnect" href="https://maps.gstatic.com" crossOrigin="anonymous" />

@@ -3,6 +3,7 @@
 import { Check, Copy, Share2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { propertyPath } from "@/lib/seo/slug";
 import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +22,7 @@ export function PropertyShareButton({ property, className }: { property: Propert
 
   function shareUrl() {
     if (typeof window === "undefined") return "";
-    return `${window.location.origin}/property/${property.id}`;
+    return `${window.location.origin}${propertyPath(property)}`;
   }
 
   function shareText() {

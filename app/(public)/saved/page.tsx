@@ -3,6 +3,7 @@ import { SavedPropertiesPage } from "@/components/properties/saved-properties-pa
 export const metadata = {
   title: "Saved Residences",
   description: "Your private shortlist of Bharwana residences.",
+  robots: { index: false, follow: false },
 };
 
 export default function SavedPage() {

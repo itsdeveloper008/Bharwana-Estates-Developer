@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 import {
   AuthBrandPanel,
@@ -6,6 +7,10 @@ import {
   AuthGuestGate,
 } from "@/components/auth/auth-shell";
 import { FirebaseConfigBanner } from "@/components/firebase/firebase-config-banner";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (

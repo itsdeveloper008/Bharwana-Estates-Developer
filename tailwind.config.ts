@@ -64,10 +64,9 @@ const config: Config = {
         ring: "hsl(var(--ring))",
       },
       fontFamily: {
-        /** Site-wide: simple Arial (no Arial Black). */
-        sans: ["Arial", "Helvetica", "sans-serif"],
-        serif: ["Arial", "Helvetica", "sans-serif"],
-        display: ["Arial", "Helvetica", "sans-serif"],
+        sans: ["var(--font-sans)", "Arial", "Helvetica", "sans-serif"],
+        serif: ["var(--font-serif)", "Georgia", "serif"],
+        display: ["var(--font-serif)", "Georgia", "serif"],
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -3,6 +3,7 @@ import { MapExplorer } from "@/components/map/map-explorer";
 
 export const metadata = {
   title: "Map",
+  robots: { index: false, follow: true },
 };
 
 export default function MapPage() {

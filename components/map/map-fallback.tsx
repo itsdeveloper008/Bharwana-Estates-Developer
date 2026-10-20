@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatPrice, listingBadge } from "@/lib/format";
 import { propertyHighlightDisplay } from "@/lib/property-features";
 import { propertyCoverImage } from "@/lib/property-images";
+import { propertyPath } from "@/lib/seo/slug";
 import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,7 @@ export function MapPreviewCard({
   property: Property;
   onClose?: () => void;
 }) {
-  const href = `/property/${property.id}`;
+  const href = propertyPath(property);
   const image = propertyCoverImage(property.images) ?? "";
   const highlights = propertyHighlightDisplay(property).filter((item) => item.key !== "price");
   const tags = property.featureTags ?? [];
