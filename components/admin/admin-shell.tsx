@@ -362,25 +362,27 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </SheetTrigger>
               <SheetContent
                 side="left"
-                className="admin-shell w-[280px] border-r-0 bg-[var(--admin-sidebar-bg)] p-0 text-[#F1EBD9] [&>button]:text-[#D4AF37] [&>button]:hover:text-[#D4AF37]"
+                className="admin-shell flex h-full w-[min(280px,100vw)] flex-col border-r-0 bg-[var(--admin-sidebar-bg)] p-0 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] text-[#F1EBD9] [&>button]:text-[#D4AF37] [&>button]:hover:text-[#D4AF37]"
               >
-                <SheetHeader className="border-b border-[rgba(201,162,75,0.15)] px-5 py-4 text-left">
+                <SheetHeader className="shrink-0 border-b border-[rgba(201,162,75,0.15)] px-5 py-4 text-left">
                   <SheetTitle className="sr-only">Admin navigation</SheetTitle>
                   <AdminBrand />
                 </SheetHeader>
-                <div className="px-3 py-4">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4">
                   <NavLinks onNavigate={() => setOpen(false)} />
                 </div>
-                <SidebarFooter
-                  onViewWebsite={() => {
-                    setOpen(false);
-                    handleViewWebsite();
-                  }}
-                  onSignOut={() => {
-                    setOpen(false);
-                    handleSignOut();
-                  }}
-                />
+                <div className="shrink-0">
+                  <SidebarFooter
+                    onViewWebsite={() => {
+                      setOpen(false);
+                      handleViewWebsite();
+                    }}
+                    onSignOut={() => {
+                      setOpen(false);
+                      handleSignOut();
+                    }}
+                  />
+                </div>
               </SheetContent>
             </Sheet>
           </header>

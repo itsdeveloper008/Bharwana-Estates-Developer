@@ -76,6 +76,15 @@
     overflow-x: clip;
   }
 
+  /* iOS: avoid 16px→zoom on focused form controls; keep desktop density via md: */
+  @media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea {
+      font-size: 1rem;
+    }
+  }
+
   h1 {
     @apply font-serif font-normal tracking-tight text-forest;
   }

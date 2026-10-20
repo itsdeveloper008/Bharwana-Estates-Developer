@@ -632,7 +632,7 @@ export function MapView({
       )}
 
       {/* Bottom-left — clear of Google +/- (RIGHT_CENTER) and attribution strip */}
-      <div className="pointer-events-none absolute bottom-6 left-3 z-20 flex max-w-[calc(100%-5.5rem)] flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-ivory/95 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-forest shadow-lift">
+      <div className="pointer-events-none absolute bottom-[max(1.5rem,env(safe-area-inset-bottom,0px))] left-[max(0.75rem,env(safe-area-inset-left,0px))] z-20 flex max-w-[calc(100%-5.5rem)] flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-ivory/95 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-forest shadow-lift">
         <span className="inline-flex items-center gap-1.5">
           <MapPinLegendSwatch variant="owner" />
           Owner

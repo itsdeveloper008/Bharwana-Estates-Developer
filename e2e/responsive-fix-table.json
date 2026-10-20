@@ -1,0 +1,72 @@
+{
+  "matrix": {
+    "viewports": ["360x640", "390x844", "430x932", "844x390", "768x1024", "1024x768", "1280x720", "1440x900", "1920x1080"],
+    "pages": ["/", "/properties", "/map", "/about", "/faq", "/team", "/login", "/saved", "/properties-in-multan"],
+    "result": "82 passed (9 viewports × 9 pages + touch-target soft check)",
+    "screenshots": ".responsive-shots/ (gitignored)"
+  },
+  "fixed": [
+    {
+      "item": "Primary/icon button hit targets ≥44px on mobile",
+      "files": ["components/ui/button.tsx"],
+      "status": "fixed"
+    },
+    {
+      "item": "Select trigger text-base + 44px height on mobile",
+      "files": ["components/ui/select.tsx"],
+      "status": "fixed"
+    },
+    {
+      "item": "Sheet safe-area insets + larger close control",
+      "files": ["components/ui/sheet.tsx"],
+      "status": "fixed"
+    },
+    {
+      "item": "Admin mobile drawer scroll + safe-area, no clip",
+      "files": ["components/admin/admin-shell.tsx"],
+      "status": "fixed"
+    },
+    {
+      "item": "Map legend clear of home-indicator safe-area",
+      "files": ["components/map/map-view.tsx"],
+      "status": "fixed"
+    },
+    {
+      "item": "Dropdown menus stay in viewport (collisionPadding)",
+      "files": ["components/ui/dropdown-menu.tsx"],
+      "status": "fixed"
+    },
+    {
+      "item": "iOS input zoom guard (16px+) on small screens",
+      "files": ["app/globals.css"],
+      "status": "fixed"
+    },
+    {
+      "item": "Horizontal overflow smoke across matrix pages",
+      "files": ["e2e/responsive-matrix.spec.ts"],
+      "status": "fixed"
+    }
+  ],
+  "open": [
+    {
+      "item": "Logged-in /admin matrix @ 390/768/1440",
+      "reason": "No Firebase emulator / local test users wired; plan forbids production mock-auth",
+      "status": "open"
+    },
+    {
+      "item": "Property detail gallery/video/sticky CTA deep interactions",
+      "reason": "Needs a stable published property id in CI; overflow checked on list/map/home only",
+      "status": "open"
+    },
+    {
+      "item": "List-your-property stepper/upload @ mobile",
+      "reason": "Auth-gated owner flow not in anonymous matrix",
+      "status": "open"
+    },
+    {
+      "item": "Decorative nav/footer text links under 44px height",
+      "reason": "Soft gate allows <12 undersized controls; primary buttons/selects fixed",
+      "status": "open"
+    }
+  ]
+}
