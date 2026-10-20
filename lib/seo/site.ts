@@ -7,7 +7,7 @@ export const SITE_ORIGIN = (
 
 export const SITE_NAME = "Bharwana Estates";
 
-export const DEFAULT_OG_IMAGE = "/og-default.png";
+export const DEFAULT_OG_IMAGE = "/og-default.jpg";
 
 export function absoluteUrl(path = "/"): string {
   if (path.startsWith("http")) return path;

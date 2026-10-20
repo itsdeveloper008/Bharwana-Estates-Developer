@@ -30,9 +30,9 @@ export function MapPreviewCard({
         <Link href={href} className="absolute inset-0 block" aria-label={`View ${property.title}`}>
           {image.startsWith("data:") || image.startsWith("blob:") ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt="" className="h-full w-full object-cover" />
+            <img src={image} alt={property.title} className="h-full w-full object-cover" />
           ) : image ? (
-            <Image src={image} alt="" fill className="object-cover" sizes="580px" />
+            <Image src={image} alt={property.title} fill className="object-cover" sizes="580px" />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-cream text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               No photo

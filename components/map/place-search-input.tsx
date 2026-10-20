@@ -286,6 +286,7 @@ export function PlaceSearchInput({
   /** Skip autocomplete after a programmatic selection. */
   const justSelectedRef = useRef(false);
   const requestIdRef = useRef(0);
+  const mapsLoadStartedRef = useRef(false);
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
 
   const { properties } = useMockStore();
@@ -394,25 +395,23 @@ export function PlaceSearchInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync from parent defaultValue only
   }, [defaultValue]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoadError(null);
+  /** Defer Maps JS until focus/typing — homepage LCP must not wait on Places. */
+  const ensureMapsLoaded = useCallback(() => {
+    if (isLoaded || loadError || !hasGoogleMapsKey()) return;
+    if (mapsLoadStartedRef.current) return;
+    mapsLoadStartedRef.current = true;
     void loadGoogleMapsScript()
       .then(() => {
-        if (cancelled) return;
         setIsLoaded(true);
         ensureSessionToken();
       })
       .catch((err: unknown) => {
-        if (cancelled) return;
+        mapsLoadStartedRef.current = false;
         const next = err instanceof Error ? err : new Error(String(err));
         console.error("[PlaceSearchInput] Google Maps load failed:", next.message);
         setLoadError(next);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [ensureSessionToken]);
+  }, [ensureSessionToken, isLoaded, loadError]);
 
   const updateQuery = useCallback(
     (next: string) => {
@@ -556,6 +555,7 @@ export function PlaceSearchInput({
   /** Debounced fetch — call only from onChange (typing), never from focus or defaultValue sync. */
   const schedulePredictions = useCallback(
     (raw: string) => {
+      ensureMapsLoaded();
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
       const trimmed = raw.trim();
       if (!trimmed) {
@@ -569,7 +569,7 @@ export function PlaceSearchInput({
         void fetchPredictions(raw);
       }, DEBOUNCE_MS);
     },
-    [fetchPredictions],
+    [ensureMapsLoaded, fetchPredictions],
   );
 
   // City scope change: clear cached suggestions (do not auto-open).
@@ -582,6 +582,15 @@ export function PlaceSearchInput({
     setLoadingPredictions(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: cityScope only
   }, [scope]);
+
+  // After deferred Maps load, refresh Google suggestions for the current query.
+  useEffect(() => {
+    if (!isLoaded) return;
+    const trimmed = query.trim();
+    if (!trimmed || justSelectedRef.current) return;
+    void fetchPredictions(query);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when Maps becomes ready
+  }, [isLoaded]);
 
   useEffect(() => {
     if (!open) return;
@@ -805,6 +814,7 @@ export function PlaceSearchInput({
   );
 
   function onEnterOrSearch() {
+    ensureMapsLoaded();
     if (highlight >= 0 && predictions[highlight]) {
       void selectPrediction(predictions[highlight]!);
       return;
@@ -853,6 +863,9 @@ export function PlaceSearchInput({
           aria-expanded={showMenu ? "true" : "false"}
           aria-controls={listId}
           aria-autocomplete="list"
+          onFocus={() => {
+            ensureMapsLoaded();
+          }}
           onChange={(event) => {
             justSelectedRef.current = false;
             const next = event.target.value;

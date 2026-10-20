@@ -67,14 +67,13 @@ export default function RootLayout({
   return (
     <html lang="en-PK" className={`${sans.variable} ${serif.variable}`}>
       <head>
-        <link rel="preconnect" href="https://maps.googleapis.com" />
-        <link rel="preconnect" href="https://maps.gstatic.com" crossOrigin="anonymous" />
+        {/* Maps: dns-prefetch only sitewide; full preconnect is map-route only (see PublicChrome). */}
         <link rel="dns-prefetch" href="https://maps.googleapis.com" />
+        <link rel="dns-prefetch" href="https://maps.gstatic.com" />
         <link rel="preconnect" href="https://www.recaptcha.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://www.gstatic.com" />
-        <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
-        <link rel="preconnect" href="https://securetoken.googleapis.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://securetoken.googleapis.com" />
         <link rel="dns-prefetch" href="https://www.facebook.com" />
         <link rel="dns-prefetch" href="https://connect.facebook.net" />
       </head>

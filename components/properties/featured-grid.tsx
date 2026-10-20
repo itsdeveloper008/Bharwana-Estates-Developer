@@ -54,7 +54,12 @@ export function FeaturedGrid({
 }) {
   const { properties, propertiesLoading } = useMockStore();
   const [picked, setPicked] = useState<Property[]>(() => initialFeatured ?? []);
-  const [loadingPicks, setLoadingPicks] = useState(() => !(initialFeatured && initialFeatured.length > 0));
+  const [loadingPicks, setLoadingPicks] = useState(() => {
+    if (initialFeatured && initialFeatured.length > 0) return false;
+    // SSR already said there are no curated ids — fall through to store without a loading flash.
+    if (settings[categoryToFeaturedKey(category)].length === 0) return false;
+    return true;
+  });
 
   const idsKey = settings[categoryToFeaturedKey(category)].join("|");
   const ids = useMemo(

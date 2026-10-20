@@ -228,7 +228,7 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
                 )}
                 aria-label={`Open photo ${index + 1}`}
               >
-                <GalleryImage src={image} alt="" fill sizes="120px" />
+                <GalleryImage src={image} alt={`${title} photo ${index + 1}`} fill sizes="120px" />
               </button>
             ))}
           </div>

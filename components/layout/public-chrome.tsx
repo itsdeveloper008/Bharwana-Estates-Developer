@@ -11,22 +11,22 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const fullBleed = pathname === "/map";
 
-  // Warm Maps JS after first paint so /properties opens with tiles ready sooner.
+  // Warm Maps only on map-adjacent routes — never on the homepage (hurts LCP/TBT).
   useEffect(() => {
-    if (pathname === "/properties" || pathname === "/map") {
-      void preloadGoogleMaps();
-      return;
-    }
-    if (pathname !== "/") return;
-    const warm = () => {
-      void preloadGoogleMaps();
+    if (pathname !== "/properties" && pathname !== "/map") return;
+    const linkApis = document.createElement("link");
+    linkApis.rel = "preconnect";
+    linkApis.href = "https://maps.googleapis.com";
+    const linkStatic = document.createElement("link");
+    linkStatic.rel = "preconnect";
+    linkStatic.href = "https://maps.gstatic.com";
+    linkStatic.crossOrigin = "anonymous";
+    document.head.append(linkApis, linkStatic);
+    void preloadGoogleMaps();
+    return () => {
+      linkApis.remove();
+      linkStatic.remove();
     };
-    if (typeof window.requestIdleCallback === "function") {
-      const id = window.requestIdleCallback(warm, { timeout: 2500 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const timer = window.setTimeout(warm, 1200);
-    return () => window.clearTimeout(timer);
   }, [pathname]);
 
   return (
