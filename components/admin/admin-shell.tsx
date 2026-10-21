@@ -334,17 +334,25 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="admin-shell min-h-screen bg-[#F8F7F4] font-normal text-forest antialiased [font-synthesis:none]">
       <FirebaseConfigBanner />
       <div className="flex min-h-screen">
-        <aside className="hidden w-[17.5rem] shrink-0 bg-[var(--admin-sidebar-bg)] text-[#F1EBD9] lg:block">
-          <div className="sticky top-0 flex h-screen flex-col">
-            <div className="border-b border-[rgba(201,162,75,0.15)] px-5 py-5">
+        {/*
+          Fixed (not sticky): Radix Select RemoveScroll sets body overflow:hidden +
+          position:relative, which unsticks sticky sidebars mid-page and makes the
+          nav appear scrolled to Reports/Staff. Fixed + own overflow is immune.
+        */}
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-[17.5rem] flex-col bg-[var(--admin-sidebar-bg)] text-[#F1EBD9] lg:flex">
+          <div className="flex h-dvh max-h-dvh flex-col">
+            <div className="shrink-0 border-b border-[rgba(201,162,75,0.15)] px-5 py-5">
               <AdminBrand />
             </div>
-            <div className="flex-1 overflow-y-auto px-3 py-4">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4">
               <NavLinks />
             </div>
-            <SidebarFooter onViewWebsite={handleViewWebsite} onSignOut={handleSignOut} />
+            <div className="shrink-0">
+              <SidebarFooter onViewWebsite={handleViewWebsite} onSignOut={handleSignOut} />
+            </div>
           </div>
         </aside>
+        <div className="hidden w-[17.5rem] shrink-0 lg:block" aria-hidden />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex items-center justify-between bg-[var(--admin-sidebar-bg)] px-4 py-3 text-[#F1EBD9] lg:hidden">

@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useMockAuth } from "@/lib/mock-auth";
+import { PageBootSpinner } from "@/components/layout/page-boot-spinner";
+import { useMockAuth } from "@/lib/mock-auth-context";
 import { isIndividualRole } from "@/lib/user-role";
 
 /** Protects owner routes - individuals (and legacy buyer/owner) may enter. */
@@ -32,11 +33,7 @@ export function OwnerGate({ children }: { children: React.ReactNode }) {
   }, [isReady, user, canList, router, pathname]);
 
   if (!isReady) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
-        Loading…
-      </div>
-    );
+    return <PageBootSpinner label="Checking your session…" className="min-h-[50vh]" />;
   }
 
   if (!user) {

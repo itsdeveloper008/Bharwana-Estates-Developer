@@ -27,7 +27,7 @@ function NavbarShell({ overHero }: { overHero: boolean }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full overflow-visible",
+        "fixed inset-x-0 top-0 z-50 w-full overflow-visible",
         "h-16 md:h-[96px] xl:h-[108px]",
         overHero
           ? "border-b border-white/10 bg-gradient-to-b from-[#082B1D]/70 to-transparent"
@@ -121,6 +121,10 @@ export function PublicChrome({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-ivory">
       {chromeReady ? <Navbar /> : <NavbarShell overHero={overHero} />}
+      {/* Fixed header is out of flow — reserve height except on home (hero is full-bleed under nav). */}
+      {!overHero ? (
+        <div className="h-[var(--site-header-height)] shrink-0" aria-hidden />
+      ) : null}
       <main className="flex-1">{children}</main>
       {!fullBleed && chromeReady ? <Footer /> : null}
       {chromeReady ? <WhatsAppFloat /> : null}

@@ -39,8 +39,8 @@ export function HomePageClient({
 
   return (
     <>
-      {/* Pull hero under the sticky navbar — must match --site-header-height */}
-      <section className="relative w-full min-h-svh overflow-hidden -mt-16 md:-mt-[96px] xl:-mt-[108px]">
+      {/* Full-bleed under the fixed navbar (header is out of flow — no negative margin). */}
+      <section className="relative w-full min-h-svh overflow-hidden">
         {/* Native <img> for LCP — avoids next/image client runtime on the critical path */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img

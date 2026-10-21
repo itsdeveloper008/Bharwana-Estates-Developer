@@ -116,11 +116,15 @@ export interface MockAuthContextValue {
 
 export const MockAuthContext = createContext<MockAuthContextValue | undefined>(undefined);
 
-/** Safe before deferred ProvidersFull mounts (homepage first paint). */
+/**
+ * Safe before deferred ProvidersFull mounts (homepage first paint).
+ * isReady must stay false so OwnerGate/DealerGate wait — true caused early
+ * “no user” redirects and a white/empty flash on reload.
+ */
 export const BOOTSTRAP_AUTH: MockAuthContextValue = {
   user: null,
   isAuthenticated: false,
-  isReady: true,
+  isReady: false,
   pendingGoogleSignup: null,
   login: async () => ({ ok: false, error: "App is still loading." }),
   loginWithGoogle: async () => ({ ok: false, error: "App is still loading." }),

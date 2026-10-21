@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useMockAuth } from "@/lib/mock-auth";
+import { PageBootSpinner } from "@/components/layout/page-boot-spinner";
+import { useMockAuth } from "@/lib/mock-auth-context";
 
 /** Protects /dealer/* - session required; role must be DEALER. */
 export function DealerGate({ children }: { children: React.ReactNode }) {
@@ -23,11 +24,7 @@ export function DealerGate({ children }: { children: React.ReactNode }) {
   }, [isReady, user, router, pathname]);
 
   if (!isReady) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
-        Loading…
-      </div>
-    );
+    return <PageBootSpinner label="Checking your session…" className="min-h-[50vh]" />;
   }
 
   if (!user) {

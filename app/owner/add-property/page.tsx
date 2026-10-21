@@ -1,9 +1,18 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { PropertyForm } from "@/components/properties/property-form";
-import { useMockStore } from "@/lib/mock-store";
+import { PageBootSpinner } from "@/components/layout/page-boot-spinner";
+import { useMockStore } from "@/lib/mock-store-context";
+
+const PropertyForm = dynamic(
+  () => import("@/components/properties/property-form").then((mod) => mod.PropertyForm),
+  {
+    ssr: false,
+    loading: () => <PageBootSpinner label="Loading listing form…" className="min-h-[40vh]" />,
+  },
+);
 
 function OwnerAddPropertyInner() {
   const searchParams = useSearchParams();
@@ -40,7 +49,7 @@ function OwnerAddPropertyInner() {
 
 export default function AddPropertyPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading form…</p>}>
+    <Suspense fallback={<PageBootSpinner label="Loading listing form…" className="min-h-[50vh]" />}>
       <OwnerAddPropertyInner />
     </Suspense>
   );

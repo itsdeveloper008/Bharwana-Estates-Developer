@@ -33,7 +33,7 @@ export const AdminAuthContext = createContext<AdminAuthContextValue | undefined>
 export const BOOTSTRAP_ADMIN: AdminAuthContextValue = {
   admin: null,
   isAuthenticated: false,
-  isReady: true,
+  isReady: false,
   isSuperAdmin: false,
   hasModule: () => false,
   login: async () => ({ ok: false, error: "App is still loading." }),

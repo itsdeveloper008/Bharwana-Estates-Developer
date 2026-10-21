@@ -1,43 +1,86 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useEffect, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { PageBootSpinner } from "@/components/layout/page-boot-spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+type FullProviders = ComponentType<{ children: ReactNode }>;
+
 /**
- * Keep Firebase / mock-store / auth out of the first paint bundle.
- * Lighthouse LCP was ~11s because ~1.7MB of JS (mostly Firebase) ran before the hero settled.
+ * Keep Firebase out of the homepage first paint.
+ * App routes boot the full stack immediately with a branded spinner (no white flash).
+ * Marketing pages keep painting content, then swap in ProvidersFull after idle.
  */
-const ProvidersFull = dynamic(
-  () => import("@/components/providers-full").then((mod) => mod.ProvidersFull),
-  { ssr: false },
-);
+function shouldDeferProviders(pathname: string | null): boolean {
+  if (!pathname || pathname === "/") return true;
+  if (pathname.startsWith("/seo-landing")) return true;
+  if (
+    pathname === "/about" ||
+    pathname === "/team" ||
+    pathname === "/faq" ||
+    pathname === "/privacy" ||
+    pathname === "/terms" ||
+    pathname === "/cookies" ||
+    pathname === "/disclaimer" ||
+    pathname === "/deletion-policy"
+  ) {
+    return true;
+  }
+  return false;
+}
 
 export function Providers({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(false);
+  const pathname = usePathname();
+  const defer = shouldDeferProviders(pathname);
+  const [Full, setFull] = useState<FullProviders | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const enable = () => {
-      if (!cancelled) setReady(true);
+
+    const load = () => {
+      void import("@/components/providers-full")
+        .then((mod) => {
+          if (!cancelled) setFull(() => mod.ProvidersFull);
+        })
+        .catch(() => {
+          /* keep spinner / shell */
+        });
     };
+
+    if (!defer) {
+      load();
+      return () => {
+        cancelled = true;
+      };
+    }
+
     if (typeof window.requestIdleCallback === "function") {
-      const id = window.requestIdleCallback(enable, { timeout: 1600 });
+      const id = window.requestIdleCallback(load, { timeout: 1600 });
       return () => {
         cancelled = true;
         window.cancelIdleCallback(id);
       };
     }
-    const timer = window.setTimeout(enable, 200);
+    const timer = window.setTimeout(load, 200);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, []);
+  }, [defer]);
 
-  if (!ready) {
-    return <TooltipProvider delayDuration={200}>{children}</TooltipProvider>;
+  if (!Full) {
+    if (defer) {
+      // Homepage / marketing: paint shell content while Firebase stays deferred.
+      return <TooltipProvider delayDuration={200}>{children}</TooltipProvider>;
+    }
+    // App routes: spinner until auth/store stack is ready (fixes white reload flash).
+    return (
+      <TooltipProvider delayDuration={200}>
+        <PageBootSpinner label="Preparing your workspace…" />
+      </TooltipProvider>
+    );
   }
 
-  return <ProvidersFull>{children}</ProvidersFull>;
+  return <Full>{children}</Full>;
 }

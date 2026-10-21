@@ -69,11 +69,29 @@
     scroll-behavior: smooth;
     /* clip (not hidden) so position:sticky on /map keeps working across browsers */
     overflow-x: clip;
+    /* Reserve scrollbar width so Radix RemoveScroll gap compensation does not shift layout */
+    scrollbar-gutter: stable;
   }
 
   body {
     @apply bg-background font-sans font-normal text-foreground antialiased;
     overflow-x: clip;
+  }
+
+  /**
+   * Radix Select/Dropdown/Dialog mount react-remove-scroll, which sets
+   * body[data-scroll-locked] { overflow:hidden; position:relative; margin-right:gap }.
+   * That unsticks sticky chrome and shifts the page when the scrollbar disappears.
+   * scrollbar-gutter:stable already reserves the gap — zero out the injected offset.
+   * Admin sidebar + public header are position:fixed so they stay put while locked.
+   */
+  /* Beat react-remove-scroll-bar's injected !important gap styles (same specificity, later loses). */
+  html body[data-scroll-locked],
+  body[data-scroll-locked][data-scroll-locked] {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+    padding-top: 0 !important;
   }
 
   /* iOS: avoid 16px→zoom on focused form controls; keep desktop density via md: */

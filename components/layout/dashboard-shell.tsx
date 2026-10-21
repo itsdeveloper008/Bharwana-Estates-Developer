@@ -8,8 +8,8 @@ import { Navbar } from "@/components/layout/navbar";
 import { WhatsAppFloat } from "@/components/layout/whatsapp-float";
 import { OwnerGate } from "@/components/owner/owner-gate";
 import { Button } from "@/components/ui/button";
-import { useMockAuth } from "@/lib/mock-auth";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockAuth } from "@/lib/mock-auth-context";
+import { useMockStore } from "@/lib/mock-store-context";
 import type { UserRole } from "@/lib/types";
 import { isIndividualRole } from "@/lib/user-role";
 

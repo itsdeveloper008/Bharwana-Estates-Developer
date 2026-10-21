@@ -220,7 +220,8 @@ export function Navbar() {
     <>
       <header
         className={cn(
-          "sticky top-0 z-50 w-full overflow-visible",
+          // Fixed (not sticky): body scroll-lock from Radix Select unsticks sticky headers
+          "fixed inset-x-0 top-0 z-50 w-full overflow-visible",
           // Fixed height on every page - never animate height (that causes navbar shiver)
           "h-16 md:h-[96px] xl:h-[108px]",
           overHero
