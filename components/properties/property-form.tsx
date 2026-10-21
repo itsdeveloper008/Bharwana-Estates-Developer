@@ -195,6 +195,10 @@ function WizardStepIndicator({ current }: { current: number }) {
   );
 }
 
+function formatGroupedInt(amount: number): string {
+  return Math.trunc(amount).toLocaleString("en-PK");
+}
+
 function NumberInput({
   value,
   onChange,
@@ -204,6 +208,8 @@ function NumberInput({
   placeholder,
   max,
   integerOnly = false,
+  /** Show thousand separators while typing (e.g. 42,000). Integer only. */
+  grouped = false,
   /** When set, allow at most this many digits after the decimal point. */
   maxDecimalPlaces,
 }: {
@@ -215,25 +221,31 @@ function NumberInput({
   placeholder?: string;
   max?: number;
   integerOnly?: boolean;
+  grouped?: boolean;
   maxDecimalPlaces?: number;
 }) {
-  const [text, setText] = useState(() => (Number.isFinite(value) ? String(value) : ""));
+  const formatDisplay = (amount: number) =>
+    grouped ? formatGroupedInt(amount) : String(amount);
+
+  const [text, setText] = useState(() => (Number.isFinite(value) ? formatDisplay(value!) : ""));
   const lastEmitted = useRef<number | undefined>(Number.isFinite(value) ? value : undefined);
 
   // Sync when the form value changes from outside (e.g. unit-driven recalculation).
   useEffect(() => {
     if (value === lastEmitted.current) return;
     lastEmitted.current = Number.isFinite(value) ? value : undefined;
-    setText(Number.isFinite(value) ? String(value) : "");
-  }, [value]);
+    setText(Number.isFinite(value) ? formatDisplay(value!) : "");
+    // formatDisplay depends on `grouped`, which is stable for a given field.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, grouped]);
 
   const pattern = useMemo(() => {
-    if (integerOnly) return /^\d+$/;
+    if (integerOnly || grouped) return /^\d+$/;
     if (typeof maxDecimalPlaces === "number") {
       return new RegExp(`^\\d+(\\.\\d{0,${maxDecimalPlaces}})?$`);
     }
     return /^\d+(\.\d*)?$/;
-  }, [integerOnly, maxDecimalPlaces]);
+  }, [integerOnly, grouped, maxDecimalPlaces]);
 
   return (
     <div className="relative">
@@ -245,7 +257,7 @@ function NumberInput({
       ) : null}
       <Input
         type="text"
-        inputMode={integerOnly ? "numeric" : "decimal"}
+        inputMode={integerOnly || grouped ? "numeric" : "decimal"}
         className={cn("h-10", fieldFocus, Icon && "pl-9")}
         name={name}
         placeholder={placeholder}
@@ -253,9 +265,9 @@ function NumberInput({
         onBlur={() => {
           if (Number.isFinite(value)) {
             const normalized =
-              typeof maxDecimalPlaces === "number"
+              typeof maxDecimalPlaces === "number" && !grouped
                 ? String(Number(value!.toFixed(maxDecimalPlaces)))
-                : String(value);
+                : formatDisplay(value!);
             setText(normalized);
             lastEmitted.current = value;
           } else {
@@ -272,6 +284,24 @@ function NumberInput({
             onChange(undefined);
             return;
           }
+
+          if (grouped) {
+            const digits = raw.replace(/[^\d]/g, "");
+            if (!digits) {
+              setText("");
+              lastEmitted.current = undefined;
+              onChange(undefined);
+              return;
+            }
+            let next = Number(digits);
+            if (!Number.isFinite(next) || next < 0) return;
+            if (typeof max === "number" && next > max) next = max;
+            setText(formatGroupedInt(next));
+            lastEmitted.current = next;
+            onChange(next);
+            return;
+          }
+
           // Reject scientific notation and non-numeric junk.
           if (/[eE]/.test(raw) || !pattern.test(raw)) {
             return;
@@ -1891,7 +1921,9 @@ export function PropertyForm({
                         onBlur={field.onBlur}
                         name={field.name}
                         icon={Tag}
-                        placeholder="Enter amount"
+                        placeholder="e.g. 42,000"
+                        grouped
+                        integerOnly
                       />
                     </FormControl>
                     <FormMessage />
