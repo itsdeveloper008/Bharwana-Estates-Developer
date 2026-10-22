@@ -16,9 +16,12 @@ import type { Property } from "@/lib/types";
 export function PropertyDetailGate({
   id,
   initial,
+  hideTitle = false,
 }: {
   id: string;
   initial?: Property;
+  /** When the server page already rendered an <h1>, skip the client duplicate. */
+  hideTitle?: boolean;
 }) {
   const { properties, propertiesLoading } = useMockStore();
   const fromStore = properties.find((item) => item.id === id);
@@ -65,5 +68,5 @@ export function PropertyDetailGate({
     );
   }
 
-  return <PropertyDetail property={property} />;
+  return <PropertyDetail property={property} hideTitle={hideTitle} />;
 }

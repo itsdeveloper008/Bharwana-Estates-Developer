@@ -33,6 +33,7 @@ export async function generateMetadata({
       title: landing.title,
       description: landing.description,
       url: absoluteUrl(`/${landing.slug}`),
+      images: [{ url: absoluteUrl("/og-default.jpg"), width: 1200, height: 630, alt: landing.title }],
     },
   };
 }

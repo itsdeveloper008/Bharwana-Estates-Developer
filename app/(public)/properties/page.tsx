@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PropertiesExplorer } from "@/components/properties/properties-explorer";
+import { itemListJsonLd, JsonLd } from "@/lib/seo/json-ld";
 import { absoluteUrl } from "@/lib/seo/site";
+import { fetchPublicProperties, SEO_REVALIDATE_SECONDS } from "@/lib/server/properties";
+import { toSeoSafeProperty } from "@/lib/server/seo-safe-property";
+
+export const revalidate = SEO_REVALIDATE_SECONDS;
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -13,7 +18,6 @@ function hasFacetParams(searchParams: SearchParams): boolean {
     return String(value).trim() !== "";
   });
   if (keys.length === 0) return false;
-  // Sole city= can canonical to city landing when Multan; still noindex facets with extras.
   if (keys.length === 1 && keys[0] === "city") {
     const city = Array.isArray(searchParams.city) ? searchParams.city[0] : searchParams.city;
     return Boolean(city && city.toLowerCase() !== "multan");
@@ -42,10 +46,15 @@ export async function generateMetadata({
   };
 }
 
-export default function PropertiesPage() {
+export default async function PropertiesPage() {
+  const initial = (await fetchPublicProperties()).map(toSeoSafeProperty);
+
   return (
-    <Suspense fallback={<div className="px-6 py-20 text-sm text-muted-foreground">Loading the collection…</div>}>
-      <PropertiesExplorer />
-    </Suspense>
+    <>
+      {initial.length > 0 ? <JsonLd data={itemListJsonLd("Properties", initial)} /> : null}
+      <Suspense fallback={<div className="px-6 py-20 text-sm text-muted-foreground">Loading the collection…</div>}>
+        <PropertiesExplorer initialProperties={initial} />
+      </Suspense>
+    </>
   );
 }

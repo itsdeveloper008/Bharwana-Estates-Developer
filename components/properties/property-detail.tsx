@@ -19,11 +19,18 @@ import type { Property } from "@/lib/types";
 
 const MiniMap = dynamic(() => import("@/components/map/map-canvas").then((mod) => mod.MiniMap), { ssr: false });
 
-function PropertyDetailInner({ property }: { property: Property }) {
+function PropertyDetailInner({
+  property,
+  hideTitle = false,
+}: {
+  property: Property;
+  hideTitle?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const { user, isReady } = useMockAuth();
   const searchParams = useSearchParams();
   const ownerListing = property.listingType === "DIRECT_OWNER";
+  const TitleTag = hideTitle ? "p" : "h1";
 
   useEffect(() => {
     if (!isReady) return;
@@ -85,7 +92,7 @@ function PropertyDetailInner({ property }: { property: Property }) {
           <Badge variant={ownerListing ? "owner" : "verified"} className="rounded-full uppercase">
             {listingBadge(property.listingType)}
           </Badge>
-          <h1 className="mt-4 font-serif text-3xl leading-tight sm:text-4xl">{property.title}</h1>
+          <TitleTag className="mt-4 font-serif text-3xl leading-tight sm:text-4xl">{property.title}</TitleTag>
           <p className="mt-2 text-sm text-muted-foreground">
             {property.address}, {property.city}
           </p>
@@ -160,10 +167,16 @@ function PropertyDetailInner({ property }: { property: Property }) {
   );
 }
 
-export function PropertyDetail({ property }: { property: Property }) {
+export function PropertyDetail({
+  property,
+  hideTitle = false,
+}: {
+  property: Property;
+  hideTitle?: boolean;
+}) {
   return (
     <Suspense fallback={<div className="px-6 py-20 text-sm text-muted-foreground">Loading residence…</div>}>
-      <PropertyDetailInner property={property} />
+      <PropertyDetailInner property={property} hideTitle={hideTitle} />
     </Suspense>
   );
 }

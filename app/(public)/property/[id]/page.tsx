@@ -6,12 +6,23 @@ import { parsePropertyParam, propertyPath } from "@/lib/seo/slug";
 import { absoluteUrl, DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/seo/site";
 import {
   fetchPropertyByIdAnyStatus,
+  fetchSitemapProperties,
   isIndexableProperty,
   SEO_REVALIDATE_SECONDS,
 } from "@/lib/server/properties";
+import { toSeoSafeProperty } from "@/lib/server/seo-safe-property";
+import { formatPriceFull } from "@/lib/format";
 import { propertyCoverImage } from "@/lib/property-images";
 
 export const revalidate = SEO_REVALIDATE_SECONDS;
+
+/** Prerender published listings so JSON-LD / h1 land in static HTML (not only RSC flight). */
+export async function generateStaticParams() {
+  const rows = await fetchSitemapProperties();
+  return rows.map((row) => ({
+    id: propertyPath({ id: row.id, title: row.title, city: row.city }).replace(/^\/property\//, ""),
+  }));
+}
 
 export async function generateMetadata({
   params,
@@ -63,9 +74,7 @@ export default async function PropertyPage({ params }: { params: { id: string } 
   if (!parsed.id) notFound();
 
   const property = await fetchPropertyByIdAnyStatus(parsed.id);
-  if (!property) {
-    return <PropertyDetailGate id={parsed.id} />;
-  }
+  if (!property) notFound();
 
   const canonicalPath = propertyPath(property);
   const expectedParam = canonicalPath.replace(/^\/property\//, "");
@@ -73,9 +82,12 @@ export default async function PropertyPage({ params }: { params: { id: string } 
     permanentRedirect(canonicalPath);
   }
 
+  const safe = toSeoSafeProperty(property);
+  const indexable = isIndexableProperty(property);
+
   return (
     <>
-      {isIndexableProperty(property) ? (
+      {indexable ? (
         <>
           <JsonLd
             data={breadcrumbJsonLd([
@@ -84,7 +96,7 @@ export default async function PropertyPage({ params }: { params: { id: string } 
               { name: property.title, path: canonicalPath },
             ])}
           />
-          <JsonLd data={realEstateListingJsonLd(property)} />
+          <JsonLd data={realEstateListingJsonLd(safe)} />
         </>
       ) : null}
       <nav aria-label="Breadcrumb" className="mx-auto max-w-6xl px-4 pt-6 text-sm text-muted-foreground sm:px-6">
@@ -104,7 +116,16 @@ export default async function PropertyPage({ params }: { params: { id: string } 
           <li className="truncate text-forest">{property.title}</li>
         </ol>
       </nav>
-      <PropertyDetailGate id={property.id} initial={property} />
+      {/* Server-rendered title + price so curl/view-source (and non-JS crawlers) see an h1. */}
+      <header className="mx-auto max-w-6xl px-4 pt-4 sm:px-6">
+        <h1 className="font-serif text-3xl leading-tight text-forest sm:text-4xl">{property.title}</h1>
+        <p className="mt-2 text-lg text-forest/80">{formatPriceFull(property.price)}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {property.city}
+          {property.address ? ` · ${property.address}` : ""}
+        </p>
+      </header>
+      <PropertyDetailGate id={property.id} initial={safe} hideTitle />
       <p className="sr-only">
         {SITE_NAME} listing in {property.city}
       </p>

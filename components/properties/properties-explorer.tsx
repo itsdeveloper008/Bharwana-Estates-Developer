@@ -6,14 +6,21 @@ import { FilterBar } from "@/components/properties/filter-bar";
 import { PropertyCard } from "@/components/properties/property-card";
 import { Button } from "@/components/ui/button";
 import { filtersFromSearchParams, filterProperties } from "@/lib/api/properties";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
+import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 15;
 
-export function PropertiesExplorer() {
+export function PropertiesExplorer({
+  initialProperties = [],
+}: {
+  /** SSR inventory so crawlers see listing links without waiting for client Firebase. */
+  initialProperties?: Property[];
+}) {
   const searchParams = useSearchParams();
-  const { properties, propertiesLoading, propertiesError } = useMockStore();
+  const { properties: storeProperties, propertiesLoading, propertiesError } = useMockStore();
+  const properties = storeProperties.length > 0 ? storeProperties : initialProperties;
   const view = searchParams.get("view") === "list" ? "list" : "grid";
   const filters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
   const results = useMemo(() => filterProperties(properties, filters), [properties, filters]);
@@ -38,8 +45,8 @@ export function PropertiesExplorer() {
     gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  // Don't block the whole page when we already have listings from a live snapshot.
-  if (propertiesLoading && results.length === 0) {
+  // Don't block when SSR already provided listings, or a live snapshot is present.
+  if (propertiesLoading && results.length === 0 && initialProperties.length === 0) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6">
         <p className="text-sm text-muted-foreground">Loading the collection…</p>

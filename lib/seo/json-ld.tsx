@@ -30,9 +30,10 @@ export function organizationJsonLd(): Record<string, unknown> {
     areaServed: ORGANIZATION.areaServed,
     address: {
       "@type": "PostalAddress",
-      streetAddress: ORGANIZATION.address,
+      streetAddress: "House #F698, Buch Villas Phase 2",
       addressLocality: "Multan",
       addressCountry: "PK",
+      postalCode: "60000",
     },
   };
 }

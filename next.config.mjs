@@ -33,7 +33,20 @@ const nextConfig = {
   async headers() {
     // Do not set Cross-Origin-Opener-Policy here. Chrome + Firebase Google popup
     // treat COOP as "popup closed" and sign-in fails with auth/popup-closed-by-user.
-    return [];
+    return [
+      {
+        source: "/admin/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+      {
+        source: "/admin",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+      {
+        source: "/api/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+    ];
   },
   async rewrites() {
     // Proxy Firebase Auth helper scripts through the custom domain.
