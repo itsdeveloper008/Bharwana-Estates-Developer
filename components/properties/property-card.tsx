@@ -205,7 +205,7 @@ export function PropertyCard({
             className={seeMoreClass}
             onClick={(event) => event.stopPropagation()}
           >
-            See more
+            <span className="truncate">View {property.title}</span>
           </Link>
         </div>
       ) : (
@@ -264,7 +264,7 @@ export function PropertyCard({
             </Link>
           )}
           <Link href={href} className={seeMoreClass} onClick={(event) => event.stopPropagation()}>
-            See more
+            <span className="truncate">View {property.title}</span>
           </Link>
         </div>
       )}
