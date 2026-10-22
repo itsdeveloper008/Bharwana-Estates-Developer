@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import { PropertyDetailGate } from "./property-detail-gate";
 import { breadcrumbJsonLd, JsonLd, realEstateListingJsonLd } from "@/lib/seo/json-ld";
@@ -16,27 +15,6 @@ import { formatPriceFull } from "@/lib/format";
 import { propertyCoverImage } from "@/lib/property-images";
 
 export const revalidate = SEO_REVALIDATE_SECONDS;
-
-/** Visible 404 chrome for curl/view-source; paired with ForceHttp404 for status. */
-function PropertyNotFoundBody() {
-  return (
-    <div className="flex min-h-[70vh] flex-col items-center justify-center bg-ivory px-6 text-center">
-      <p className="type-eyebrow">404</p>
-      <h1 className="mt-3 font-serif text-4xl">This page is not on the floor</h1>
-      <a
-        href="/"
-        className="mt-8 inline-flex h-11 min-h-11 items-center justify-center rounded-xl bg-gold px-4 py-2 text-sm font-medium text-forest transition-colors hover:bg-gold-600 md:h-9 md:min-h-9"
-      >
-        Return home
-      </a>
-    </div>
-  );
-}
-
-/** Throws notFound() inside Suspense so the sibling body can still SSR into HTML. */
-async function ForceHttp404(): Promise<null> {
-  notFound();
-}
 
 /** Prerender published listings so JSON-LD / h1 land in static HTML (not only RSC flight). */
 export async function generateStaticParams() {
@@ -93,28 +71,10 @@ export async function generateMetadata({
 
 export default async function PropertyPage({ params }: { params: { id: string } }) {
   const parsed = parsePropertyParam(params.id);
-  if (!parsed.id) {
-    return (
-      <>
-        <PropertyNotFoundBody />
-        <Suspense>
-          <ForceHttp404 />
-        </Suspense>
-      </>
-    );
-  }
+  if (!parsed.id) notFound();
 
   const property = await fetchPropertyByIdAnyStatus(parsed.id);
-  if (!property) {
-    return (
-      <>
-        <PropertyNotFoundBody />
-        <Suspense>
-          <ForceHttp404 />
-        </Suspense>
-      </>
-    );
-  }
+  if (!property) notFound();
 
   const canonicalPath = propertyPath(property);
   const expectedParam = canonicalPath.replace(/^\/property\//, "");
