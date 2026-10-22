@@ -25,15 +25,6 @@ const footerLinks = [
   { href: "/owner/add-property", label: "List your property" },
 ];
 
-const seoLinks = [
-  { href: "/properties-in-multan", label: "Properties in Multan" },
-  { href: "/houses-for-sale-in-multan", label: "Houses for sale" },
-  { href: "/plots-for-sale-in-multan", label: "Plots for sale" },
-  { href: "/houses-for-rent-in-multan", label: "Houses for rent" },
-  { href: "/dha-multan", label: "DHA Multan" },
-  { href: "/buch-villas-multan", label: "Buch Villas" },
-];
-
 const legalLinks = [
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms & Conditions" },
@@ -295,23 +286,12 @@ export function Footer() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.25 }}
           transition={{ duration: 0.65, delay: 0.08, ease }}
-          className="mt-20 grid gap-12 border-t border-[rgba(194,163,90,0.2)] pt-14 sm:grid-cols-2 lg:mt-24 lg:grid-cols-5 lg:gap-10 lg:pt-16"
+          className="mt-20 grid gap-12 border-t border-[rgba(194,163,90,0.2)] pt-14 sm:grid-cols-2 lg:mt-24 lg:grid-cols-4 lg:gap-10 lg:pt-16"
         >
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E8C547]">Company</p>
             <ul className="mt-5 space-y-3">
               {footerLinks.map((link) => (
-                <li key={link.href}>
-                  <FooterLink href={link.href} label={link.label} />
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E8C547]">Multan</p>
-            <ul className="mt-5 space-y-3">
-              {seoLinks.map((link) => (
                 <li key={link.href}>
                   <FooterLink href={link.href} label={link.label} />
                 </li>
