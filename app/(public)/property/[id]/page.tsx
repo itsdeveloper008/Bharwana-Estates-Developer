@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import { PropertyDetailGate } from "./property-detail-gate";
 import { breadcrumbJsonLd, JsonLd, realEstateListingJsonLd } from "@/lib/seo/json-ld";
@@ -16,6 +17,27 @@ import { propertyCoverImage } from "@/lib/property-images";
 
 export const revalidate = SEO_REVALIDATE_SECONDS;
 
+/** Visible 404 chrome for curl/view-source; paired with ForceHttp404 for status. */
+function PropertyNotFoundBody() {
+  return (
+    <div className="flex min-h-[70vh] flex-col items-center justify-center bg-ivory px-6 text-center">
+      <p className="type-eyebrow">404</p>
+      <h1 className="mt-3 font-serif text-4xl">This page is not on the floor</h1>
+      <a
+        href="/"
+        className="mt-8 inline-flex h-11 min-h-11 items-center justify-center rounded-xl bg-gold px-4 py-2 text-sm font-medium text-forest transition-colors hover:bg-gold-600 md:h-9 md:min-h-9"
+      >
+        Return home
+      </a>
+    </div>
+  );
+}
+
+/** Throws notFound() inside Suspense so the sibling body can still SSR into HTML. */
+async function ForceHttp404(): Promise<null> {
+  notFound();
+}
+
 /** Prerender published listings so JSON-LD / h1 land in static HTML (not only RSC flight). */
 export async function generateStaticParams() {
   const rows = await fetchSitemapProperties();
@@ -32,7 +54,7 @@ export async function generateMetadata({
   const { id } = parsePropertyParam(params.id);
   const property = id ? await fetchPropertyByIdAnyStatus(id) : null;
   if (!property) {
-    return { title: "Residence", robots: { index: false, follow: true } };
+    return { title: "Not found", robots: { index: false, follow: true } };
   }
 
   const path = propertyPath(property);
@@ -71,10 +93,28 @@ export async function generateMetadata({
 
 export default async function PropertyPage({ params }: { params: { id: string } }) {
   const parsed = parsePropertyParam(params.id);
-  if (!parsed.id) notFound();
+  if (!parsed.id) {
+    return (
+      <>
+        <PropertyNotFoundBody />
+        <Suspense>
+          <ForceHttp404 />
+        </Suspense>
+      </>
+    );
+  }
 
   const property = await fetchPropertyByIdAnyStatus(parsed.id);
-  if (!property) notFound();
+  if (!property) {
+    return (
+      <>
+        <PropertyNotFoundBody />
+        <Suspense>
+          <ForceHttp404 />
+        </Suspense>
+      </>
+    );
+  }
 
   const canonicalPath = propertyPath(property);
   const expectedParam = canonicalPath.replace(/^\/property\//, "");
@@ -119,6 +159,11 @@ export default async function PropertyPage({ params }: { params: { id: string } 
       {/* Server-rendered title + price so curl/view-source (and non-JS crawlers) see an h1. */}
       <header className="mx-auto max-w-6xl px-4 pt-4 sm:px-6">
         <h1 className="font-serif text-3xl leading-tight text-forest sm:text-4xl">{property.title}</h1>
+        {!indexable ? (
+          <p className="mt-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            {property.status === "SOLD" ? "Sold — no longer listed" : "Unavailable — not indexed"}
+          </p>
+        ) : null}
         <p className="mt-2 text-lg text-forest/80">{formatPriceFull(property.price)}</p>
         <p className="mt-1 text-sm text-muted-foreground">
           {property.city}
