@@ -14,6 +14,9 @@ type FullProviders = ComponentType<{ children: ReactNode }>;
  */
 function shouldDeferProviders(pathname: string | null): boolean {
   if (!pathname || pathname === "/") return true;
+  // Public listing/SEO HTML must SSR (h1, cards, JSON-LD) — do not replace children with a boot spinner.
+  if (pathname.startsWith("/properties")) return true;
+  if (pathname.startsWith("/property/")) return true;
   if (pathname.startsWith("/seo-landing")) return true;
   if (
     pathname === "/about" ||
