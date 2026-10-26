@@ -13,7 +13,10 @@ try {
   /* older Node */
 }
 
-const IDENTITY_TOOLKIT_BASE = "https://identitytoolkit.googleapis.com/v1";
+/** Auth emulator when FIREBASE_AUTH_EMULATOR_HOST is set (FORGE-004). */
+const IDENTITY_TOOLKIT_BASE = process.env.FIREBASE_AUTH_EMULATOR_HOST?.trim()
+  ? `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST.trim()}/identitytoolkit.googleapis.com/v1`
+  : "https://identitytoolkit.googleapis.com/v1";
 
 function apiKey(): string {
   const key = (process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "").trim();

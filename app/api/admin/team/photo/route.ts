@@ -59,7 +59,10 @@ export async function POST(request: Request) {
     });
 
     const encoded = encodeURIComponent(objectPath);
-    const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encoded}?alt=media&token=${token}`;
+    const storageHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST?.trim();
+    const url = storageHost
+      ? `http://${storageHost}/v0/b/${bucket.name}/o/${encoded}?alt=media&token=${token}`
+      : `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encoded}?alt=media&token=${token}`;
     return NextResponse.json({ url, path: objectPath });
   } catch (error) {
     console.error("[api/admin/team/photo]", error);

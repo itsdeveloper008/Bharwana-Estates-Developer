@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "bharwana-estate-developer"
+    "default": "bharwana-estate-developer",
+    "qc": "demo-bharwana"
   }
 }

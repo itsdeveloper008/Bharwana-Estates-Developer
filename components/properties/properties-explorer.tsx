@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { FilterBar } from "@/components/properties/filter-bar";
 import { PropertyCard } from "@/components/properties/property-card";
 import { Button } from "@/components/ui/button";
+import { GridSkeleton } from "@/components/ui/skeletons";
 import { filtersFromSearchParams, filterProperties } from "@/lib/api/properties";
 import { useMockStore } from "@/lib/mock-store-context";
 import type { Property } from "@/lib/types";
@@ -47,11 +48,7 @@ export function PropertiesExplorer({
 
   // Don't block when SSR already provided listings, or a live snapshot is present.
   if (propertiesLoading && results.length === 0 && initialProperties.length === 0) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6">
-        <p className="text-sm text-muted-foreground">Loading the collection…</p>
-      </div>
-    );
+    return <GridSkeleton />;
   }
 
   if (propertiesError && results.length === 0) {

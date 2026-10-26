@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PropertiesExplorer } from "@/components/properties/properties-explorer";
+import { GridSkeleton } from "@/components/ui/skeletons";
 import { itemListJsonLd, JsonLd } from "@/lib/seo/json-ld";
 import { absoluteUrl } from "@/lib/seo/site";
 import { fetchPublicProperties, SEO_REVALIDATE_SECONDS } from "@/lib/server/properties";
@@ -52,7 +53,7 @@ export default async function PropertiesPage() {
   return (
     <>
       {initial.length > 0 ? <JsonLd data={itemListJsonLd("Properties", initial)} /> : null}
-      <Suspense fallback={<div className="px-6 py-20 text-sm text-muted-foreground">Loading the collection…</div>}>
+      <Suspense fallback={<GridSkeleton />}>
         <PropertiesExplorer initialProperties={initial} />
       </Suspense>
     </>

@@ -141,16 +141,21 @@ export function InquiryModal({
       setStep("auth");
       return;
     }
-    setStep("success");
-    toast.success("Inquiry received.");
     const phoneE164 = formatPakistanMobileE164(values.phone);
-    void addInquiry({
-      propertyId: property.id,
-      buyerId: user.id,
-      status: "NEW",
-      channel,
-      notes: `${values.fullName} · ${phoneE164}${values.visitDate ? ` · visit ${values.visitDate}` : ""} · ${values.email} · ${values.message}`,
-    });
+    try {
+      // BW-01: success only after Firestore (or local) save completes.
+      await addInquiry({
+        propertyId: property.id,
+        buyerId: user.id,
+        status: "NEW",
+        channel,
+        notes: `${values.fullName} · ${phoneE164}${values.visitDate ? ` · visit ${values.visitDate}` : ""} · ${values.email} · ${values.message}`,
+      });
+      setStep("success");
+      toast.success("Inquiry received.");
+    } catch {
+      toast.error("We couldn't send your inquiry. Please try again.");
+    }
   }
 
   return (

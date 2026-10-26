@@ -44,10 +44,8 @@ const EXPECTED_EMAIL = (process.env.EXPECTED_FIREBASE_EMAIL ?? "").trim().toLowe
 const SETTINGS_URL = `https://console.firebase.google.com/project/${PROJECT_ID}/authentication/settings`;
 const ALLOWED_REGIONS = ["PK"];
 
-const TEST_NUMBERS = {
-  "+923001234567": "123456",
-  "+923001713811": "123456",
-};
+/** Never ship fixed OTPs for real/public numbers. Leave empty in prod; clear any Console leftovers via PATCH. */
+const TEST_NUMBERS = {};
 
 const CONFIG_URL = `https://identitytoolkit.googleapis.com/v2/projects/${PROJECT_ID}/config`;
 
@@ -458,4 +456,6 @@ if (probe.skipped) {
   }
 }
 
-console.log("\nDone. Test in the app with +92 300 1234567 / OTP 123456.");
+console.log(
+  "\nDone. Test numbers cleared (TEST_NUMBERS = {}). Use a real SMS number or the Auth emulator for OTP QA.",
+);

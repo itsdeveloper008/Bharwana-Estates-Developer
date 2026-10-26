@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
 import { displayUserEmail, isSyntheticPhoneEmail } from "@/lib/user-display";
+import { SITE_EMAIL } from "@/lib/site-contact";
 import { formatUserRole } from "@/lib/user-role";
 
 export default function AccountSettingsPage() {
@@ -191,8 +192,8 @@ export default function AccountSettingsPage() {
         <p className="mt-3 text-sm leading-relaxed text-forest/75">
           Prefer not to use self-service, or re-authentication is blocking you? Submit a request and
           we will process it within 30 days. You can also email{" "}
-          <a href="mailto:info@bharwanaestate.com" className="text-gold-700 underline-offset-2 hover:underline">
-            info@bharwanaestate.com
+          <a href={`mailto:${SITE_EMAIL}`} className="text-gold-700 underline-offset-2 hover:underline">
+            {SITE_EMAIL}
           </a>
           .
         </p>

@@ -2,13 +2,23 @@ import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import {
   browserLocalPersistence,
   browserPopupRedirectResolver,
+  connectAuthEmulator,
   getAuth,
   indexedDBLocalPersistence,
   initializeAuth,
   type Auth,
 } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
-import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase/firestore";
+import { connectStorageEmulator, getStorage, type FirebaseStorage } from "firebase/storage";
+
+/**
+ * Opt-in local Firebase Emulator Suite (FORGE-001).
+ * Set NEXT_PUBLIC_USE_FIREBASE_EMULATORS=1 in .env.local — never on Vercel production.
+ */
+const USE_FIREBASE_EMULATORS = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "1";
+const EMULATOR_HOST = (
+  process.env.NEXT_PUBLIC_FIREBASE_EMULATOR_HOST || "127.0.0.1"
+).trim();
 
 /** Vercel env vars were saved with a literal "\\n" suffix - strip that and whitespace. */
 function sanitizeFirebaseEnv(value: string | undefined): string {
@@ -105,12 +115,24 @@ let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 let auth: Auth | null = null;
+let firestoreEmulatorConnected = false;
+let storageEmulatorConnected = false;
+let authEmulatorConnected = false;
+
+export function usingFirebaseEmulators(): boolean {
+  return USE_FIREBASE_EMULATORS;
+}
 
 export function getFirebaseApp() {
   if (!isFirebaseConfigured()) return null;
   try {
     if (!app) {
       app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+      if (USE_FIREBASE_EMULATORS && typeof window !== "undefined") {
+        console.info(
+          `[Bharwana Firebase] Emulators enabled → ${EMULATOR_HOST} (auth:9099 firestore:8080 storage:9199)`,
+        );
+      }
     }
     return app;
   } catch (error) {
@@ -126,6 +148,10 @@ export function getDb() {
       const firebaseApp = getFirebaseApp();
       if (!firebaseApp) return null;
       db = getFirestore(firebaseApp);
+      if (USE_FIREBASE_EMULATORS && !firestoreEmulatorConnected) {
+        connectFirestoreEmulator(db, EMULATOR_HOST, 8080);
+        firestoreEmulatorConnected = true;
+      }
     }
     return db;
   } catch (error) {
@@ -141,6 +167,10 @@ export function getFirebaseStorage() {
       const firebaseApp = getFirebaseApp();
       if (!firebaseApp) return null;
       storage = getStorage(firebaseApp);
+      if (USE_FIREBASE_EMULATORS && !storageEmulatorConnected) {
+        connectStorageEmulator(storage, EMULATOR_HOST, 9199);
+        storageEmulatorConnected = true;
+      }
     }
     return storage;
   } catch (error) {
@@ -162,6 +192,12 @@ export function getFirebaseAuth() {
         });
       } catch {
         auth = getAuth(firebaseApp);
+      }
+      if (USE_FIREBASE_EMULATORS && !authEmulatorConnected) {
+        connectAuthEmulator(auth, `http://${EMULATOR_HOST}:9099`, {
+          disableWarnings: true,
+        });
+        authEmulatorConnected = true;
       }
     }
     return auth;

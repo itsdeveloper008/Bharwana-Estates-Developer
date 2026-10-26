@@ -5,7 +5,18 @@
 
 export const SITE_PHONE_DISPLAY = "+92 300 1713811";
 export const SITE_PHONE_E164 = "+923001713811";
-export const SITE_EMAIL = "info@bharwanaestate.com";
+export const SITE_EMAIL = "info@bharwanaestates.com";
+
+/**
+ * Public trust strip (home + footer). Only verifiable facts — no fabricated
+ * Reg # / years / review scores until the business supplies them (PX-B05).
+ */
+export const SITE_TRUST_STRIP = [
+  { value: "Multan", label: "Estate office" },
+  { value: "Direct + Dealer", label: "One honest floor" },
+  { value: "Reviewed", label: "Before every listing goes live" },
+  { value: SITE_PHONE_DISPLAY, label: "Estate desk" },
+] as const;
 
 /** Postal / office lines for <address> blocks (order preserved). */
 export const SITE_OFFICE_ADDRESS_LINES = [

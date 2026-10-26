@@ -23,7 +23,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const landing = getSeoLanding(params.slug);
   if (!landing) return { title: "Not found" };
-  const properties = matchLandingProperties(await fetchPublicProperties(), landing.filter);
+  const properties = matchLandingProperties(await fetchPublicProperties(250), landing.filter);
   if (properties.length === 0) return { title: "Not found", robots: { index: false, follow: false } };
   return {
     title: landing.title,
@@ -42,7 +42,7 @@ export default async function SeoLandingPage({ params }: { params: { slug: strin
   const landing = getSeoLanding(params.slug);
   if (!landing) notFound();
 
-  const all = await fetchPublicProperties();
+  const all = await fetchPublicProperties(250);
   const properties = matchLandingProperties(all, landing.filter);
   if (properties.length === 0) notFound();
 

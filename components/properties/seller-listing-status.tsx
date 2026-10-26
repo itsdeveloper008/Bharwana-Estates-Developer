@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate, statusLabel } from "@/lib/format";
+import { SITE_EMAIL } from "@/lib/site-contact";
 import type { Property, PropertyStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +59,7 @@ export function SellerListingActions({
       ) : null}
       {property.status === "REJECTED" ? (
         <Button asChild variant="outline" size="sm" className="rounded-xl">
-          <a href="mailto:info@bharwanaestate.com?subject=Question%20about%20rejected%20listing">
+          <a href={`mailto:${SITE_EMAIL}?subject=Question%20about%20rejected%20listing`}>
             Contact Support
           </a>
         </Button>

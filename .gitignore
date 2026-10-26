@@ -40,3 +40,8 @@ next-env.d.ts
 
 # rembg / numba cache
 .numba_cache/
+
+# Local QA artifacts (contain security findings; repo is public)
+QA-report.md
+qa-team/
+login-after.png

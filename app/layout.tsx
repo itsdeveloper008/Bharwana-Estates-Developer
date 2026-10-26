@@ -1,21 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Source_Sans_3 } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { absoluteUrl, DEFAULT_OG_IMAGE, SITE_NAME, SITE_ORIGIN } from "@/lib/seo/site";
 import "./globals.css";
-
-const sans = Source_Sans_3({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-sans",
-});
-
-const serif = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-  variable: "--font-serif",
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -68,7 +54,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-PK" className={`${sans.variable} ${serif.variable}`}>
+    <html lang="en-PK">
       <head>
         {/* Maps: dns-prefetch only sitewide; full preconnect is map-route only (see PublicChrome). */}
         <link rel="dns-prefetch" href="https://maps.googleapis.com" />

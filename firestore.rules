@@ -151,7 +151,12 @@ service cloud.firestore {
 
     // —— Listings ——
     match /properties/{propertyId} {
-      allow read: if true;
+      // CT-BW-02 / BED-SEC-01: drafts, pending, rejected, archived are not world-readable.
+      // Public marketplace queries must filter status (rules are not filters).
+      allow read: if resource.data.status in ['PUBLISHED', 'RESERVED', 'SOLD']
+        || canManageProperties()
+        || canPurgeData()
+        || (isSignedIn() && resource.data.ownerUserId == request.auth.uid);
 
       // Owners: own draft/pending. Admins: any ownerUserId + any status (Publish Immediately).
       allow create: if canManageProperties()
@@ -213,8 +218,9 @@ service cloud.firestore {
     }
 
     // —— Public lead forms (create only; no public read) ——
+    // BED-SEC-39 / CT-BW-05: no client creates — writes go through POST /api/contact (rate-limited Admin SDK).
     match /contactMessages/{id} {
-      allow create: if true;
+      allow create: if false;
       allow read, update, delete: if hasPerm('inquiries') || isSuperAdmin();
     }
 

@@ -11,6 +11,7 @@ import {
   PHONE_NOT_REGISTERED_MESSAGE,
 } from "@/lib/phone-auth-errors";
 import { isValidPhoneE164, normalizePhoneE164 } from "@/lib/phone-format";
+import { clientIp, enforce, phoneKey } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,13 @@ export async function POST(request: Request) {
     if (!recaptchaToken) {
       return NextResponse.json({ error: "Security check missing. Refresh and try again." }, { status: 400 });
     }
+
+    // BED-SEC-11 / BED-SEC-36: 3 sends / 10 min per phone, 10 / hour per IP (before SMS).
+    const blocked = await enforce([
+      ["otp-send-phone", phoneKey(phone), 3, 600_000],
+      ["otp-send-ip", clientIp(request), 10, 3_600_000],
+    ]);
+    if (blocked) return blocked;
 
     if (purpose === "reset") {
       if (!isFirebaseAdminConfigured()) {

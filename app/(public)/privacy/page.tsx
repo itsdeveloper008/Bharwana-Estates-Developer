@@ -1,4 +1,5 @@
 import { LegalPage } from "@/components/legal/legal-page";
+import { SITE_EMAIL } from "@/lib/site-contact";
 
 export const metadata = {
   title: "Privacy Policy",
@@ -48,7 +49,7 @@ export default function PrivacyPage() {
           title: "Your rights",
           paragraphs: [
             "Depending on applicable law, you may request access to, correction of, or deletion of your personal information, or withdraw consent for marketing communications.",
-            "To delete your account and personal data, use Account Settings → Delete Account while signed in, or follow the steps on our Account & Data Deletion page. You may also email info@bharwanaestate.com from your registered address.",
+            `To delete your account and personal data, use Account Settings → Delete Account while signed in, or follow the steps on our Account & Data Deletion page. You may also email ${SITE_EMAIL} from your registered address.`,
           ],
         },
       ]}

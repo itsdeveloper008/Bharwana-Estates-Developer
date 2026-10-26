@@ -32,7 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const [published, allPublic] = await Promise.all([
     fetchSitemapProperties(),
-    fetchPublicProperties(),
+    fetchPublicProperties(250),
   ]);
 
   const landings: MetadataRoute.Sitemap = SEO_LANDINGS.filter(

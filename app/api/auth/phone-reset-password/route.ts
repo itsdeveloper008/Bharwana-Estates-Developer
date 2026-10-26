@@ -1,16 +1,34 @@
 import { NextResponse } from "next/server";
-import { getAdminAuth, isFirebaseAdminConfigured } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminDb, isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 import { passwordMeetsPolicy } from "@/lib/password-policy";
+import { isSyntheticPhoneEmail } from "@/lib/user-display";
 
 export const runtime = "nodejs";
 
 /** OTP-backed reset tokens must be fresher than this (seconds). */
 const MAX_AUTH_AGE_SECONDS = 5 * 60;
 
+async function isAdminUid(uid: string): Promise<boolean> {
+  const db = getAdminDb();
+  const adminSnap = await db.collection("admins").doc(uid).get();
+  if (adminSnap.exists) {
+    const active = adminSnap.get("active");
+    if (active !== false) return true;
+  }
+  const userSnap = await db.collection("users").doc(uid).get();
+  if (userSnap.exists && String(userSnap.get("role") ?? "") === "ADMIN") {
+    return true;
+  }
+  return false;
+}
+
 /**
  * After phone OTP signs the client into Firebase Auth, the client sends a fresh
  * ID token + new password. We verify the token server-side and update the password
  * with the Admin SDK — no app session is created.
+ *
+ * CT-BW-14 / BED-SEC-19 step-up: admins cannot use this path; accounts with a real
+ * email must reset via the email link instead of phone OTP alone.
  */
 export async function POST(request: Request) {
   try {
@@ -68,6 +86,46 @@ export async function POST(request: Request) {
     if (!phone || !/^\+923\d{9}$/.test(phone)) {
       return NextResponse.json(
         { error: "Phone verification is required to reset this password." },
+        { status: 403 },
+      );
+    }
+
+    let userRecord;
+    try {
+      userRecord = await auth.getUser(decoded.uid);
+    } catch (error) {
+      console.error("[api/auth/phone-reset-password] getUser failed", error);
+      return NextResponse.json(
+        { error: "Could not verify this account. Try again in a moment." },
+        { status: 500 },
+      );
+    }
+
+    try {
+      if (await isAdminUid(decoded.uid)) {
+        return NextResponse.json(
+          {
+            error:
+              "Admin accounts must reset their password with the email link on the Email tab.",
+          },
+          { status: 403 },
+        );
+      }
+    } catch (error) {
+      console.error("[api/auth/phone-reset-password] admin check failed", error);
+      return NextResponse.json(
+        { error: "Could not verify this account. Try again in a moment." },
+        { status: 500 },
+      );
+    }
+
+    const accountEmail = (userRecord.email ?? "").trim().toLowerCase();
+    if (accountEmail && !isSyntheticPhoneEmail(accountEmail)) {
+      return NextResponse.json(
+        {
+          error:
+            "This account has an email address. Use the Email tab to receive a reset link — phone OTP alone cannot change the password.",
+        },
         { status: 403 },
       );
     }

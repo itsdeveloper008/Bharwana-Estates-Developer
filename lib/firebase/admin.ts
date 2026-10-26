@@ -2,9 +2,20 @@ import { getApps, initializeApp, cert, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
-/** Prefer REST over gRPC for Firestore on Vercel/serverless - avoids flaky gRPC auth. */
+/** True when Admin SDK should talk to the local Emulator Suite (FORGE-003). */
+function usingAdminEmulators(): boolean {
+  return Boolean(
+    process.env.FIRESTORE_EMULATOR_HOST?.trim() &&
+      process.env.FIREBASE_AUTH_EMULATOR_HOST?.trim(),
+  );
+}
+
+/**
+ * Prefer REST over gRPC for Firestore on Vercel/serverless - avoids flaky gRPC auth.
+ * Emulator + REST tries Application Default Credentials and 500s — keep gRPC locally.
+ */
 if (!process.env.FIRESTORE_PREFER_REST) {
-  process.env.FIRESTORE_PREFER_REST = "true";
+  process.env.FIRESTORE_PREFER_REST = usingAdminEmulators() ? "false" : "true";
 }
 
 function readEnv(name: string): string {
@@ -43,6 +54,9 @@ export function readAdminClientEmail(): string {
 }
 
 function adminConfigured(): boolean {
+  if (usingAdminEmulators()) {
+    return Boolean(readAdminProjectId());
+  }
   return Boolean(readAdminProjectId() && readAdminClientEmail() && readPrivateKey());
 }
 
@@ -61,6 +75,21 @@ export function getFirebaseAdminApp(): App {
   }
 
   const projectId = readAdminProjectId();
+  const storageBucket =
+    readEnv("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET") ||
+    `${projectId}.appspot.com`;
+
+  // Emulator Suite: no service-account cert (FORGE-003).
+  if (usingAdminEmulators()) {
+    try {
+      app = initializeApp({ projectId, storageBucket });
+      return app;
+    } catch (error) {
+      console.error("[firebase-admin] emulator initializeApp failed", error);
+      throw error;
+    }
+  }
+
   const clientEmail = readAdminClientEmail();
   const privateKey = readPrivateKey();
 
@@ -74,10 +103,6 @@ export function getFirebaseAdminApp(): App {
     );
   }
 
-  const storageBucket =
-    readEnv("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET") ||
-    `${projectId}.firebasestorage.app`;
-
   try {
     app = initializeApp({
       credential: cert({
@@ -86,7 +111,9 @@ export function getFirebaseAdminApp(): App {
         privateKey,
       }),
       projectId,
-      storageBucket,
+      storageBucket:
+        readEnv("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET") ||
+        `${projectId}.firebasestorage.app`,
     });
   } catch (error) {
     console.error("[firebase-admin] initializeApp/cert failed", error);

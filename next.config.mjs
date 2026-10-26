@@ -49,15 +49,21 @@ const nextConfig = {
     ];
   },
   async rewrites() {
+    // Emulator mode must not proxy Auth helpers to production (FORGE-008).
+    if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "1") {
+      return [];
+    }
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || firebaseProjectId;
+    if (!projectId) return [];
     // Proxy Firebase Auth helper scripts through the custom domain.
     return [
       {
         source: "/__/auth/:path*",
-        destination: `https://${firebaseProjectId}.firebaseapp.com/__/auth/:path*`,
+        destination: `https://${projectId}.firebaseapp.com/__/auth/:path*`,
       },
       {
         source: "/__/firebase/:path*",
-        destination: `https://${firebaseProjectId}.firebaseapp.com/__/firebase/:path*`,
+        destination: `https://${projectId}.firebaseapp.com/__/firebase/:path*`,
       },
     ];
   },

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SITE_EMAIL } from "@/lib/site-contact";
 
 export type LegalSection = {
   title: string;
@@ -49,8 +50,8 @@ export function LegalPage({ eyebrow, title, intro, updated, sections }: LegalPag
 
       <p className="mt-14 border-t border-forest/10 pt-8 text-sm text-muted-foreground">
         Questions about these policies? Contact us at{" "}
-        <a href="mailto:info@bharwanaestate.com" className="text-gold-700 underline-offset-2 hover:underline">
-          info@bharwanaestate.com
+        <a href={`mailto:${SITE_EMAIL}`} className="text-gold-700 underline-offset-2 hover:underline">
+          {SITE_EMAIL}
         </a>{" "}
         or review our other policies:{" "}
         <Link href="/privacy" className="text-gold-700 underline-offset-2 hover:underline">

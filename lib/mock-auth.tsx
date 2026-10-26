@@ -64,6 +64,7 @@ import {
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import { users as seedUsers } from "@/lib/mock-data/users";
 import { isValidPhoneE164, normalizePhoneE164 } from "@/lib/phone-format";
+import { SITE_EMAIL } from "@/lib/site-contact";
 import {
   firebaseErrorParts,
   isNetworkAuthError,
@@ -1730,7 +1731,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
         if (!isFirebaseConfigured()) {
           return {
             ok: false as const,
-            error: "Deletion requests need Firebase. Email info@bharwanaestate.com instead.",
+            error: `Deletion requests need Firebase. Email ${SITE_EMAIL} instead.`,
           };
         }
         await createDeletionRequest({

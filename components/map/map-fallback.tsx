@@ -106,10 +106,9 @@ export function MapPreviewCard({
           <p className="text-lg font-semibold text-gold-700 sm:text-xl">{formatPrice(property.price)}</p>
           <Link
             href={href}
-            aria-label={`View ${property.title}`}
-            className="inline-flex items-center rounded-full bg-forest px-5 py-2.5 text-xs font-medium text-ivory transition hover:bg-[#1a4a30]"
+            className="inline-flex max-w-[14rem] items-center truncate rounded-full bg-forest px-5 py-2.5 text-xs font-medium text-ivory transition hover:bg-[#1a4a30]"
           >
-            See more
+            View {property.title}
           </Link>
         </div>
       </div>

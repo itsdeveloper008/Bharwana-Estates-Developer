@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { MockStoreContext } from "@/lib/mock-store-context";
@@ -104,6 +105,24 @@ function isPublicMarketplaceStatus(status: Property["status"]) {
   return (PUBLIC_MARKETPLACE_STATUSES as readonly string[]).includes(status);
 }
 
+/** Routes that need the public properties listener (BED-PERF-01). Home/detail/SEO use SSR seeds. */
+function pathNeedsPublicPropertyInventory(pathname: string | null): boolean {
+  if (!pathname) return false;
+  if (pathname === "/properties" || pathname === "/map" || pathname === "/saved") return true;
+  return false;
+}
+
+/** Routes that need the developers listener (BED-PERF-12). */
+function pathNeedsDevelopersInventory(pathname: string | null, isAdminSession: boolean): boolean {
+  if (isAdminSession) return true;
+  if (!pathname) return false;
+  return (
+    pathname.startsWith("/dealer") ||
+    pathname.startsWith("/owner") ||
+    pathname.startsWith("/admin")
+  );
+}
+
 /**
  * Global client data store for marketplace + admin.
  *
@@ -112,16 +131,19 @@ function isPublicMarketplaceStatus(status: Property["status"]) {
  *
  * Property loading is intentionally split (see refs below):
  * - Admin session  → full `properties` collection (all statuses)
- * - Public visitors → PUBLISHED + RESERVED only (capped)
+ * - Public visitors → PUBLISHED + RESERVED only (capped), only on inventory routes
  * - Logged-in seller → public set merged with their owned docs (any status)
  * Mixing these incorrectly will hide pending listings from owners or leak drafts to the public.
  */
 export function MockStoreProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const { isAuthenticated: isAdminSession, isReady: adminAuthReady, getIdToken, hasModule, isSuperAdmin } =
     useAdminAuth();
   const { user } = useMockAuth();
   // While an admin panel session is active, do not also pull the marketplace user's owned query.
   const marketplaceUserId = isAdminSession ? null : (user?.id ?? null);
+  const needsPublicInventory = pathNeedsPublicPropertyInventory(pathname);
+  const needsDevelopers = pathNeedsDevelopersInventory(pathname, isAdminSession);
 
   const [properties, setProperties] = useState<Property[]>(() =>
     isFirebaseConfigured() ? [] : seedPropertiesList,
@@ -393,6 +415,22 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       };
     }
 
+    // Public visitors: only open the marketplace listener on inventory routes (BED-PERF-01).
+    if (!needsPublicInventory) {
+      adminPropertiesRef.current = [];
+      publicPropertiesRef.current = [];
+      setPropertiesLoading(false);
+      setPropertiesError(null);
+      // Keep any seller-owned merge; otherwise clear public stash.
+      if (!marketplaceUserId) {
+        setUsingFirestoreProperties(false);
+        setProperties([]);
+      } else {
+        rebuildProperties();
+      }
+      return;
+    }
+
     // Still resolving admin auth, or confirmed non-admin: load public marketplace now.
     setPropertiesLoading(true);
     setPropertiesError(null);
@@ -437,7 +475,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       window.clearTimeout(timeout);
       unsub?.();
     };
-  }, [isAdminSession, adminAuthReady, rebuildProperties]);
+  }, [isAdminSession, adminAuthReady, needsPublicInventory, marketplaceUserId, rebuildProperties]);
 
   // Sellers: merge their listings (all statuses) into the public marketplace set.
   useEffect(() => {
@@ -464,7 +502,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, [isAdminSession, marketplaceUserId, rebuildProperties]);
 
   useEffect(() => {
-    if (!isFirebaseConfigured()) {
+    if (!isFirebaseConfigured() || !needsDevelopers) {
       setUsingFirestoreDevelopers(false);
       return;
     }
@@ -482,7 +520,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     );
 
     return () => unsub?.();
-  }, []);
+  }, [needsDevelopers]);
 
   useEffect(() => {
     if (!isFirebaseConfigured() || !adminAuthReady || !isAdminSession) {
@@ -722,20 +760,20 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
 
     if (!isFirebaseConfigured()) return tempId;
 
-    void (async () => {
-      try {
-        const id = await createInquiry(input);
-        const saved: Inquiry = { ...optimistic, id };
-        setInquiryState((current) =>
-          current.map((item) => (item.id === tempId ? saved : item)),
-        );
-      } catch (error) {
-        console.error(error);
-        toast.error(firestoreErrorMessage(error, "Could not save inquiry to Firestore."));
-      }
-    })();
-
-    return tempId;
+    // BW-01: await the write; roll back optimistic row and rethrow so the UI can stay on the form.
+    try {
+      const id = await createInquiry(input);
+      const saved: Inquiry = { ...optimistic, id };
+      setInquiryState((current) =>
+        current.map((item) => (item.id === tempId ? saved : item)),
+      );
+      return id;
+    } catch (error) {
+      console.error(error);
+      setInquiryState((current) => current.filter((item) => item.id !== tempId));
+      toast.error(firestoreErrorMessage(error, "Could not save inquiry to Firestore."));
+      throw error;
+    }
   }, []);
 
   const updateInquiryStatus = useCallback(async (id: string, status: InquiryStatus) => {

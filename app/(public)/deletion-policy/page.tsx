@@ -1,4 +1,5 @@
 import { LegalPage } from "@/components/legal/legal-page";
+import { SITE_EMAIL } from "@/lib/site-contact";
 
 export const metadata = {
   title: "Account & Data Deletion",
@@ -40,7 +41,7 @@ export default function DeletionPolicyPage() {
         {
           title: "If self-service is unavailable",
           paragraphs: [
-            "If you cannot complete deletion in the app (for example after a long time away, or if re-authentication fails), email info@bharwanaestate.com from your registered address and ask for account deletion. You may also submit a deletion request from Account Settings; our team reviews pending requests in Admin.",
+            `If you cannot complete deletion in the app (for example after a long time away, or if re-authentication fails), email ${SITE_EMAIL} from your registered address and ask for account deletion. You may also submit a deletion request from Account Settings; our team reviews pending requests in Admin.`,
             "We aim to complete deletion requests within 30 days of a verified request. When Admin processes a request, your profile and owned personal data in Firestore are removed promptly; sign-in (Auth) account removal is completed by the team within that same window.",
           ],
         },
@@ -71,7 +72,7 @@ export default function DeletionPolicyPage() {
         {
           title: "Questions",
           paragraphs: [
-            "For deletion-related questions, contact info@bharwanaestate.com. Include the email address on your account so we can verify the request.",
+            `For deletion-related questions, contact ${SITE_EMAIL}. Include the email address on your account so we can verify the request.`,
           ],
         },
       ]}

@@ -102,13 +102,25 @@ export async function createContactMessage(input: {
   name?: string;
   email: string;
   message?: string;
+  phone?: string;
+  propertyId?: string;
 }): Promise<void> {
-  const db = getDb();
-  if (!db) throw new Error("Firebase is not configured");
-  await addDoc(collection(db, "contactMessages"), {
-    ...input,
-    createdAt: serverTimestamp(),
+  // BED-SEC-39: server route (rate limit + Admin write). Client Firestore create is denied by rules.
+  const response = await fetch("/api/contact", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: input.name?.trim().slice(0, 120) || undefined,
+      email: input.email.trim().slice(0, 254),
+      message: input.message?.trim().slice(0, 2000) || undefined,
+      phone: input.phone?.trim().slice(0, 20) || undefined,
+      propertyId: input.propertyId?.trim().slice(0, 128) || undefined,
+    }),
   });
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error || "Could not send message.");
+  }
 }
 
 export type NewsletterSignup = {

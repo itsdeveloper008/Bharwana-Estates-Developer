@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PropertyDetail } from "@/components/properties/property-detail";
+import { DetailSkeleton } from "@/components/ui/skeletons";
 import { getPropertyDoc } from "@/lib/firestore/properties";
 import { useMockStore } from "@/lib/mock-store";
 import type { Property } from "@/lib/types";
@@ -52,11 +53,7 @@ export function PropertyDetailGate({
   const property = fromStore ?? initial ?? (fetched && fetched.id === id ? fetched : undefined);
 
   if (!property && (propertiesLoading || fetched === undefined)) {
-    return (
-      <div className="px-6 py-24 text-center">
-        <p className="text-sm text-muted-foreground">Loading listing…</p>
-      </div>
-    );
+    return <DetailSkeleton />;
   }
 
   if (!property) {

@@ -32,7 +32,7 @@ export async function generateMetadata({
   const { id } = parsePropertyParam(params.id);
   const property = id ? await fetchPropertyByIdAnyStatus(id) : null;
   if (!property) {
-    return { title: "Not found", robots: { index: false, follow: true } };
+    return { title: "Residence", robots: { index: false, follow: true } };
   }
 
   const path = propertyPath(property);
@@ -119,11 +119,6 @@ export default async function PropertyPage({ params }: { params: { id: string } 
       {/* Server-rendered title + price so curl/view-source (and non-JS crawlers) see an h1. */}
       <header className="mx-auto max-w-6xl px-4 pt-4 sm:px-6">
         <h1 className="font-serif text-3xl leading-tight text-forest sm:text-4xl">{property.title}</h1>
-        {!indexable ? (
-          <p className="mt-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
-            {property.status === "SOLD" ? "Sold — no longer listed" : "Unavailable — not indexed"}
-          </p>
-        ) : null}
         <p className="mt-2 text-lg text-forest/80">{formatPriceFull(property.price)}</p>
         <p className="mt-1 text-sm text-muted-foreground">
           {property.city}

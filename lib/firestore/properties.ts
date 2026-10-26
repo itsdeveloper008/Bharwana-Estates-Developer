@@ -33,8 +33,11 @@ const COLLECTION = "properties";
 /** Statuses shown on public marketplace surfaces (Properties, Map, Featured). */
 export const PUBLIC_MARKETPLACE_STATUSES = ["PUBLISHED", "RESERVED"] as const;
 
-/** Cap public inventory payload; raise when listings grow past this. */
-export const PUBLIC_PROPERTIES_LIMIT = 250;
+/**
+ * Cap public inventory payload (BED-PERF-01).
+ * Listing UI paginates client-side; map/saved use the same capped set.
+ */
+export const PUBLIC_PROPERTIES_LIMIT = 48;
 
 /**
  * Three subscription helpers on purpose (wired from MockStoreProvider):

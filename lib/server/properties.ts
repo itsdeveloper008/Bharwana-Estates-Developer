@@ -33,7 +33,7 @@ function adminOrNull() {
 }
 
 /** Published + reserved marketplace inventory (ISR). Falls back to [] without Admin creds. */
-export async function fetchPublicProperties(limitCount = 250): Promise<Property[]> {
+export async function fetchPublicProperties(limitCount = 48): Promise<Property[]> {
   const db = adminOrNull();
   if (!db) return [];
 

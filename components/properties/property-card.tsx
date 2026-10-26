@@ -203,10 +203,9 @@ export function PropertyCard({
           <Link
             href={href}
             className={seeMoreClass}
-            aria-label={`View ${property.title}`}
             onClick={(event) => event.stopPropagation()}
           >
-            See more
+            <span className="truncate">View {property.title}</span>
           </Link>
         </div>
       ) : (
@@ -264,13 +263,8 @@ export function PropertyCard({
               ) : null}
             </Link>
           )}
-          <Link
-            href={href}
-            className={seeMoreClass}
-            aria-label={`View ${property.title}`}
-            onClick={(event) => event.stopPropagation()}
-          >
-            See more
+          <Link href={href} className={seeMoreClass} onClick={(event) => event.stopPropagation()}>
+            <span className="truncate">View {property.title}</span>
           </Link>
         </div>
       )}

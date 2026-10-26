@@ -4,6 +4,8 @@
 
 @layer base {
   :root {
+    --font-sans: Arial, Helvetica, sans-serif;
+    --font-serif: Arial, Helvetica, sans-serif;
     --background: 40 33% 97%;
     --foreground: 0 0% 11%;
     --card: 40 40% 99%;
@@ -48,13 +50,13 @@
   }
 
   @media (min-width: 768px) {
-    :root {
+:root {
       --site-header-height: 96px;
     }
-  }
+}
 
   @media (min-width: 1280px) {
-    :root {
+  :root {
       --site-header-height: 108px;
     }
   }
@@ -71,9 +73,9 @@
     overflow-x: clip;
     /* Reserve scrollbar width so Radix RemoveScroll gap compensation does not shift layout */
     scrollbar-gutter: stable;
-  }
+}
 
-  body {
+body {
     @apply bg-background font-sans font-normal text-foreground antialiased;
     overflow-x: clip;
   }
