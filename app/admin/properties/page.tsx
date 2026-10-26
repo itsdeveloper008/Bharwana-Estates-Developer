@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AdminSearchInput } from "@/components/admin/admin-search-input";
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
+import { OptimizeImagesButton } from "@/components/admin/optimize-images-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -88,9 +89,12 @@ export default function AdminPropertiesPage() {
             ) : null}
           </p>
         </div>
-        <Button asChild>
-          <Link href="/admin/properties/add">Add Property</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <OptimizeImagesButton />
+          <Button asChild>
+            <Link href="/admin/properties/add">Add Property</Link>
+          </Button>
+        </div>
       </div>
 
       <AdminSearchInput

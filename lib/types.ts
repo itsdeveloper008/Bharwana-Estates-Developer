@@ -122,6 +122,9 @@ export interface Property {
   latitude: number;
   longitude: number;
   images: string[];
+  /** Small (~960px) copy of the cover for cards; only valid while coverThumbSource matches the cover. */
+  coverThumb?: string;
+  coverThumbSource?: string;
   /** Which core specs to emphasize on map cards / detail (defaults to all for category). */
   highlightSpecs?: PropertyHighlightKey[];
   /** Short custom highlights, e.g. Corner plot - max ~6. */

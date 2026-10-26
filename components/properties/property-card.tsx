@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatPrice, listingBadge } from "@/lib/format";
 import { propertyHighlightDisplay } from "@/lib/property-features";
-import { propertyCoverImage } from "@/lib/property-images";
+import { propertyCardImage } from "@/lib/property-images";
 import { propertyPath } from "@/lib/seo/slug";
 import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,7 @@ export function PropertyCard({
 }) {
   const href = propertyPath(property);
   const isList = layout === "list";
-  const cover = propertyCoverImage(property.images) ?? "";
+  const cover = propertyCardImage(property) ?? "";
   const highlights = propertyHighlightDisplay(property).filter((item) => item.key !== "price");
 
   function selectProperty() {

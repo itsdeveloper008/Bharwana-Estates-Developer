@@ -66,6 +66,8 @@ export function mapPropertyRecord(id: string, data: Record<string, unknown>): Pr
     latitude: Number(data.latitude ?? 0),
     longitude: Number(data.longitude ?? 0),
     images,
+    coverThumb: typeof data.coverThumb === "string" && isPersistedPropertyImageUrl(data.coverThumb) ? data.coverThumb : undefined,
+    coverThumbSource: typeof data.coverThumbSource === "string" ? data.coverThumbSource : undefined,
     highlightSpecs: normalizeHighlightKeys(rawHighlights, category),
     featureTags: normalizeFeatureTags(rawTags),
     ownerUserId: data.ownerUserId ? String(data.ownerUserId) : undefined,

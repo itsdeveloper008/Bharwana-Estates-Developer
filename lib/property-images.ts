@@ -29,6 +29,17 @@ export function isPersistedPropertyImageUrl(url: string): boolean {
   return isAllowedPropertyImageUrl(trimmed);
 }
 
+/** Cover for cards / map previews: the small thumb when it was built from the current cover. */
+export function propertyCardImage(property: {
+  images?: string[];
+  coverThumb?: string;
+  coverThumbSource?: string;
+}): string | null {
+  const cover = propertyCoverImage(property.images);
+  if (cover && property.coverThumb && property.coverThumbSource === cover) return property.coverThumb;
+  return cover;
+}
+
 /** First usable cover photo, skipping Bitly / QR / random external URLs. */
 export function propertyCoverImage(images: string[] | undefined): string | null {
   for (const image of images ?? []) {

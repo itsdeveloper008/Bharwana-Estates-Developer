@@ -336,6 +336,8 @@ function mapProperty(id: string, data: Record<string, unknown>): Property {
     latitude: Number(data.latitude ?? 0),
     longitude: Number(data.longitude ?? 0),
     images,
+    coverThumb: typeof data.coverThumb === "string" && isPersistedPropertyImageUrl(data.coverThumb) ? data.coverThumb : undefined,
+    coverThumbSource: typeof data.coverThumbSource === "string" ? data.coverThumbSource : undefined,
     highlightSpecs: normalizeHighlightKeys(rawHighlights, category),
     featureTags: normalizeFeatureTags(rawTags),
     ownerUserId: data.ownerUserId ? String(data.ownerUserId) : undefined,
@@ -481,6 +483,16 @@ export type UpsertPropertyOptions = {
   };
 };
 
+/** Fire-and-forget: ask the server to (re)build the small card cover for this listing. */
+function requestCoverThumb(id: string) {
+  if (typeof window === "undefined") return;
+  void fetch("/api/properties/thumb", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  }).catch(() => {});
+}
+
 export async function upsertProperty(
   property: Property,
   options?: UpsertPropertyOptions,
@@ -535,6 +547,7 @@ export async function upsertProperty(
         FIRESTORE_WRITE_TIMEOUT_MS,
         "Property save",
       );
+      requestCoverThumb(property.id);
       return result.property ? { ...next, ...result.property, images: result.property.images ?? next.images } : next;
     } catch (error) {
       const err = error as { code?: string; message?: string };
@@ -602,6 +615,7 @@ export async function upsertProperty(
     });
     throw error;
   }
+  requestCoverThumb(property.id);
   return next;
 }
 

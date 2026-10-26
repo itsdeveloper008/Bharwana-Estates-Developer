@@ -5,7 +5,7 @@ const firebaseProjectId =
 const nextConfig = {
   // Keep firebase-admin out of the webpack bundle on Vercel (Next 14).
   experimental: {
-    serverComponentsExternalPackages: ["firebase-admin"],
+    serverComponentsExternalPackages: ["firebase-admin", "sharp"],
     optimizePackageImports: ["lucide-react", "framer-motion", "@radix-ui/react-icons"],
   },
   images: {
