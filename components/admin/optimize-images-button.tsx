@@ -43,10 +43,13 @@ export function OptimizeImagesButton() {
         if (batch.done || !batch.next) break;
         startAfter = batch.next;
       }
-      toast.success(
-        `Photos optimized: ${thumbs} card thumbnails, ${photos} photos cached` +
-          (failed ? ` · ${failed} listings failed (try again)` : ""),
-      );
+      if (failed) {
+        toast.error(`${failed} of ${listings} listings could not be optimized. Try again.`);
+      } else if (thumbs === 0 && photos === 0) {
+        toast.success(`All photos are already optimized (${listings} listings checked).`);
+      } else {
+        toast.success(`Photos optimized: ${thumbs} card thumbnails, ${photos} photos cached.`);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not optimize photos.");
     } finally {
