@@ -10,9 +10,15 @@ import { propertyCoverImage } from "@/lib/property-images";
 const THUMB_WIDTH = 960;
 const THUMB_QUALITY = 72;
 
-/** Watermark covers half of the photo's shorter edge, centred. */
-const WATERMARK_SCALE = 0.5;
-const WATERMARKED_PREFIX = "wm-";
+/** Watermark covers 45% of the photo's shorter edge, centred, at 55% of the logo's own opacity. */
+const WATERMARK_SCALE = 0.45;
+const WATERMARK_OPACITY = 0.55;
+/**
+ * Bump the version when the watermark look changes: photos with an older prefix are
+ * re-stamped from their original (recorded in `watermarkedFrom`), never stamped twice.
+ */
+const WATERMARKED_PREFIX = "wm2-";
+const ANY_WATERMARK_PREFIX = /^wm\d*-/;
 
 let watermarkPng: Buffer | null = null;
 function watermark(): Buffer {
@@ -51,7 +57,12 @@ export async function watermarkPhoto(photo: Buffer): Promise<Buffer> {
     return swap ? { width: meta.height, height: meta.width } : meta;
   });
   const size = Math.max(1, Math.round(Math.min(width, height) * WATERMARK_SCALE));
-  const mark = await sharp(watermark()).resize({ width: size, height: size, fit: "inside" }).toBuffer();
+  const mark = await sharp(watermark())
+    .resize({ width: size, height: size, fit: "inside" })
+    .ensureAlpha()
+    .linear([1, 1, 1, WATERMARK_OPACITY], [0, 0, 0, 0])
+    .png()
+    .toBuffer();
   return base.composite([{ input: mark, gravity: "centre" }]).webp({ quality: 82 }).toBuffer();
 }
 
@@ -78,7 +89,18 @@ export async function ensureWatermarked(id: string): Promise<number> {
       continue;
     }
     const bucket = getStorage(getFirebaseAdminApp()).bucket(object.bucket);
-    const [original] = await bucket.file(object.path).download();
+    let sourcePath = object.path;
+    if (ANY_WATERMARK_PREFIX.test(path.posix.basename(object.path))) {
+      // Older watermark style: re-stamp from the untouched original.
+      const [meta] = await bucket.file(object.path).getMetadata();
+      const from = meta.metadata?.watermarkedFrom;
+      if (typeof from !== "string" || !from) {
+        next.push(url);
+        continue;
+      }
+      sourcePath = from;
+    }
+    const [original] = await bucket.file(sourcePath).download();
     const marked = await watermarkPhoto(original);
     const token = randomUUID();
     const markedPath = `${path.posix.dirname(object.path)}/${WATERMARKED_PREFIX}${index}-${Date.now()}.webp`;
@@ -87,7 +109,7 @@ export async function ensureWatermarked(id: string): Promise<number> {
       metadata: {
         contentType: "image/webp",
         cacheControl: IMMUTABLE_CACHE,
-        metadata: { firebaseStorageDownloadTokens: token, watermarkedFrom: object.path },
+        metadata: { firebaseStorageDownloadTokens: token, watermarkedFrom: sourcePath },
       },
     });
     next.push(downloadUrl(object.bucket, markedPath, token));
