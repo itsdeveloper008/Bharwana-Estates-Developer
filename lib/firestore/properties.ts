@@ -234,11 +234,15 @@ async function resolvePropertyImages(
       throw new Error(`Photo ${index + 1} could not be processed. Try a JPG or PNG.`);
     }
 
-    const storageRef = ref(storage, `listings/${uid}/${propertyId}/${index}.webp`);
+    // Unique name per upload so browsers can cache each photo URL forever without going stale on edit.
+    const storageRef = ref(storage, `listings/${uid}/${propertyId}/${index}-${Date.now()}.webp`);
 
     try {
       await withTimeout(
-        uploadBytes(storageRef, blob, { contentType: "image/webp" }),
+        uploadBytes(storageRef, blob, {
+          contentType: "image/webp",
+          cacheControl: "public, max-age=31536000, immutable",
+        }),
         PHOTO_UPLOAD_TIMEOUT_MS,
         `Photo ${index + 1} upload`,
       );

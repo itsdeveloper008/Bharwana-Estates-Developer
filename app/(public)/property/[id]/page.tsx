@@ -11,7 +11,6 @@ import {
   SEO_REVALIDATE_SECONDS,
 } from "@/lib/server/properties";
 import { toSeoSafeProperty } from "@/lib/server/seo-safe-property";
-import { formatPriceFull } from "@/lib/format";
 import { propertyCoverImage } from "@/lib/property-images";
 
 export const revalidate = SEO_REVALIDATE_SECONDS;
@@ -99,33 +98,7 @@ export default async function PropertyPage({ params }: { params: { id: string } 
           <JsonLd data={realEstateListingJsonLd(safe)} />
         </>
       ) : null}
-      <nav aria-label="Breadcrumb" className="mx-auto max-w-6xl px-4 pt-6 text-sm text-muted-foreground sm:px-6">
-        <ol className="flex flex-wrap items-center gap-2">
-          <li>
-            <a href="/" className="hover:text-forest">
-              Home
-            </a>
-          </li>
-          <li aria-hidden>/</li>
-          <li>
-            <a href="/properties" className="hover:text-forest">
-              Properties
-            </a>
-          </li>
-          <li aria-hidden>/</li>
-          <li className="truncate text-forest">{property.title}</li>
-        </ol>
-      </nav>
-      {/* Server-rendered title + price so curl/view-source (and non-JS crawlers) see an h1. */}
-      <header className="mx-auto max-w-6xl px-4 pt-4 sm:px-6">
-        <h1 className="font-serif text-3xl leading-tight text-forest sm:text-4xl">{property.title}</h1>
-        <p className="mt-2 text-lg text-forest/80">{formatPriceFull(property.price)}</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {property.city}
-          {property.address ? ` · ${property.address}` : ""}
-        </p>
-      </header>
-      <PropertyDetailGate id={property.id} initial={safe} hideTitle />
+      <PropertyDetailGate id={property.id} initial={safe} />
       <p className="sr-only">
         {SITE_NAME} listing in {property.city}
       </p>
