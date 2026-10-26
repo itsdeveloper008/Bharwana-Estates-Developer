@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import type { FeaturedSettings } from "@/lib/featured-shared";
-import { SITE_TRUST_STRIP } from "@/lib/site-contact";
 import type { Property, PropertyCategory } from "@/lib/types";
 
 const HeroSearch = dynamic(
@@ -79,18 +78,6 @@ export function HomePageClient({
               />
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* PX-B05: trust strip directly under the hero */}
-      <section className="border-y border-forest/10 bg-ivory" aria-label="Why trust Bharwana Estates">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-4 py-6 text-center md:grid-cols-4 md:px-6 md:py-8 xl:px-8">
-          {SITE_TRUST_STRIP.map((item) => (
-            <div key={item.label}>
-              <p className="font-serif text-2xl text-forest md:text-3xl xl:text-4xl">{item.value}</p>
-              <p className="mt-1 text-xs text-muted-foreground md:text-sm">{item.label}</p>
-            </div>
-          ))}
         </div>
       </section>
 

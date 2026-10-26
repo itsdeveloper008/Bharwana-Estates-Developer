@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { Bath, BedDouble, Maximize2 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { HistoryBackButton } from "@/components/ui/history-back-button";
@@ -17,7 +16,6 @@ import { PropertyVideo } from "@/components/properties/property-video";
 import { useMockAuth } from "@/lib/mock-auth";
 import { formatArea, formatDate, formatPrice, formatPriceFull, listingBadge, statusLabel } from "@/lib/format";
 import { propertyHighlightDisplay } from "@/lib/property-features";
-import { SITE_PHONE_DISPLAY } from "@/lib/site-contact";
 import type { Property } from "@/lib/types";
 
 const MiniMap = dynamic(() => import("@/components/map/map-canvas").then((mod) => mod.MiniMap), { ssr: false });
@@ -125,26 +123,6 @@ function PropertyDetailInner({
           <p className="mt-4 text-xs uppercase tracking-[0.14em] text-muted-foreground">
             {statusLabel(property.status)} · Listed {formatDate(property.createdAt)}
           </p>
-          {/* PX-B04: estate trust card above CTAs (no fabricated Reg # / star rating). */}
-          <div className="mt-6 flex items-center gap-3 rounded-2xl border border-forest/10 bg-white p-3 md:p-4 xl:gap-4">
-            <Avatar className="h-12 w-12 md:h-14 md:w-14">
-              <AvatarImage src="/logo.webp" alt="" />
-              <AvatarFallback className="bg-forest/10 text-sm font-semibold text-forest">BE</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-forest">Bharwana Estates</p>
-              <p className="text-xs text-muted-foreground md:text-sm">Multan estate desk · {SITE_PHONE_DISPLAY}</p>
-              <p className="text-xs text-gold-800">Call or WhatsApp for this listing</p>
-            </div>
-            <a
-              href={whatsappHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden h-10 items-center rounded-full bg-[#25D366] px-4 text-sm font-semibold text-white md:inline-flex"
-            >
-              WhatsApp
-            </a>
-          </div>
           <div className="mt-6 flex flex-col gap-3">
             <Button size="lg" className="w-full rounded-full" onClick={() => setOpen(true)}>
               {primaryCta}

@@ -13,7 +13,6 @@ import {
   SITE_PHONE_DISPLAY,
   SITE_PHONE_E164,
   SITE_SOCIAL,
-  SITE_TRUST_STRIP,
 } from "@/lib/site-contact";
 import { cn } from "@/lib/utils";
 
@@ -24,15 +23,6 @@ const footerLinks = [
   { href: "/faq", label: "FAQ" },
   { href: "/team", label: "Team" },
   { href: "/owner/add-property", label: "List your property" },
-];
-
-const seoLinks = [
-  { href: "/properties-in-multan", label: "Properties in Multan" },
-  { href: "/houses-for-sale-in-multan", label: "Houses for sale" },
-  { href: "/plots-for-sale-in-multan", label: "Plots for sale" },
-  { href: "/houses-for-rent-in-multan", label: "Houses for rent" },
-  { href: "/dha-multan", label: "DHA Multan" },
-  { href: "/buch-villas-multan", label: "Buch Villas" },
 ];
 
 const legalLinks = [
@@ -187,18 +177,6 @@ export function Footer() {
 
   return (
     <footer className="relative overflow-hidden bg-[#06291C] text-[#F4F0E6]">
-      {/* PX-B05: light trust strip above the dark footer body */}
-      <section className="border-b border-forest/10 bg-ivory text-forest" aria-label="Why trust Bharwana Estates">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-4 py-6 text-center md:grid-cols-4 md:px-6 md:py-8 xl:px-8">
-          {SITE_TRUST_STRIP.map((item) => (
-            <div key={item.label}>
-              <p className="font-serif text-2xl md:text-3xl xl:text-4xl">{item.value}</p>
-              <p className="mt-1 text-xs text-muted-foreground md:text-sm">{item.label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Oversized crest watermark */}
       <Image
         src="/logo.webp"
@@ -308,23 +286,12 @@ export function Footer() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.25 }}
           transition={{ duration: 0.65, delay: 0.08, ease }}
-          className="mt-20 grid gap-12 border-t border-[rgba(194,163,90,0.2)] pt-14 sm:grid-cols-2 lg:mt-24 lg:grid-cols-5 lg:gap-10 lg:pt-16"
+          className="mt-20 grid gap-12 border-t border-[rgba(194,163,90,0.2)] pt-14 sm:grid-cols-2 lg:mt-24 lg:grid-cols-4 lg:gap-10 lg:pt-16"
         >
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E8C547]">Company</p>
             <ul className="mt-5 space-y-3">
               {footerLinks.map((link) => (
-                <li key={link.href}>
-                  <FooterLink href={link.href} label={link.label} />
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E8C547]">Multan</p>
-            <ul className="mt-5 space-y-3">
-              {seoLinks.map((link) => (
                 <li key={link.href}>
                   <FooterLink href={link.href} label={link.label} />
                 </li>
