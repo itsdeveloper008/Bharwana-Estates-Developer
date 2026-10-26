@@ -91,12 +91,11 @@ export function PropertyGallery({
 }: {
   images: string[];
   title: string;
-  /** When set, the video tour is the first slide, before the photos. */
+  /** When set, the video tour is the last slide, after the photos. */
   youtubeVideoId?: string;
 }) {
   const hasVideo = isYouTubeVideoId(youtubeVideoId);
-  const offset = hasVideo ? 1 : 0;
-  /** Index over all slides (video first, then photos). */
+  /** Index over all slides (photos, then the video last). */
   const [slide, setSlide] = useState(0);
   /** Lightbox is photos only; this indexes `images`. */
   const [active, setActive] = useState(0);
@@ -104,7 +103,7 @@ export function PropertyGallery({
   const [lightboxLoading, setLightboxLoading] = useState(false);
   const stripRef = useRef<HTMLDivElement>(null);
   const total = images.length;
-  const slideCount = total + offset;
+  const slideCount = total + (hasVideo ? 1 : 0);
 
   function go(delta: number) {
     if (total < 2) return;
@@ -168,8 +167,8 @@ export function PropertyGallery({
   }
 
   const current = images[active] ?? images[0] ?? "";
-  const showingVideo = hasVideo && slide === 0;
-  const slideImageIndex = slide - offset;
+  const showingVideo = hasVideo && slide === total;
+  const slideImageIndex = slide;
 
   return (
     <div className="space-y-3">
@@ -187,7 +186,7 @@ export function PropertyGallery({
               src={images[slideImageIndex] ?? images[0]!}
               alt={title}
               fill
-              priority={!hasVideo}
+              priority
               sizes="(max-width: 1024px) 100vw, 70vw"
             />
           </button>
@@ -247,10 +246,27 @@ export function PropertyGallery({
             className="flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
+            {images.map((image, index) => (
+              <button
+                key={`${index}-${image.slice(0, 24)}`}
+                type="button"
+                onClick={() => {
+                  setSlide(index);
+                  openLightbox(index);
+                }}
+                className={cn(
+                  "relative aspect-[4/3] w-[calc((100%-0.5rem*5)/6)] min-w-[4.75rem] shrink-0 snap-start overflow-hidden sm:min-w-[5.5rem]",
+                  slideImageIndex === index ? "ring-1 ring-gold" : "opacity-70 hover:opacity-100",
+                )}
+                aria-label={`Open photo ${index + 1}`}
+              >
+                <GalleryImage src={image} alt={`${title} photo ${index + 1}`} fill sizes="120px" />
+              </button>
+            ))}
             {hasVideo ? (
               <button
                 type="button"
-                onClick={() => setSlide(0)}
+                onClick={() => setSlide(total)}
                 className={cn(
                   "relative aspect-[4/3] w-[calc((100%-0.5rem*5)/6)] min-w-[4.75rem] shrink-0 snap-start overflow-hidden bg-forest sm:min-w-[5.5rem]",
                   showingVideo ? "ring-1 ring-gold" : "opacity-70 hover:opacity-100",
@@ -268,23 +284,6 @@ export function PropertyGallery({
                 </span>
               </button>
             ) : null}
-            {images.map((image, index) => (
-              <button
-                key={`${index}-${image.slice(0, 24)}`}
-                type="button"
-                onClick={() => {
-                  setSlide(index + offset);
-                  openLightbox(index);
-                }}
-                className={cn(
-                  "relative aspect-[4/3] w-[calc((100%-0.5rem*5)/6)] min-w-[4.75rem] shrink-0 snap-start overflow-hidden sm:min-w-[5.5rem]",
-                  slideImageIndex === index ? "ring-1 ring-gold" : "opacity-70 hover:opacity-100",
-                )}
-                aria-label={`Open photo ${index + 1}`}
-              >
-                <GalleryImage src={image} alt={`${title} photo ${index + 1}`} fill sizes="120px" />
-              </button>
-            ))}
           </div>
         </div>
       ) : null}
@@ -294,7 +293,7 @@ export function PropertyGallery({
         onOpenChange={(open) => {
           setLightboxOpen(open);
           // Keep the main frame on the photo the viewer ended on.
-          if (!open) setSlide(active + offset);
+          if (!open) setSlide(active);
         }}
       >
         <DialogPrimitive.Portal>
