@@ -76,7 +76,11 @@ function PropertyDetailInner({
       </div>
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)] lg:gap-12">
         <div className="min-w-0">
-          <PropertyGallery images={property.images} title={property.title} />
+          <PropertyGallery
+            images={property.images}
+            title={property.title}
+            youtubeVideoId={property.youtubeVideoId}
+          />
           <div className="mt-10">
             <p className="type-eyebrow">The residence</p>
             <p className="mt-4 max-w-2xl text-base leading-relaxed text-forest/80 sm:text-lg">

@@ -2,9 +2,11 @@
 
 import Image from "next/image";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Play, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PropertyVideoSlide } from "@/components/properties/property-video";
 import { cn } from "@/lib/utils";
+import { getThumbnailUrl, isYouTubeVideoId } from "@/lib/youtube";
 
 function isInlineImageSrc(src: string) {
   return src.startsWith("data:") || src.startsWith("blob:");
@@ -82,16 +84,41 @@ function preloadAdjacentImages(images: string[], active: number) {
   }
 }
 
-export function PropertyGallery({ images, title }: { images: string[]; title: string }) {
+export function PropertyGallery({
+  images,
+  title,
+  youtubeVideoId,
+}: {
+  images: string[];
+  title: string;
+  /** When set, the video tour is the first slide, before the photos. */
+  youtubeVideoId?: string;
+}) {
+  const hasVideo = isYouTubeVideoId(youtubeVideoId);
+  const offset = hasVideo ? 1 : 0;
+  /** Index over all slides (video first, then photos). */
+  const [slide, setSlide] = useState(0);
+  /** Lightbox is photos only; this indexes `images`. */
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxLoading, setLightboxLoading] = useState(false);
   const stripRef = useRef<HTMLDivElement>(null);
   const total = images.length;
+  const slideCount = total + offset;
 
   function go(delta: number) {
     if (total < 2) return;
     setActive((current) => (current + delta + total) % total);
+  }
+
+  function goSlide(delta: number) {
+    if (slideCount < 2) return;
+    setSlide((current) => (current + delta + slideCount) % slideCount);
+  }
+
+  function openLightbox(imageIndex: number) {
+    setActive(imageIndex);
+    setLightboxOpen(true);
   }
 
   function scrollStrip(direction: 1 | -1) {
@@ -132,7 +159,7 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
     );
   }, [lightboxOpen, active, images, total]);
 
-  if (total === 0) {
+  if (slideCount === 0) {
     return (
       <div className="flex aspect-[16/10] items-center justify-center bg-cream text-sm text-muted-foreground">
         No photos
@@ -140,33 +167,39 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
     );
   }
 
-  const current = images[active] ?? images[0];
+  const current = images[active] ?? images[0] ?? "";
+  const showingVideo = hasVideo && slide === 0;
+  const slideImageIndex = slide - offset;
 
   return (
     <div className="space-y-3">
       <div className="relative aspect-[16/10] overflow-hidden bg-cream">
-        <button
-          type="button"
-          className="absolute inset-0 block h-full w-full cursor-zoom-in"
-          onClick={() => setLightboxOpen(true)}
-          aria-label={`View full size photo of ${title}`}
-        >
-          <GalleryImage
-            src={current}
-            alt={title}
-            fill
-            priority
-            sizes="(max-width: 1024px) 100vw, 70vw"
-          />
-        </button>
+        {showingVideo ? (
+          <PropertyVideoSlide youtubeVideoId={youtubeVideoId} />
+        ) : (
+          <button
+            type="button"
+            className="absolute inset-0 block h-full w-full cursor-zoom-in"
+            onClick={() => openLightbox(slideImageIndex)}
+            aria-label={`View full size photo of ${title}`}
+          >
+            <GalleryImage
+              src={images[slideImageIndex] ?? images[0]!}
+              alt={title}
+              fill
+              priority={!hasVideo}
+              sizes="(max-width: 1024px) 100vw, 70vw"
+            />
+          </button>
+        )}
 
-        {total > 1 ? (
+        {slideCount > 1 ? (
           <>
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                go(-1);
+                goSlide(-1);
               }}
               aria-label="Previous photo"
               className="absolute left-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-forest/75 text-ivory shadow-md backdrop-blur-sm transition hover:bg-forest"
@@ -177,7 +210,7 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                go(1);
+                goSlide(1);
               }}
               aria-label="Next photo"
               className="absolute right-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-forest/75 text-ivory shadow-md backdrop-blur-sm transition hover:bg-forest"
@@ -185,13 +218,13 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
               <ChevronRight className="h-5 w-5" strokeWidth={1.75} />
             </button>
             <span className="pointer-events-none absolute bottom-3 right-3 z-10 rounded-full bg-forest/70 px-2.5 py-1 text-[10px] font-medium tracking-wide text-ivory backdrop-blur-sm">
-              {active + 1} / {total}
+              {slide + 1} / {slideCount}
             </span>
           </>
         ) : null}
       </div>
 
-      {total > 1 ? (
+      {slideCount > 1 ? (
         <div className="group relative">
           <button
             type="button"
@@ -214,17 +247,38 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
             className="flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
+            {hasVideo ? (
+              <button
+                type="button"
+                onClick={() => setSlide(0)}
+                className={cn(
+                  "relative aspect-[4/3] w-[calc((100%-0.5rem*5)/6)] min-w-[4.75rem] shrink-0 snap-start overflow-hidden bg-forest sm:min-w-[5.5rem]",
+                  showingVideo ? "ring-1 ring-gold" : "opacity-70 hover:opacity-100",
+                )}
+                aria-label="Play video tour"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- YouTube thumbnail, not a listing photo */}
+                <img
+                  src={getThumbnailUrl(youtubeVideoId)}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+                <span className="absolute inset-0 flex items-center justify-center bg-forest/30">
+                  <Play className="h-5 w-5 fill-ivory text-ivory" aria-hidden />
+                </span>
+              </button>
+            ) : null}
             {images.map((image, index) => (
               <button
                 key={`${index}-${image.slice(0, 24)}`}
                 type="button"
                 onClick={() => {
-                  setActive(index);
-                  setLightboxOpen(true);
+                  setSlide(index + offset);
+                  openLightbox(index);
                 }}
                 className={cn(
                   "relative aspect-[4/3] w-[calc((100%-0.5rem*5)/6)] min-w-[4.75rem] shrink-0 snap-start overflow-hidden sm:min-w-[5.5rem]",
-                  active === index ? "ring-1 ring-gold" : "opacity-70 hover:opacity-100",
+                  slideImageIndex === index ? "ring-1 ring-gold" : "opacity-70 hover:opacity-100",
                 )}
                 aria-label={`Open photo ${index + 1}`}
               >
@@ -235,7 +289,14 @@ export function PropertyGallery({ images, title }: { images: string[]; title: st
         </div>
       ) : null}
 
-      <DialogPrimitive.Root open={lightboxOpen} onOpenChange={setLightboxOpen}>
+      <DialogPrimitive.Root
+        open={lightboxOpen}
+        onOpenChange={(open) => {
+          setLightboxOpen(open);
+          // Keep the main frame on the photo the viewer ended on.
+          if (!open) setSlide(active + offset);
+        }}
+      >
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/90 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
           <DialogPrimitive.Content

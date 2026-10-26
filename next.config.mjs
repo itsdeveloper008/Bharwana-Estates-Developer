@@ -6,6 +6,10 @@ const nextConfig = {
   // Keep firebase-admin out of the webpack bundle on Vercel (Next 14).
   experimental: {
     serverComponentsExternalPackages: ["firebase-admin", "sharp"],
+    // Watermark PNG is read from disk by the photo-processing route.
+    outputFileTracingIncludes: {
+      "/api/properties/process": ["./lib/server/assets/**"],
+    },
     optimizePackageImports: ["lucide-react", "framer-motion", "@radix-ui/react-icons"],
   },
   images: {

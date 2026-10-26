@@ -1,6 +1,11 @@
 import { resolveListingArea, type AreaUnitId } from "@/lib/area-units";
 import type { CommissionStatus, InquiryStatus, ListingType, PropertyStatus } from "./types";
 
+/** Pakistani lakh/crore grouping: 65000000 → "6,50,00,000". */
+export function formatPkrNumber(amount: number): string {
+  return Math.trunc(amount).toLocaleString("en-IN");
+}
+
 export function formatPrice(amount: number) {
   if (amount >= 10_000_000) {
     const crore = amount / 10_000_000;
@@ -12,11 +17,11 @@ export function formatPrice(amount: number) {
     const value = Number.isInteger(lakh) ? lakh.toFixed(0) : lakh.toFixed(1);
     return `PKR ${value.replace(/\.0$/, "")} Lakh`;
   }
-  return `PKR ${amount.toLocaleString("en-PK")}`;
+  return `PKR ${formatPkrNumber(amount)}`;
 }
 
 export function formatPriceFull(amount: number) {
-  return `PKR ${amount.toLocaleString("en-PK")}`;
+  return `PKR ${formatPkrNumber(amount)}`;
 }
 
 /**

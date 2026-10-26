@@ -54,6 +54,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMockAuth } from "@/lib/mock-auth";
 import { useMockStore } from "@/lib/mock-store";
+import { formatPkrNumber } from "@/lib/format";
 import { firestoreErrorMessage } from "@/lib/firestore/errors";
 import { getPropertyDoc } from "@/lib/firestore/properties";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
@@ -196,7 +197,7 @@ function WizardStepIndicator({ current }: { current: number }) {
 }
 
 function formatGroupedInt(amount: number): string {
-  return Math.trunc(amount).toLocaleString("en-PK");
+  return formatPkrNumber(amount);
 }
 
 function NumberInput({
@@ -1921,7 +1922,7 @@ export function PropertyForm({
                         onBlur={field.onBlur}
                         name={field.name}
                         icon={Tag}
-                        placeholder="e.g. 42,000"
+                        placeholder="e.g. 6,50,00,000"
                         grouped
                         integerOnly
                       />

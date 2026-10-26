@@ -483,10 +483,10 @@ export type UpsertPropertyOptions = {
   };
 };
 
-/** Fire-and-forget: ask the server to (re)build the small card cover for this listing. */
-function requestCoverThumb(id: string) {
+/** Fire-and-forget: server watermarks new photos and (re)builds the small card cover. */
+function requestPhotoProcessing(id: string) {
   if (typeof window === "undefined") return;
-  void fetch("/api/properties/thumb", {
+  void fetch("/api/properties/process", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id }),
@@ -547,7 +547,7 @@ export async function upsertProperty(
         FIRESTORE_WRITE_TIMEOUT_MS,
         "Property save",
       );
-      requestCoverThumb(property.id);
+      requestPhotoProcessing(property.id);
       return result.property ? { ...next, ...result.property, images: result.property.images ?? next.images } : next;
     } catch (error) {
       const err = error as { code?: string; message?: string };
@@ -615,7 +615,7 @@ export async function upsertProperty(
     });
     throw error;
   }
-  requestCoverThumb(property.id);
+  requestPhotoProcessing(property.id);
   return next;
 }
 
