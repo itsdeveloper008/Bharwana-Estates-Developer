@@ -109,7 +109,7 @@ export default function KineticTeamHybrid({
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_30%_0%,rgba(185,149,74,0.12),transparent_50%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_70%,rgba(245,241,232,0.04),transparent_45%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.045] mix-blend-overlay" />
+      <div className="pointer-events-none absolute inset-0 bg-[url('/noise.svg')] opacity-[0.045] mix-blend-overlay" />
 
       <div className="relative mx-auto max-w-6xl">
         <motion.header
