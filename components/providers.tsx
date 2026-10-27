@@ -17,6 +17,8 @@ function shouldDeferProviders(pathname: string | null): boolean {
   // Public listing/SEO HTML must SSR (h1, cards, JSON-LD) — do not replace children with a boot spinner.
   if (pathname.startsWith("/properties")) return true;
   if (pathname.startsWith("/property/")) return true;
+  // Map ships SSR listings too; paint it instead of the boot spinner.
+  if (pathname.startsWith("/map")) return true;
   if (pathname.startsWith("/seo-landing")) return true;
   if (
     pathname === "/about" ||

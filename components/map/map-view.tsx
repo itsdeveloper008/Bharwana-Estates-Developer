@@ -91,6 +91,7 @@ export function MapView({
   onBoundsSearch,
   onResetBounds,
   gestureHandling = "greedy",
+  loading = false,
 }: {
   properties: Property[];
   hoveredId?: string | null;
@@ -103,6 +104,8 @@ export function MapView({
   onResetBounds?: () => void;
   /** cooperative while page can still scroll filters; greedy once map pane is stuck. */
   gestureHandling?: "cooperative" | "greedy";
+  /** Listings not delivered yet: don't claim the area is empty. */
+  loading?: boolean;
 }) {
   const mapRef = useRef<google.maps.Map | null>(null);
   const mapShellRef = useRef<HTMLDivElement | null>(null);
@@ -647,7 +650,7 @@ export function MapView({
         </span>
       </div>
 
-      {styleLoaded && properties.length === 0 && (
+      {styleLoaded && !loading && properties.length === 0 && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-ivory/70 px-6 backdrop-blur-[2px]">
           <div className="max-w-sm border border-forest/10 bg-ivory p-6 text-center shadow-lift">
             <p className="font-serif text-xl text-forest">No properties match this area</p>

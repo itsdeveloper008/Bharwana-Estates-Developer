@@ -8,6 +8,7 @@ import { PropertyCard } from "@/components/properties/property-card";
 import { filtersFromSearchParams, filterProperties } from "@/lib/api/properties";
 import { preloadGoogleMaps } from "@/lib/map";
 import { useMockStore } from "@/lib/mock-store-context";
+import type { Property } from "@/lib/types";
 import type { MapBounds } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -59,10 +60,17 @@ function readHeaderHeightPx() {
   return Number.isFinite(n) ? n : 96;
 }
 
-export function MapExplorer() {
+export function MapExplorer({
+  initialProperties = [],
+}: {
+  /** Server-rendered listings so pins/cards show before the live store connects. */
+  initialProperties?: Property[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { properties } = useMockStore();
+  const { properties: storeProperties, propertiesLoading, storeReady } = useMockStore();
+  const properties = storeProperties.length > 0 ? storeProperties : initialProperties;
+  const waiting = properties.length === 0 && (!storeReady || propertiesLoading);
   const [bounds, setBounds] = useState<MapBounds | undefined>();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -158,7 +166,7 @@ export function MapExplorer() {
   return (
     <div className="bg-ivory">
       <div className="border-b border-forest/10 bg-ivory px-4 py-4 sm:px-6">
-        <FilterBar resultCount={results.length} showViewToggle={false} />
+        <FilterBar resultCount={waiting ? undefined : results.length} showViewToggle={false} />
       </div>
 
       {/* 1px sentinel just above the sticky list+map block */}
@@ -211,7 +219,10 @@ export function MapExplorer() {
                   onSelect={selectFromList}
                 />
               ))}
-              {results.length === 0 && (
+              {waiting && (
+                <p className="p-8 text-center text-sm text-muted-foreground">Loading properties…</p>
+              )}
+              {!waiting && results.length === 0 && (
                 <div className="p-8 text-center">
                   <p className="text-sm text-muted-foreground">No properties in this frame.</p>
                   <Button variant="outline" size="sm" className="mt-4" onClick={resetAll}>
@@ -240,6 +251,7 @@ export function MapExplorer() {
               onBoundsSearch={setBounds}
               onResetBounds={resetAll}
               gestureHandling={stuck ? "greedy" : "cooperative"}
+              loading={waiting}
             />
           </MapPaneErrorBoundary>
         </div>
