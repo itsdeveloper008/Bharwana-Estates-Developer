@@ -89,8 +89,9 @@ export function PropertiesExplorer({
               view === "grid" ? "grid gap-8 sm:grid-cols-2 xl:grid-cols-3" : "flex flex-col gap-4",
             )}
           >
-            {pageItems.map((property) => (
-              <PropertyCard key={property.id} property={property} layout={view} />
+            {pageItems.map((property, index) => (
+              // First row is above the fold: fetch those covers first (LCP).
+              <PropertyCard key={property.id} property={property} layout={view} priority={index < 3} />
             ))}
           </div>
           {totalPages > 1 ? (
