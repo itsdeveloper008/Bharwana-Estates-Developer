@@ -5,7 +5,7 @@ import { absoluteUrl } from "@/lib/seo/site";
 export const metadata: Metadata = {
   title: "Contact Us",
   description:
-    "Call, WhatsApp, or message Bharwana Estates in Multan. Visit our office in Buch Villas Phase 2.",
+    "Call or WhatsApp Bharwana Estates in Multan, or visit our office in Buch Villas Phase 2.",
   alternates: { canonical: absoluteUrl("/contact") },
 };
 
