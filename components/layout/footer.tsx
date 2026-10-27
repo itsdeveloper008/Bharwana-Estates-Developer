@@ -22,7 +22,6 @@ const footerLinks = [
   { href: "/about", label: "About" },
   { href: "/faq", label: "FAQ" },
   { href: "/team", label: "Team" },
-  { href: "/contact", label: "Contact" },
   { href: "/owner/add-property", label: "List your property" },
 ];
 
