@@ -110,7 +110,7 @@ async function sendEmail(input: {
   }
 }
 
-function wrapHtml(input: { headline: string; body: string }): string {
+function wrapHtml(input: { headline: string; body: string; footer?: string }): string {
   const logoUrl = `${siteUrl()}/logo.png`;
   return `<!DOCTYPE html>
 <html lang="en">
@@ -140,7 +140,7 @@ function wrapHtml(input: { headline: string; body: string }): string {
         </tr>
         <tr>
           <td style="padding:8px 28px 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:12px;line-height:1.5;color:#6b7c72;">
-            <p style="margin:0;">This message was sent by Bharwana Estates Developer regarding your account activity.</p>
+            <p style="margin:0;">${input.footer ?? "This message was sent by Bharwana Estates Developer regarding your account activity."}</p>
           </td>
         </tr>
       </table>
@@ -250,6 +250,71 @@ export async function sendDealerRejectionEmail(input: {
     html,
     text,
     idempotencyKey: `reject-dealer-${input.entityId}`,
+  });
+}
+
+/** Staff inbox for new-lead alerts. */
+function leadNotifyAddress(): string {
+  const configured = process.env.LEAD_NOTIFY_EMAIL?.trim() || process.env.RESEND_REJECTION_BCC?.trim();
+  return configured && configured.includes("@") ? configured : "info@bharwanaestates.com";
+}
+
+/** Alert staff about a new buyer inquiry or contact-form message. */
+export async function sendStaffLeadEmail(input: {
+  kind: "inquiry" | "contact";
+  /** Firestore doc id — forms the Resend idempotency key. */
+  entityId: string;
+  propertyTitle?: string;
+  propertyUrl?: string;
+  rows: Array<[label: string, value: string | null | undefined]>;
+}): Promise<SendResult> {
+  const base = siteUrl();
+  const headline = input.kind === "inquiry" ? "New property inquiry" : "New contact message";
+  const subject =
+    input.kind === "inquiry"
+      ? `New inquiry: ${input.propertyTitle?.trim() || "a listing"}`
+      : "New contact message from the website";
+  const rows = input.rows.filter((row): row is [string, string] => Boolean(row[1]?.trim()));
+  const adminHref = `${base}/admin/inquiries`;
+
+  const text = [
+    headline,
+    "",
+    ...(input.propertyTitle ? [`Listing: ${input.propertyTitle}`, input.propertyUrl ?? ""] : []),
+    ...rows.map(([label, value]) => `${label}: ${value}`),
+    "",
+    `Open the admin panel: ${adminHref}`,
+  ].join("\n");
+
+  const html = wrapHtml({
+    headline,
+    footer: "Lead alert from bharwanaestates.com. Reply to the buyer directly using the details above.",
+    body: `
+      ${
+        input.propertyTitle
+          ? `<p style="margin:0 0 18px;">Listing: <a href="${input.propertyUrl ?? base}" style="color:${BRAND_GREEN};font-weight:600;">${escapeHtml(input.propertyTitle)}</a></p>`
+          : ""
+      }
+      <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;margin:0 0 22px;border-collapse:collapse;">
+        ${rows
+          .map(
+            ([label, value]) => `<tr>
+          <td style="padding:8px 12px 8px 0;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#6b7c72;vertical-align:top;white-space:nowrap;">${escapeHtml(label)}</td>
+          <td style="padding:8px 0;color:${BRAND_INK};">${escapeHtml(value).replace(/\n/g, "<br />")}</td>
+        </tr>`,
+          )
+          .join("")}
+      </table>
+      ${ctaButton(adminHref, input.kind === "inquiry" ? "Open inquiries" : "Open admin")}
+    `,
+  });
+
+  return sendEmail({
+    to: leadNotifyAddress(),
+    subject,
+    html,
+    text,
+    idempotencyKey: `lead-${input.kind}-${input.entityId}`,
   });
 }
 

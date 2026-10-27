@@ -1,5 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
+import { sendStaffLeadEmail } from "@/lib/email/resend";
 import { getAdminDb, isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 import { clientIp, enforce } from "@/lib/rate-limit";
 
@@ -47,7 +48,18 @@ export async function POST(request: Request) {
     if (phone) payload.phone = phone;
     if (propertyId) payload.propertyId = propertyId;
 
-    await getAdminDb().collection("contactMessages").add(payload);
+    const saved = await getAdminDb().collection("contactMessages").add(payload);
+    // Message is saved either way; an email failure is logged by the sender, not surfaced.
+    await sendStaffLeadEmail({
+      kind: "contact",
+      entityId: saved.id,
+      rows: [
+        ["Name", name],
+        ["Phone", phone],
+        ["Email", email],
+        ["Message", message],
+      ],
+    }).catch((error) => console.error("[api/contact] lead email", error));
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[api/contact] unexpected", error);

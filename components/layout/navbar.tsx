@@ -39,6 +39,7 @@ const publicLinks = [
   { href: "/map?intent=buy", label: "Map" },
   { href: "/about", label: "About" },
   { href: "/team", label: "Team" },
+  { href: "/contact", label: "Contact" },
 ] as const;
 
 const phoneDisplay = "+92 300 1713811";

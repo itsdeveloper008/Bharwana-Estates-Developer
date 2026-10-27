@@ -8,8 +8,11 @@ export const metadata = {
 
 export default function MapPage() {
   return (
-    <Suspense fallback={<div className="px-6 py-20 text-sm text-muted-foreground">Preparing the map…</div>}>
-      <MapExplorer />
-    </Suspense>
+    <>
+      <h1 className="sr-only">Browse properties on the map</h1>
+      <Suspense fallback={<div className="px-6 py-20 text-sm text-muted-foreground">Preparing the map…</div>}>
+        <MapExplorer />
+      </Suspense>
+    </>
   );
 }
