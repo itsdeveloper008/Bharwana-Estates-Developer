@@ -153,7 +153,10 @@ service cloud.firestore {
     match /properties/{propertyId} {
       // CT-BW-02 / BED-SEC-01: drafts, pending, rejected, archived are not world-readable.
       // Public marketplace queries must filter status (rules are not filters).
-      allow read: if resource.data.status in ['PUBLISHED', 'RESERVED', 'SOLD']
+      // `resource == null`: a new listing's save first checks whether its doc exists.
+      // Without this, that check is denied (null resource) and every new submission fails.
+      allow read: if resource == null
+        || resource.data.status in ['PUBLISHED', 'RESERVED', 'SOLD']
         || canManageProperties()
         || canPurgeData()
         || (isSignedIn() && resource.data.ownerUserId == request.auth.uid);
