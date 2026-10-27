@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { PropertyCard } from "@/components/properties/property-card";
 import { Button } from "@/components/ui/button";
-import { useFavorites } from "@/lib/favorites-context";
-import { useMockAuth } from "@/lib/mock-auth";
-import { useMockStore } from "@/lib/mock-store";
+import { useFavorites } from "@/lib/favorites-hook";
+import { useMockAuth } from "@/lib/mock-auth-context";
+import { useMockStore } from "@/lib/mock-store-context";
 
 export function SavedPropertiesPage() {
   const { user, isReady } = useMockAuth();

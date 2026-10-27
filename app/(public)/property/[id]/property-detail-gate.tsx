@@ -3,15 +3,14 @@
 import { useEffect, useState } from "react";
 import { PropertyDetail } from "@/components/properties/property-detail";
 import { DetailSkeleton } from "@/components/ui/skeletons";
-import { getPropertyDoc } from "@/lib/firestore/properties";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
 import type { Property } from "@/lib/types";
 
 /**
  * Client gate for `/property/[id]`.
  * Prefers the live store (or SSR `initial` when present). If the listing is missing
  * from the scoped public subscription (e.g. pending draft opened by owner link),
- * falls back to a single-doc Firestore fetch via `getPropertyDoc`.
+ * falls back to a single-doc Firestore fetch via a lazily imported `getPropertyDoc`.
  * Note: the route's server `generateMetadata` may still use seed helpers — SEO vs live can differ.
  */
 export function PropertyDetailGate({
@@ -37,7 +36,9 @@ export function PropertyDetailGate({
 
     let cancelled = false;
     setFetched(undefined);
-    void getPropertyDoc(id)
+    // Rare fallback (drafts via owner link): load the Firestore client only when needed.
+    void import("@/lib/firestore/properties")
+      .then(({ getPropertyDoc }) => getPropertyDoc(id))
       .then((doc) => {
         if (!cancelled) setFetched(doc);
       })

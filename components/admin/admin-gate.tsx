@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { RequirePathModule } from "@/components/admin/require-module";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import type { AdminModule } from "@/lib/admin/modules";
 
 function firstAllowedPath(

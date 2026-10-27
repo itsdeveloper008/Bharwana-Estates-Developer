@@ -21,8 +21,8 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useMockAuth } from "@/lib/mock-auth";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockAuth } from "@/lib/mock-auth-context";
+import { useMockStore } from "@/lib/mock-store-context";
 import { formatPakistanMobileE164, toPakistanMobileLocal } from "@/lib/phone-format";
 import { FULL_NAME_MAX_LENGTH } from "@/lib/person-name";
 import { inquiryFormSchema, type InquiryFormValues } from "@/lib/schemas";

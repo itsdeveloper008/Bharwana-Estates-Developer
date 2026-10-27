@@ -7,7 +7,7 @@ import { FilterBar } from "@/components/properties/filter-bar";
 import { PropertyCard } from "@/components/properties/property-card";
 import { filtersFromSearchParams, filterProperties } from "@/lib/api/properties";
 import { preloadGoogleMaps } from "@/lib/map";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
 import type { MapBounds } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

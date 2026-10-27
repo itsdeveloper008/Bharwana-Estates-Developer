@@ -13,7 +13,7 @@ import { PropertyGallery } from "@/components/properties/property-gallery";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
 import { PropertyShareButton } from "@/components/properties/property-share-button";
 import { PropertyVideo } from "@/components/properties/property-video";
-import { useMockAuth } from "@/lib/mock-auth";
+import { useMockAuth } from "@/lib/mock-auth-context";
 import { formatArea, formatDate, formatPrice, formatPriceFull, listingBadge, statusLabel } from "@/lib/format";
 import { propertyHighlightDisplay } from "@/lib/property-features";
 import type { Property } from "@/lib/types";

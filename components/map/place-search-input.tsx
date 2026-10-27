@@ -14,7 +14,7 @@ import {
   pointInCityBounds,
   type CityBoundsLiteral,
 } from "@/lib/map";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
 import { cn } from "@/lib/utils";
 
 export type PlaceSearchResult = {

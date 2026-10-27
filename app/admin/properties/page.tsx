@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatPrice, statusLabel } from "@/lib/format";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
 
 export default function AdminPropertiesPage() {
   const router = useRouter();

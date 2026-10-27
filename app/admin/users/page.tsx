@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 import { isFirebaseConfigured, logFirebaseConfigDiagnostics } from "@/lib/firebase/client";
 import { whenFirebaseUserReady } from "@/lib/firebase/when-auth-ready";

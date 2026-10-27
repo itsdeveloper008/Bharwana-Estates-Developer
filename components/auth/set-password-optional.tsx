@@ -8,7 +8,7 @@ import { z } from "zod";
 import { PasswordCreateField, ConfirmPasswordField } from "@/components/auth/password-create-field";
 import { Button } from "@/components/ui/button";
 import { Form, FormField } from "@/components/ui/form";
-import { useMockAuth } from "@/lib/mock-auth";
+import { useMockAuth } from "@/lib/mock-auth-context";
 import { passwordCreateSchema } from "@/lib/schemas";
 import type { User } from "@/lib/types";
 

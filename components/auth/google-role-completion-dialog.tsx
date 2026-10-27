@@ -15,9 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { GoogleSignupDraft } from "@/lib/mock-auth";
-import { useMockAuth } from "@/lib/mock-auth";
-import { useMockStore } from "@/lib/mock-store";
+import type { GoogleSignupDraft } from "@/lib/mock-auth-context";
+import { useMockAuth } from "@/lib/mock-auth-context";
+import { useMockStore } from "@/lib/mock-store-context";
 import {
   formatPakistanMobileE164,
   isValidPakistanMobileLocal,

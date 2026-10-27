@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { PropertyForm } from "@/components/properties/property-form";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
 
 function AdminPropertyFormInner() {
   const searchParams = useSearchParams();

@@ -33,13 +33,13 @@ import {
 } from "@/components/ui/table";
 import { formatDate, formatPrice, listingBadge, statusLabel } from "@/lib/format";
 import { adminApiJson } from "@/lib/admin/admin-api";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
 import { buildStatusChangePatch } from "@/lib/property-status";
 import type { Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 
 type Tab = "PENDING_APPROVAL" | "PUBLISHED" | "REJECTED" | "ALL";

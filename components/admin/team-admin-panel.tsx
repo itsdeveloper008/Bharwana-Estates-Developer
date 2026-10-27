@@ -39,7 +39,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { TeamMember } from "@/lib/mock-data/team";
-import { useTeamStore, type TeamMemberInput } from "@/lib/team-store";
+import { useTeamStore, type TeamMemberInput } from "@/lib/team-store-context";
 
 function SortableRow({
   member,

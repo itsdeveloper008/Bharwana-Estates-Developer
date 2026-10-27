@@ -2,8 +2,8 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
-import { useFavorites } from "@/lib/favorites-context";
-import { useMockAuth } from "@/lib/mock-auth";
+import { useFavorites } from "@/lib/favorites-hook";
+import { useMockAuth } from "@/lib/mock-auth-context";
 
 function SaveIntentHandlerInner() {
   const searchParams = useSearchParams();

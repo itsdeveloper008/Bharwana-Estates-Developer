@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import {
   markAdminModuleViewed,
   type AdminBadgeModule,

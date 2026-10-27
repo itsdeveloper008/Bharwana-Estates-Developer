@@ -19,7 +19,7 @@ import {
   type NewsletterSignup,
 } from "@/lib/firestore/inquiries";
 import { formatDate } from "@/lib/format";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 
 export default function AdminNewsletterPage() {

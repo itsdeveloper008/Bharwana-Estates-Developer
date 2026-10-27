@@ -6,7 +6,7 @@ import { ArrowLeft, Mail, MapPin, Phone } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import KineticTeamHybrid from "@/components/ui/kinetic-team-hybrid";
-import { useTeamStore } from "@/lib/team-store";
+import { useTeamStore } from "@/lib/team-store-context";
 
 function LinkedInIcon({ className }: { className?: string }) {
   return (

@@ -9,7 +9,7 @@ import { PhoneRecaptchaHost } from "@/components/auth/phone-recaptcha-host";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
-import { useMockAuth } from "@/lib/mock-auth";
+import { useMockAuth } from "@/lib/mock-auth-context";
 import {
   formatPakistanMobileE164,
   isValidPakistanMobileLocal,

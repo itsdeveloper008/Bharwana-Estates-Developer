@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useEffect, type ReactNode } from "react";
 import { pathAfterAuth } from "@/lib/auth-redirect";
-import { useMockAuth } from "@/lib/mock-auth";
+import { useMockAuth } from "@/lib/mock-auth-context";
 import { cn } from "@/lib/utils";
 
 function safeReturnTo(raw: string | null): string | null {

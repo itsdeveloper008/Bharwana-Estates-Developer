@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import { adminLoginSchema, type AdminLoginValues } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 

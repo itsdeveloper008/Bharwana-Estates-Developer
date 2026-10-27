@@ -18,8 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { pathAfterAuth } from "@/lib/auth-redirect";
-import { useMockAuth } from "@/lib/mock-auth";
-import type { GoogleSignupDraft } from "@/lib/mock-auth";
+import { useMockAuth } from "@/lib/mock-auth-context";
+import type { GoogleSignupDraft } from "@/lib/mock-auth-context";
 import { formatPakistanMobileE164 } from "@/lib/phone-format";
 import {
   FULL_NAME_MAX_LENGTH,
@@ -31,7 +31,7 @@ import {
   normalizeAgencyName,
   sanitizeAgencyName,
 } from "@/lib/agency-name";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
 import {
   formatPakistanCnic,
   PK_CNIC_FORMATTED_LENGTH,

@@ -9,8 +9,8 @@ import {
   SellerListingActions,
   SellerRejectionNotice,
 } from "@/components/properties/seller-listing-status";
-import { useMockAuth } from "@/lib/mock-auth";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockAuth } from "@/lib/mock-auth-context";
+import { useMockStore } from "@/lib/mock-store-context";
 import { markListingsViewed } from "@/lib/listings-notifications";
 import { formatDate, formatPrice, inquiryChannelLabel } from "@/lib/format";
 

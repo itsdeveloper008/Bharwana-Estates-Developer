@@ -14,8 +14,8 @@ import { SetPasswordOptional } from "@/components/auth/set-password-optional";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
-import type { GoogleSignupDraft } from "@/lib/mock-auth";
-import { useMockAuth } from "@/lib/mock-auth";
+import type { GoogleSignupDraft } from "@/lib/mock-auth-context";
+import { useMockAuth } from "@/lib/mock-auth-context";
 import {
   firebaseErrorParts,
   isNetworkAuthError,

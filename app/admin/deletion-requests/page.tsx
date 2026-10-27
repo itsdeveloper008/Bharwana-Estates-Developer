@@ -26,8 +26,8 @@ import {
   subscribeDeletionRequests,
   updateDeletionRequestStatus,
 } from "@/lib/firestore/deletion";
-import { useMockStore } from "@/lib/mock-store";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useMockStore } from "@/lib/mock-store-context";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 import { displayUserEmail, isSyntheticPhoneEmail } from "@/lib/user-display";
 import { formatUserRole } from "@/lib/user-role";

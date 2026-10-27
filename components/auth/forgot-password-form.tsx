@@ -17,7 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { sendPasswordResetLink } from "@/lib/auth-reset";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
-import { useMockAuth } from "@/lib/mock-auth";
+import { useMockAuth } from "@/lib/mock-auth-context";
 import {
   firebaseErrorParts,
   isNetworkAuthError,

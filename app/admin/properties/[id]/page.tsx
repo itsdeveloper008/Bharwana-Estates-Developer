@@ -20,8 +20,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { listingBadge, statusLabel } from "@/lib/format";
 import { adminApiJson } from "@/lib/admin/admin-api";
-import { useAdminAuth } from "@/lib/admin-auth";
-import { useMockStore } from "@/lib/mock-store";
+import { useAdminAuth } from "@/lib/admin-auth-context";
+import { useMockStore } from "@/lib/mock-store-context";
 import { buildStatusChangePatch } from "@/lib/property-status";
 import type { Property } from "@/lib/types";
 

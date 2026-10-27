@@ -26,7 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { FirebaseConfigBanner } from "@/components/firebase/firebase-config-banner";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import type { AdminModule } from "@/lib/admin/modules";
 import {
   ADMIN_MODULE_VIEWED_EVENT,
@@ -44,7 +44,7 @@ import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { whenFirebaseUserReady } from "@/lib/firebase/when-auth-ready";
 import { subscribeDeletionRequests, type DeletionRequest } from "@/lib/firestore/deletion";
 import { subscribeNewsletterSignups, type NewsletterSignup } from "@/lib/firestore/inquiries";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
 import { cn } from "@/lib/utils";
 
 type NavItem = {

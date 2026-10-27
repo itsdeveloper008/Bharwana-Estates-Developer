@@ -3,7 +3,7 @@
 import { DndContext, PointerSensor, closestCorners, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { KanbanColumn, LeadCard } from "@/components/crm/lead-card";
 import { Button } from "@/components/ui/button";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
 import type { InquiryStatus } from "@/lib/types";
 
 const COLUMNS: { id: InquiryStatus; title: string; accept: InquiryStatus[] }[] = [

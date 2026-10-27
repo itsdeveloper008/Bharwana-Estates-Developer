@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import { formatPrice } from "@/lib/format";
 import {
   EMPTY_FEATURED,
@@ -23,7 +23,7 @@ import {
   type FeaturedCategoryKey,
   type FeaturedSettings,
 } from "@/lib/firestore/featured";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
 import { PROPERTY_CATEGORIES } from "@/lib/property-taxonomy";
 import { propertyCoverImage } from "@/lib/property-images";
 import type { Property, PropertyCategory } from "@/lib/types";

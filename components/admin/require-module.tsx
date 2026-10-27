@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useMemo, type ReactNode } from "react";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import type { AdminModule } from "@/lib/admin/modules";
 import { ADMIN_MODULE_LABELS } from "@/lib/admin/modules";
 

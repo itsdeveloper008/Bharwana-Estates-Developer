@@ -13,13 +13,13 @@ import {
   SellerRejectionNotice,
 } from "@/components/properties/seller-listing-status";
 import { formatDate, formatPrice, inquiryChannelLabel } from "@/lib/format";
-import { useMockAuth } from "@/lib/mock-auth";
+import { useMockAuth } from "@/lib/mock-auth-context";
 import { markListingsViewed } from "@/lib/listings-notifications";
 import { markDealerAccountViewed } from "@/lib/dealer-notifications";
 import { ensureSelfRegisteredDealer } from "@/lib/firestore/developers";
 import { getUserDoc } from "@/lib/firestore/users";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 

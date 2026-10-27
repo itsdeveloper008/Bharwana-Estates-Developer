@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -23,22 +21,13 @@ import {
   upsertTeamMember,
 } from "@/lib/firestore/team";
 import { teamMembers as localSeedTeam, type TeamMember } from "@/lib/mock-data/team";
+import { TeamStoreContext, type TeamMemberInput } from "@/lib/team-store-context";
+
+export type { TeamMemberInput } from "@/lib/team-store-context";
+export { useTeamStore } from "@/lib/team-store-context";
 
 const STORAGE_KEY = "bharwana_team_members_v7";
 
-export type TeamMemberInput = Omit<TeamMember, "id">;
-
-interface TeamStoreContextValue {
-  members: TeamMember[];
-  isReady: boolean;
-  usingFirestore: boolean;
-  addMember: (input: TeamMemberInput) => Promise<TeamMember>;
-  updateMember: (id: string, input: TeamMemberInput) => Promise<void>;
-  deleteMember: (id: string) => Promise<void>;
-  reorderMembers: (orderedIds: string[]) => Promise<void>;
-}
-
-const TeamStoreContext = createContext<TeamStoreContextValue | undefined>(undefined);
 
 function persistLocal(members: TeamMember[]) {
   try {
@@ -227,19 +216,4 @@ export function TeamStoreProvider({ children }: { children: ReactNode }) {
   );
 
   return <TeamStoreContext.Provider value={value}>{children}</TeamStoreContext.Provider>;
-}
-
-const BOOTSTRAP_TEAM: TeamStoreContextValue = {
-  members: [],
-  isReady: false,
-  usingFirestore: false,
-  addMember: async (input) => ({ id: "bootstrap", ...input }),
-  updateMember: async () => undefined,
-  deleteMember: async () => undefined,
-  reorderMembers: async () => undefined,
-};
-
-export function useTeamStore() {
-  const context = useContext(TeamStoreContext);
-  return context ?? BOOTSTRAP_TEAM;
 }

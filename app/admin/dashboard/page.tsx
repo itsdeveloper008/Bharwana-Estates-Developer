@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { Building2, ClipboardCheck, Handshake, MessageSquare, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useMockStore } from "@/lib/mock-store";
-import { useTeamStore } from "@/lib/team-store";
+import { useMockStore } from "@/lib/mock-store-context";
+import { useTeamStore } from "@/lib/team-store-context";
 
 export default function AdminDashboardPage() {
   const { properties, inquiries, developers } = useMockStore();

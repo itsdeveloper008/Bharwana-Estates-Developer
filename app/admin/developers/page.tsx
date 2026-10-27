@@ -26,12 +26,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { adminApiJson } from "@/lib/admin/admin-api";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import { useMarkAdminModuleViewed } from "@/lib/admin/use-mark-module-viewed";
 import { buildDeveloperStatusChangePatch } from "@/lib/developer-status";
 import { ensureSelfRegisteredDealer } from "@/lib/firestore/developers";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore } from "@/lib/mock-store-context";
 import { truncateText } from "@/lib/truncate";
 import { displayUserEmail } from "@/lib/user-display";
 import type { Developer, DeveloperOrigin } from "@/lib/types";
