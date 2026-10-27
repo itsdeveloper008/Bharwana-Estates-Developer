@@ -9,8 +9,10 @@ import {
 const WHATSAPP_HREF = `https://wa.me/${SITE_PHONE_E164.replace(/^\+/, "")}?text=${encodeURIComponent(
   "Hi Bharwana Estates, I'd like to get in touch.",
 )}`;
-const MAP_EMBED_SRC = `https://www.google.com/maps?q=${encodeURIComponent(SITE_OFFICE_ADDRESS)}&output=embed`;
-const DIRECTIONS_HREF = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(SITE_OFFICE_ADDRESS)}`;
+// "#" in "House #F698" trips Google's search; the map query drops it.
+const MAP_QUERY = encodeURIComponent(SITE_OFFICE_ADDRESS.replace(/#/g, ""));
+const MAP_EMBED_SRC = `https://www.google.com/maps?q=${MAP_QUERY}&output=embed`;
+const DIRECTIONS_HREF = `https://www.google.com/maps/dir/?api=1&destination=${MAP_QUERY}`;
 
 /** Leads come by phone or WhatsApp only — no web form. */
 const channels = [
