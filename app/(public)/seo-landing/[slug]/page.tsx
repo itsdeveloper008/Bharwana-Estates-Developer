@@ -8,19 +8,21 @@ import {
 } from "@/content/seo-landings";
 import { breadcrumbJsonLd, itemListJsonLd, JsonLd } from "@/lib/seo/json-ld";
 import { absoluteUrl } from "@/lib/seo/site";
-import { fetchPublicProperties, SEO_REVALIDATE_SECONDS } from "@/lib/server/properties";
+import { fetchPublicProperties } from "@/lib/server/properties";
 
-export const revalidate = SEO_REVALIDATE_SECONDS;
+// Must be a literal for Next 16 static analysis; keep in sync with SEO_REVALIDATE_SECONDS.
+export const revalidate = 300;
 
 export function generateStaticParams() {
   return SEO_LANDINGS.map((landing) => ({ slug: landing.slug }));
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}): Promise<Metadata> {
+export async function generateMetadata(
+  props: {
+    params: Promise<{ slug: string }>;
+  }
+): Promise<Metadata> {
+  const params = await props.params;
   const landing = getSeoLanding(params.slug);
   if (!landing) return { title: "Not found" };
   const properties = matchLandingProperties(await fetchPublicProperties(250), landing.filter);
@@ -38,7 +40,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function SeoLandingPage({ params }: { params: { slug: string } }) {
+export default async function SeoLandingPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const landing = getSeoLanding(params.slug);
   if (!landing) notFound();
 

@@ -5,10 +5,10 @@ import { SITE_ORIGIN } from "@/lib/seo/site";
 import {
   fetchPublicProperties,
   fetchSitemapProperties,
-  SEO_REVALIDATE_SECONDS,
 } from "@/lib/server/properties";
 
-export const revalidate = SEO_REVALIDATE_SECONDS;
+// Must be a literal for Next 16 static analysis; keep in sync with SEO_REVALIDATE_SECONDS.
+export const revalidate = 300;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();

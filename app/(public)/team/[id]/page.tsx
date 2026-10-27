@@ -5,7 +5,8 @@ export function generateStaticParams() {
   return teamMembers.map((member) => ({ id: member.id }));
 }
 
-export function generateMetadata({ params }: { params: { id: string } }) {
+export async function generateMetadata(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const member = teamMembers.find((item) => item.id === params.id);
   return {
     title: member ? `${member.fullName} · Team` : "Team member",
@@ -13,6 +14,7 @@ export function generateMetadata({ params }: { params: { id: string } }) {
   };
 }
 
-export default function TeamMemberPage({ params }: { params: { id: string } }) {
+export default async function TeamMemberPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return <TeamProfile memberId={params.id} />;
 }

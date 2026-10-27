@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { HomePageClient } from "@/app/(public)/home-page-client";
 import { JsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/seo/json-ld";
 import { absoluteUrl, DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/seo/site";
-import { fetchFeaturedForHome, SEO_REVALIDATE_SECONDS } from "@/lib/server/properties";
+import { fetchFeaturedForHome } from "@/lib/server/properties";
 
-export const revalidate = SEO_REVALIDATE_SECONDS;
+// Must be a literal for Next 16 static analysis; keep in sync with SEO_REVALIDATE_SECONDS.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: {

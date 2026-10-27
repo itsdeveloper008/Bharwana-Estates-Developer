@@ -4,10 +4,11 @@ import { PropertiesExplorer } from "@/components/properties/properties-explorer"
 import { GridSkeleton } from "@/components/ui/skeletons";
 import { itemListJsonLd, JsonLd } from "@/lib/seo/json-ld";
 import { absoluteUrl } from "@/lib/seo/site";
-import { fetchPublicProperties, SEO_REVALIDATE_SECONDS } from "@/lib/server/properties";
+import { fetchPublicProperties } from "@/lib/server/properties";
 import { toSeoSafeProperty } from "@/lib/server/seo-safe-property";
 
-export const revalidate = SEO_REVALIDATE_SECONDS;
+// Must be a literal for Next 16 static analysis; keep in sync with SEO_REVALIDATE_SECONDS.
+export const revalidate = 300;
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -26,11 +27,12 @@ function hasFacetParams(searchParams: SearchParams): boolean {
   return true;
 }
 
-export async function generateMetadata({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}): Promise<Metadata> {
+export async function generateMetadata(
+  props: {
+    searchParams: Promise<SearchParams>;
+  }
+): Promise<Metadata> {
+  const searchParams = await props.searchParams;
   const faceted = hasFacetParams(searchParams);
   const cityOnly =
     Object.keys(searchParams).length === 1 &&

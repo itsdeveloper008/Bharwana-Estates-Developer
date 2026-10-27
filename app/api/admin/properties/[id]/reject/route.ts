@@ -7,7 +7,7 @@ import type { PropertyStatus, PropertyStatusHistoryEntry } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-type RouteContext = { params: { id: string } };
+type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: RouteContext) {
   try {
@@ -19,7 +19,7 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: authz.error }, { status: authz.status });
     }
 
-    const propertyId = context.params.id?.trim();
+    const propertyId = (await context.params).id?.trim();
     if (!propertyId) {
       return NextResponse.json({ error: "Missing property id." }, { status: 400 });
     }

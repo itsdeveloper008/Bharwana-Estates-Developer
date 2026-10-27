@@ -14,7 +14,7 @@ const SEO_LANDING_SLUGS = new Set([
   "cantt-multan",
 ]);
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const slug = request.nextUrl.pathname.replace(/^\//, "");
   if (!SEO_LANDING_SLUGS.has(slug)) return NextResponse.next();
   const url = request.nextUrl.clone();

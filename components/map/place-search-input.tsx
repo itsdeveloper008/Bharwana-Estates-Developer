@@ -580,7 +580,6 @@ export function PlaceSearchInput({
     setHighlight(-1);
     setOpen(false);
     setLoadingPredictions(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: cityScope only
   }, [scope]);
 
   // After deferred Maps load, refresh Google suggestions for the current query.

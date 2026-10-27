@@ -8,12 +8,12 @@ import {
   fetchPropertyByIdAnyStatus,
   fetchSitemapProperties,
   isIndexableProperty,
-  SEO_REVALIDATE_SECONDS,
 } from "@/lib/server/properties";
 import { toSeoSafeProperty } from "@/lib/server/seo-safe-property";
 import { propertyCoverImage } from "@/lib/property-images";
 
-export const revalidate = SEO_REVALIDATE_SECONDS;
+// Must be a literal for Next 16 static analysis; keep in sync with SEO_REVALIDATE_SECONDS.
+export const revalidate = 300;
 
 /** Prerender published listings so JSON-LD / h1 land in static HTML (not only RSC flight). */
 export async function generateStaticParams() {
@@ -23,11 +23,12 @@ export async function generateStaticParams() {
   }));
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { id: string };
-}): Promise<Metadata> {
+export async function generateMetadata(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+): Promise<Metadata> {
+  const params = await props.params;
   const { id } = parsePropertyParam(params.id);
   const property = id ? await fetchPropertyByIdAnyStatus(id) : null;
   if (!property) {
@@ -68,7 +69,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function PropertyPage({ params }: { params: { id: string } }) {
+export default async function PropertyPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const parsed = parsePropertyParam(params.id);
   if (!parsed.id) notFound();
 

@@ -7,7 +7,7 @@ import type { DeveloperStatus, DeveloperStatusHistoryEntry } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-type RouteContext = { params: { id: string } };
+type RouteContext = { params: Promise<{ id: string }> };
 
 async function resolveDealerRecipient(input: {
   dealerUserId: string;
@@ -47,7 +47,7 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: authz.error }, { status: authz.status });
     }
 
-    const developerId = context.params.id?.trim();
+    const developerId = (await context.params).id?.trim();
     if (!developerId) {
       return NextResponse.json({ error: "Missing dealer id." }, { status: 400 });
     }

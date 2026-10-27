@@ -3,18 +3,20 @@ const firebaseProjectId =
   process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "bharwana-estate-developer";
 
 const nextConfig = {
-  // Keep firebase-admin out of the webpack bundle on Vercel (Next 14).
+  // Keep firebase-admin and sharp out of the server bundle; load them from node_modules.
+  serverExternalPackages: ["firebase-admin", "sharp"],
+  // Watermark PNG is read from disk by the photo-processing route.
+  outputFileTracingIncludes: {
+    "/api/properties/process": ["./lib/server/assets/**"],
+  },
   experimental: {
-    serverComponentsExternalPackages: ["firebase-admin", "sharp"],
-    // Watermark PNG is read from disk by the photo-processing route.
-    outputFileTracingIncludes: {
-      "/api/properties/process": ["./lib/server/assets/**"],
-    },
     optimizePackageImports: ["lucide-react", "framer-motion", "@radix-ui/react-icons"],
   },
   images: {
     // Serve Firebase Storage / static URLs as-is — no Vercel/Next image optimizer.
     unoptimized: true,
+    // Gallery/lightbox pass quality 85/90; Next 16 only accepts listed values.
+    qualities: [75, 85, 90],
     remotePatterns: [
       {
         protocol: "https",

@@ -11,7 +11,7 @@ import {
 
 export const runtime = "nodejs";
 
-type Ctx = { params: { uid: string } };
+type Ctx = { params: Promise<{ uid: string }> };
 
 export async function PATCH(request: Request, context: Ctx) {
   try {
@@ -20,7 +20,7 @@ export async function PATCH(request: Request, context: Ctx) {
       return NextResponse.json({ error: authz.error }, { status: authz.status });
     }
 
-    const { uid } = context.params;
+    const { uid } = (await context.params);
     if (!uid || uid === authz.caller.uid) {
       return NextResponse.json({ error: "Invalid staff member." }, { status: 400 });
     }
@@ -97,7 +97,7 @@ export async function DELETE(request: Request, context: Ctx) {
       return NextResponse.json({ error: authz.error }, { status: authz.status });
     }
 
-    const { uid } = context.params;
+    const { uid } = (await context.params);
     if (!uid || uid === authz.caller.uid) {
       return NextResponse.json({ error: "Invalid staff member." }, { status: 400 });
     }
