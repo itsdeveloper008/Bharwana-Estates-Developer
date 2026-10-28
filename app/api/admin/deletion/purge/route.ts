@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { requireAdminModule } from "@/lib/admin/require-super-admin";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
 
@@ -66,8 +66,21 @@ export async function POST(request: Request) {
 
     await Promise.all(batchOps);
 
+    // Remove the sign-in account last so a failed purge can be retried by uid.
+    let authDeleted = true;
+    try {
+      await getAdminAuth().deleteUser(uid);
+    } catch (error) {
+      const code = (error as { code?: string })?.code;
+      if (code !== "auth/user-not-found") {
+        console.error("[api/admin/deletion/purge] deleteUser", error);
+        authDeleted = false;
+      }
+    }
+
     return NextResponse.json({
       ok: true,
+      authDeleted,
       deletedProperties: propertySnap.size,
       deletedInquiries: inquirySnap.size,
       flaggedDevelopers: developerSnap.size,

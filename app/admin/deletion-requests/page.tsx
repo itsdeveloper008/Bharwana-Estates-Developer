@@ -92,19 +92,30 @@ export default function AdminDeletionRequestsPage() {
   async function processRequest(request: DeletionRequest) {
     setProcessingId(request.id);
     try {
+      let authDeleted = false;
       if (isFirebaseConfigured()) {
         const { adminApiJson } = await import("@/lib/admin/admin-api");
-        await adminApiJson(getIdToken, "/api/admin/deletion/purge", {
-          method: "POST",
-          body: JSON.stringify({ uid: request.uid }),
-        });
+        const result = await adminApiJson<{ authDeleted?: boolean }>(
+          getIdToken,
+          "/api/admin/deletion/purge",
+          {
+            method: "POST",
+            body: JSON.stringify({ uid: request.uid }),
+          },
+        );
+        authDeleted = result?.authDeleted === true;
       } else {
         await purgeUserOwnedData(request.uid);
       }
       await updateDeletionRequestStatus(request.id, "PROCESSED");
-      toast.success(
-        `Firestore data for ${request.email} removed. Auth account removal still needs Admin SDK / Cloud Function - finish in Firebase Console or the next backend pass within the 30-day window.`,
-      );
+      const who = displayUserEmail(request.email) ?? request.fullName;
+      if (authDeleted) {
+        toast.success(`${who}'s account and data have been deleted.`);
+      } else {
+        toast.warning(
+          `${who}'s data was removed, but the sign-in account could not be deleted. Remove it in Firebase Console → Authentication.`,
+        );
+      }
     } catch (err) {
       console.error(err);
       toast.error("Could not process this deletion request.");
