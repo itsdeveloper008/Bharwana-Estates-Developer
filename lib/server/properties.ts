@@ -9,6 +9,7 @@ import {
 } from "@/lib/featured-shared";
 import { getAdminDb, isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 import { mapPropertyRecord, propertyLastModifiedIso } from "@/lib/server/map-property";
+import { matchesCategory } from "@/lib/property-taxonomy";
 import type { Property, PropertyCategory } from "@/lib/types";
 
 export const SEO_REVALIDATE_SECONDS = 300;
@@ -93,7 +94,7 @@ export async function fetchFeaturedForHome(): Promise<{
     let list = resolveFeaturedList(ids, byId, category);
     if (list.length === 0) {
       list = allPublic
-        .filter((p) => p.status === "PUBLISHED" && (p.category ?? "HOME") === category)
+        .filter((p) => p.status === "PUBLISHED" && matchesCategory(p, category))
         .slice(0, MAX_FEATURED_PER_CATEGORY);
     }
     byCategory[category] = list;

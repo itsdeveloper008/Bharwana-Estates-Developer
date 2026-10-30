@@ -1,4 +1,4 @@
-import type { ListingPurpose, PropertyCategory } from "@/lib/types";
+import type { ListingPurpose, Property, PropertyCategory } from "@/lib/types";
 import {
   Building2,
   Factory,
@@ -88,4 +88,17 @@ export function purposeLabel(purpose: ListingPurpose | undefined): string {
 
 export function categoryPluralLabel(category: PropertyCategory): string {
   return PROPERTY_CATEGORIES.find((item) => item.id === category)?.pluralLabel ?? category;
+}
+
+/** Subtypes that also list under another category, e.g. a Commercial Plot shows in Plots and Commercial. */
+const SUBTYPE_EXTRA_CATEGORIES: Record<string, PropertyCategory[]> = {
+  COMMERCIAL_PLOT: ["COMMERCIAL"],
+};
+
+export function matchesCategory(
+  property: Pick<Property, "category" | "subtype">,
+  category: PropertyCategory,
+): boolean {
+  if ((property.category ?? "HOME") === category) return true;
+  return !!property.subtype && (SUBTYPE_EXTRA_CATEGORIES[property.subtype] ?? []).includes(category);
 }

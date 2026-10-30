@@ -1,3 +1,4 @@
+import { matchesCategory } from "@/lib/property-taxonomy";
 import { delay } from "@/lib/utils";
 import { properties as seedProperties } from "@/lib/mock-data/properties";
 import type {
@@ -109,7 +110,7 @@ export function filterProperties(
       const purpose = property.purpose === "RENT" ? "RENT" : "SALE";
       if (purpose !== filters.purpose) return false;
     }
-    if (filters.category && (property.category ?? "HOME") !== filters.category) return false;
+    if (filters.category && !matchesCategory(property, filters.category)) return false;
     if (filters.subtype && property.subtype !== filters.subtype) return false;
     if (filters.minPrice && property.price < filters.minPrice) return false;
     if (filters.maxPrice && property.price > filters.maxPrice) return false;
