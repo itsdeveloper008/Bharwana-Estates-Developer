@@ -1,3 +1,4 @@
+import { matchesCategory } from "@/lib/property-taxonomy";
 import type { Property, PropertyCategory } from "@/lib/types";
 
 export const FEATURED_SETTINGS_COLLECTION = "siteSettings";
@@ -67,8 +68,7 @@ export function resolveFeaturedList(
     const property = byId.get(id);
     if (!property) continue;
     if (property.status !== "PUBLISHED") continue;
-    const propertyCategory = property.category ?? "HOME";
-    if (propertyCategory !== category) continue;
+    if (!matchesCategory(property, category)) continue;
     out.push(property);
     if (out.length >= MAX_FEATURED_PER_CATEGORY) break;
   }

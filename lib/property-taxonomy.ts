@@ -1,4 +1,4 @@
-import type { ListingPurpose, PropertyCategory } from "@/lib/types";
+import type { ListingPurpose, Property, PropertyCategory } from "@/lib/types";
 import {
   Building2,
   Factory,
@@ -88,4 +88,27 @@ export function purposeLabel(purpose: ListingPurpose | undefined): string {
 
 export function categoryPluralLabel(category: PropertyCategory): string {
   return PROPERTY_CATEGORIES.find((item) => item.id === category)?.pluralLabel ?? category;
+}
+
+const TITLE_CATEGORY_KEYWORDS: [PropertyCategory, RegExp][] = [
+  ["COMMERCIAL", /commercial/i],
+  ["PLOTS", /plot/i],
+];
+
+/** Picked category plus any implied by the title, e.g. "Commercial Plot" → Commercial and Plots. */
+export function propertyCategories(
+  property: Pick<Property, "title" | "category">,
+): PropertyCategory[] {
+  const out: PropertyCategory[] = [property.category ?? "HOME"];
+  for (const [category, pattern] of TITLE_CATEGORY_KEYWORDS) {
+    if (pattern.test(property.title) && !out.includes(category)) out.push(category);
+  }
+  return out;
+}
+
+export function matchesCategory(
+  property: Pick<Property, "title" | "category">,
+  category: PropertyCategory,
+): boolean {
+  return propertyCategories(property).includes(category);
 }

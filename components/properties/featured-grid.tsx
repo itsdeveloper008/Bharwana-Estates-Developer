@@ -12,7 +12,7 @@ import {
   EMPTY_FEATURED,
 } from "@/lib/featured-shared";
 import { useMockStore } from "@/lib/mock-store-context";
-import { PROPERTY_CATEGORIES } from "@/lib/property-taxonomy";
+import { PROPERTY_CATEGORIES, matchesCategory } from "@/lib/property-taxonomy";
 import type { Property, PropertyCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ function fallbackPublished(
   return properties
     .filter(
       (property) =>
-        property.status === "PUBLISHED" && (property.category ?? "HOME") === category,
+        property.status === "PUBLISHED" && matchesCategory(property, category),
     )
     .slice(0, limit);
 }

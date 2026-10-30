@@ -24,7 +24,7 @@ import {
   type FeaturedSettings,
 } from "@/lib/firestore/featured";
 import { useMockStore } from "@/lib/mock-store-context";
-import { PROPERTY_CATEGORIES } from "@/lib/property-taxonomy";
+import { PROPERTY_CATEGORIES, matchesCategory } from "@/lib/property-taxonomy";
 import { propertyCoverImage } from "@/lib/property-images";
 import type { Property, PropertyCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -88,7 +88,7 @@ export default function AdminFeaturedPage() {
   const publishedForCategory = useMemo(() => {
     return properties.filter((property) => {
       if (property.status !== "PUBLISHED") return false;
-      return (property.category ?? "HOME") === activeCategory;
+      return matchesCategory(property, activeCategory);
     });
   }, [properties, activeCategory]);
 
@@ -133,7 +133,7 @@ export default function AdminFeaturedPage() {
       toast.error("Only published properties can be featured.");
       return;
     }
-    if ((property.category ?? "HOME") !== activeCategory) {
+    if (!matchesCategory(property, activeCategory)) {
       toast.error("That property belongs to a different category.");
       return;
     }
@@ -253,7 +253,7 @@ export default function AdminFeaturedPage() {
               const stale =
                 !property ||
                 property.status !== "PUBLISHED" ||
-                (property.category ?? "HOME") !== activeCategory;
+                !matchesCategory(property, activeCategory);
 
               return (
                 <div
