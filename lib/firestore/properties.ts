@@ -37,7 +37,7 @@ export const PUBLIC_MARKETPLACE_STATUSES = ["PUBLISHED", "RESERVED"] as const;
  * Cap public inventory payload (BED-PERF-01).
  * Listing UI paginates client-side; map/saved use the same capped set.
  */
-export const PUBLIC_PROPERTIES_LIMIT = 48;
+export const PUBLIC_PROPERTIES_LIMIT = 250;
 
 /**
  * Three subscription helpers on purpose (wired from MockStoreProvider):
