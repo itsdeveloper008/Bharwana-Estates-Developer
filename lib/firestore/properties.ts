@@ -26,7 +26,7 @@ import {
   LISTING_IMAGE_MAX_MB,
   MAX_PROPERTY_PHOTOS,
 } from "@/lib/compress-listing-image";
-import { withTimeout } from "@/lib/utils";
+import { delay, withTimeout } from "@/lib/utils";
 
 const COLLECTION = "properties";
 
@@ -52,6 +52,9 @@ const MAX_UPLOAD_BYTES = 9 * 1024 * 1024;
 const ALREADY_COMPRESSED_BYTES = Math.ceil(LISTING_IMAGE_MAX_MB * 1.25 * 1024 * 1024);
 /** Parallel Storage uploads — 3 balances speed vs phone memory (serial was too slow). */
 const PHOTO_UPLOAD_CONCURRENCY = 3;
+/** getDownloadURL can stall on slow links while other photos upload — give it room and retry. */
+const PHOTO_URL_TIMEOUT_MS = 30_000;
+const PHOTO_URL_ATTEMPTS = 3;
 
 /**
  * Shrink listing photos before Storage upload.
@@ -251,11 +254,23 @@ async function resolvePropertyImages(
       throw error;
     }
 
-    const downloadUrl = await withTimeout(
-      getDownloadURL(storageRef),
-      FIRESTORE_WRITE_TIMEOUT_MS,
-      `Photo ${index + 1} URL`,
-    );
+    // Bytes are already stored here; on a weak connection the link lookup can stall,
+    // so retry it instead of failing the whole listing.
+    let downloadUrl = "";
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        downloadUrl = await withTimeout(
+          getDownloadURL(storageRef),
+          PHOTO_URL_TIMEOUT_MS,
+          `Photo ${index + 1} URL`,
+        );
+        break;
+      } catch (error) {
+        if (attempt >= PHOTO_URL_ATTEMPTS) throw error;
+        console.warn(`[resolvePropertyImages] URL retry ${attempt} for photo ${index + 1}`, error);
+        await delay(1_000 * attempt);
+      }
+    }
     if (!isStoredImageUrl(downloadUrl)) {
       throw new Error(`Photo ${index + 1} upload returned an invalid URL`);
     }
@@ -503,7 +518,7 @@ export async function upsertProperty(
   // Per-photo timeouts already guard upload + URL fetch. Outer budget must cover
   // compress slack too - old 90s*n was too tight for 10 photos (upload+URL ≈ 110s each).
   const photoCount = Math.max(1, property.images.length || 1);
-  const perPhotoBudget = PHOTO_UPLOAD_TIMEOUT_MS + FIRESTORE_WRITE_TIMEOUT_MS + 15_000;
+  const perPhotoBudget = PHOTO_UPLOAD_TIMEOUT_MS + PHOTO_URL_TIMEOUT_MS * PHOTO_URL_ATTEMPTS + 15_000;
   const uploadBudget = perPhotoBudget * photoCount;
 
 
