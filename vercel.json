@@ -7,7 +7,7 @@
       "permanent": true
     },
     {
-      "source": "/:path*",
+      "source": "/:path((?!\\.well-known/).*)",
       "has": [{ "type": "host", "value": "www.bharwanaestates.com" }],
       "destination": "https://bharwanaestates.com/:path*",
       "permanent": true

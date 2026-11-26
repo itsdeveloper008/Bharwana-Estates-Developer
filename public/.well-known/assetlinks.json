@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.bharwanaestates.app",
+      "sha256_cert_fingerprints": [
+        "A1:BC:3D:E4:9F:B7:74:81:34:E3:88:60:67:C5:96:28:63:42:75:7C:1D:97:56:54:30:70:92:07:DF:54:EA:37"
+      ]
+    }
+  }
+]
