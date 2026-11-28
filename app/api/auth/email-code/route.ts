@@ -52,6 +52,7 @@ async function signedInUid(idToken: string | undefined, email: string): Promise<
  * Forgot password / Change password by email code (app). The code goes only to the
  * email the account was registered with; three wrong codes lock that email for two hours.
  * - send:   { email, purpose: "reset" | "change", idToken? }
+ * - check:  { email, code, purpose, idToken? }  the code is right (kept for verify)
  * - verify: { email, code, newPassword, purpose, idToken? }
  */
 export async function POST(request: Request) {
@@ -108,11 +109,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, triesLeft: lock.triesLeft });
     }
 
-    if (body.action === "verify") {
+    if (body.action === "check" || body.action === "verify") {
       const code = String(body.code ?? "").trim();
       const newPassword = String(body.newPassword ?? "");
       if (!/^\d{6}$/.test(code)) return fail("Enter the 6-digit code from the email.", 400);
-      if (!passwordMeetsPolicy(newPassword)) {
+      if (body.action === "verify" && !passwordMeetsPolicy(newPassword)) {
         return fail("Password needs a capital letter, a small letter, a number and a symbol (like ! or #).", 400);
       }
 
@@ -140,6 +141,9 @@ export async function POST(request: Request) {
           state,
         );
       }
+
+      // The code is right: the app may now ask for the new password.
+      if (body.action === "check") return NextResponse.json({ ok: true });
 
       await getAdminAuth().updateUser(uid, { password: newPassword });
       await Promise.all([doc.delete(), clearWrongCodes(email)]);
