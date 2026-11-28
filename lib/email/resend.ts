@@ -318,6 +318,43 @@ export async function sendStaffLeadEmail(input: {
   });
 }
 
+/** Six-digit code for Forgot password / Change password, valid for ten minutes. */
+export async function sendPasswordCodeEmail(input: {
+  to: string;
+  code: string;
+  purpose: "reset" | "change";
+  /** Unique per code so a resend is never swallowed by idempotency. */
+  sendId: string;
+}): Promise<SendResult> {
+  const action = input.purpose === "change" ? "change your password" : "reset your password";
+  const text = [
+    `Your Bharwana Estates code is ${input.code}`,
+    "",
+    `Use it to ${action}. It expires in 10 minutes.`,
+    "",
+    "If you didn't ask for this, ignore this email. Your password stays the same.",
+    "",
+    "— Bharwana Estates",
+  ].join("\n");
+
+  const html = wrapHtml({
+    headline: "Your verification code",
+    body: `
+      <p style="margin:0 0 18px;">Use this code to ${action}:</p>
+      <p style="margin:0 0 22px;padding:16px;background:${BRAND_CREAM};border-left:4px solid ${BRAND_GOLD};font-size:30px;letter-spacing:0.3em;font-weight:700;color:${BRAND_GREEN};text-align:center;">${escapeHtml(input.code)}</p>
+      <p style="margin:0 0 8px;">It expires in 10 minutes. If you didn't ask for this, ignore this email. Your password stays the same.</p>
+    `,
+  });
+
+  return sendEmail({
+    to: input.to,
+    subject: `${input.code} is your Bharwana Estates code`,
+    html,
+    text,
+    idempotencyKey: `password-code-${input.sendId}`,
+  });
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
